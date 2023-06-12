@@ -20,6 +20,20 @@
         }
 
         [Fact]
+        public void Data_New_AlignToDt()
+        {
+            var length = 100;
+            var sampleRate = 1e9;
+            var t0 = 0.1e-9;
+            // Arrange
+            var waveform = new Waveform(length, sampleRate, t0);
+
+            // Assert
+            var tolerance = 1e-6 / sampleRate;
+            Assert.Equal(0.0, waveform.TStart, tolerance);
+        }
+
+        [Fact]
         public void Data_New_AllZero()
         {
             var length = 100;
@@ -50,23 +64,63 @@
         }
 
         [Fact]
-        public void ShiftTime_NotAlign_Equal()
+        public void Data_New_Props()
+        {
+            var length = 100;
+            var sampleRate = 1e9;
+            var t0 = 0;
+            // Arrange
+            var waveform = new Waveform(length, sampleRate, t0);
+
+            // Assert
+            var tolerance = 1e-6 / sampleRate;
+            Assert.Equal(0.0, waveform.TStart, tolerance);
+            Assert.Equal(length, waveform.Length);
+            Assert.Equal(length, waveform.DataI.Length);
+            Assert.Equal(length, waveform.DataQ.Length);
+            Assert.Equal(t0 + length / sampleRate, waveform.TEnd, tolerance);
+            Assert.Equal(sampleRate, waveform.SampleRate);
+            Assert.Equal(1 / sampleRate, waveform.Dt, tolerance);
+        }
+
+        [Fact]
+        public void Data_Copy_Equals()
         {
             var length = 100;
             var sampleRate = 1e9;
             var t0 = 0.0;
             // Arrange
             var waveform = new Waveform(length, sampleRate, t0);
-            double deltaT = 3.5e-9;
-            bool alignToDt = false;
+            waveform.DataI.Fill(1);
+            waveform.DataQ[10..50].Fill(2);
+
+            var copy = new Waveform(waveform);
+            var copy2 = waveform.Copy();
+
+            // Assert
+            Assert.Equal(waveform.DataI.ToArray(), copy.DataI.ToArray());
+            Assert.Equal(waveform.DataQ.ToArray(), copy.DataQ.ToArray());
+            Assert.Equal(waveform.DataI.ToArray(), copy2.DataI.ToArray());
+            Assert.Equal(waveform.DataQ.ToArray(), copy2.DataQ.ToArray());
+        }
+
+        [Fact]
+        public void ShiftTime_Normal_Equal()
+        {
+            var length = 100;
+            var sampleRate = 1e9;
+            var t0 = 0.0;
+            // Arrange
+            var waveform = new Waveform(length, sampleRate, t0);
+            double deltaT = 3.6e-9;
 
             // Act
             waveform.ShiftTime(
-                deltaT,
-                alignToDt);
+                deltaT);
 
             // Assert
-            Assert.Equal(deltaT, waveform.TStart);
+            var tolerance = 1e-6 / sampleRate;
+            Assert.Equal(4e-9, waveform.TStart, tolerance);
         }
 
         [Fact]
@@ -84,7 +138,8 @@
                 index);
 
             // Assert
-            Assert.Equal(t0 + index / sampleRate, result);
+            var tolerance = 1e-6 / sampleRate;
+            Assert.Equal(t0 + index / sampleRate, result, tolerance);
         }
     }
 }
