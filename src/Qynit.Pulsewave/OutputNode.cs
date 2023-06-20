@@ -1,6 +1,4 @@
-﻿using System.Collections.Immutable;
-
-using CommunityToolkit.Diagnostics;
+﻿using CommunityToolkit.Diagnostics;
 
 namespace Qynit.Pulsewave;
 public class OutputNode : IFilterNode
@@ -17,7 +15,7 @@ public class OutputNode : IFilterNode
     public double TEnd => TStart + Length / SampleRate;
     public int Length { get; }
     public string? Name { get; set; }
-    public IList<IFilterNode> Outputs { get; } = ImmutableList<IFilterNode>.Empty;
+    public IList<IFilterNode> Outputs { get; } = Array.Empty<IFilterNode>();
     public IList<IFilterNode> Inputs { get; } = new List<IFilterNode>();
 
     private Waveform? _waveform;

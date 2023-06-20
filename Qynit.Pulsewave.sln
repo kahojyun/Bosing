@@ -16,6 +16,10 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Qynit.Pulsewave.Tests", "te
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{3B8B8B3E-9095-4A7E-9309-661439C30D9A}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "examples", "examples", "{6741804E-962A-4762-B289-CD4899A62AD8}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WaveGenDemo", "examples\WaveGenDemo\WaveGenDemo.csproj", "{B83CB224-4C00-4011-BF6A-C76C7D786908}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -30,6 +34,10 @@ Global
 		{33659EDC-29F9-45DB-A9FA-E01E648BE4B9}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{33659EDC-29F9-45DB-A9FA-E01E648BE4B9}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{33659EDC-29F9-45DB-A9FA-E01E648BE4B9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B83CB224-4C00-4011-BF6A-C76C7D786908}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B83CB224-4C00-4011-BF6A-C76C7D786908}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B83CB224-4C00-4011-BF6A-C76C7D786908}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B83CB224-4C00-4011-BF6A-C76C7D786908}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -37,6 +45,7 @@ Global
 	GlobalSection(NestedProjects) = preSolution
 		{8A71F7BA-E700-4DA3-BBE7-5E7C866466B8} = {3EBAD22F-230A-4BCB-B16C-A9063E2A4E9A}
 		{33659EDC-29F9-45DB-A9FA-E01E648BE4B9} = {3B8B8B3E-9095-4A7E-9309-661439C30D9A}
+		{B83CB224-4C00-4011-BF6A-C76C7D786908} = {6741804E-962A-4762-B289-CD4899A62AD8}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {1DC52AEE-D9FC-4B2F-9492-0C92B0479A3C}
