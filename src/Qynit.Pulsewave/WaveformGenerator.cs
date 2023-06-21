@@ -125,7 +125,7 @@ public class WaveformGenerator
 
         public void ShiftFrequency(double deltaFrequency, double referenceTime)
         {
-            var deltaPhase = -deltaFrequency * referenceTime;
+            var deltaPhase = -Math.Tau * deltaFrequency * referenceTime;
             FrequencyShift += deltaFrequency;
             Phase += deltaPhase;
         }
