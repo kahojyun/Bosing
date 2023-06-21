@@ -29,7 +29,7 @@ public static class WaveformUtils
         var xStartRising = (tStartRising - t1) / width;
         var dataIRising = dataI[sampleStartIndex..plateauStartIndex];
         var dataQRising = dataQ[sampleStartIndex..plateauStartIndex];
-        SampleIQ(dataIRising, dataQRising, shape, xStartRising, xStep);
+        shape.SampleIQ(dataIRising, dataQRising, xStartRising, xStep);
 
         dataI[plateauStartIndex..plateauEndIndex].Fill(1);
         dataQ[plateauStartIndex..plateauEndIndex].Clear();
@@ -38,7 +38,7 @@ public static class WaveformUtils
         var xStartFalling = (tStartFalling - t2) / width;
         var dataIFalling = dataI[plateauEndIndex..sampleEndIndex];
         var dataQFalling = dataQ[plateauEndIndex..sampleEndIndex];
-        SampleIQ(dataIFalling, dataQFalling, shape, xStartFalling, xStep);
+        shape.SampleIQ(dataIFalling, dataQFalling, xStartFalling, xStep);
     }
 
     public static void AddPulseToWaveform(Waveform target, Waveform pulse, double amplitude, double frequency, double phase, double referenceTime, double tShift)
@@ -60,22 +60,6 @@ public static class WaveformUtils
         var startPhase = phase + Math.Tau * frequency * (tStart - referenceTime);
         var deltaPhase = Math.Tau * frequency * pulse.Dt;
         MixAndAddIQVector(targetDataI, targetDataQ, pulseDataI, pulseDataQ, amplitude, startPhase, deltaPhase);
-    }
-
-    internal static void SampleIQ(Span<double> targetI, Span<double> targetQ, IPulseShape shape, double xStart, double xStep)
-    {
-        var l = targetI.Length;
-        Debug.Assert(targetQ.Length == l);
-
-        ref var ti = ref MemoryMarshal.GetReference(targetI);
-        ref var tq = ref MemoryMarshal.GetReference(targetQ);
-        for (var i = 0; i < l; i++)
-        {
-            var x = xStart + i * xStep;
-            var y = shape.SampleAt(x);
-            Unsafe.Add(ref ti, i) = y.Real;
-            Unsafe.Add(ref tq, i) = y.Imaginary;
-        }
     }
 
     internal static void MixAndAddIQVector(Span<double> targetI, Span<double> targetQ, ReadOnlySpan<double> sourceI, ReadOnlySpan<double> sourceQ, double amplitude, double phase, double dPhase)
