@@ -66,8 +66,7 @@ plot.AddSignal(waveform1.DataQ.ToArray(), sampleRate, label: $"wave 1 imag");
 plot.AddSignal(waveform2.DataI.ToArray(), sampleRate, label: $"wave 2 real");
 plot.AddSignal(waveform2.DataQ.ToArray(), sampleRate, label: $"wave 2 imag");
 plot.Legend();
-using var viewer = new FormsPlotViewer(plot);
-viewer.ShowDialog();
+plot.SaveFig("demo.png");
 
 static void ConnectNode(IFilterNode source, IFilterNode target)
 {
