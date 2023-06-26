@@ -1,4 +1,5 @@
 ﻿using System.Buffers;
+using System.Runtime.CompilerServices;
 
 using CommunityToolkit.Diagnostics;
 
@@ -58,30 +59,20 @@ public sealed class PooledComplexArray<T> : IDisposable
         DataI.CopyTo(destination.DataI);
         DataQ.CopyTo(destination.DataQ);
     }
-    public ComplexArraySpan<T> AsSpan()
-    {
-        return new ComplexArraySpan<T>(DataI, DataQ);
-    }
-    public ComplexArraySpan<T> AsSpan(int start)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public ComplexArraySpan<T> Slice(int start)
     {
         return new ComplexArraySpan<T>(DataI[start..], DataQ[start..]);
     }
-    public ComplexArraySpan<T> AsSpan(Index start)
-    {
-        return new ComplexArraySpan<T>(DataI[start..], DataQ[start..]);
-    }
-    public ComplexArraySpan<T> AsSpan(int start, int length)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public ComplexArraySpan<T> Slice(int start, int length)
     {
         return new ComplexArraySpan<T>(DataI.Slice(start, length), DataQ.Slice(start, length));
     }
-    public ComplexArraySpan<T> AsSpan(Range range)
-    {
-        return new ComplexArraySpan<T>(DataI[range], DataQ[range]);
-    }
     public void Clear()
     {
-        _dataI.AsSpan(0, Length).Clear();
-        _dataQ.AsSpan(0, Length).Clear();
+        DataI.Clear();
+        DataQ.Clear();
     }
     public void Dispose()
     {

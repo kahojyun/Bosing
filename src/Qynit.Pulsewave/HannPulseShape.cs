@@ -26,9 +26,10 @@ public sealed class HannPulseShape : IPulseShape
         var w = IqPair<T>.FromPolarCoordinates(T.One, T.Tau * dx);
         ref var ti = ref MemoryMarshal.GetReference(target.DataI);
         ref var tq = ref MemoryMarshal.GetReference(target.DataQ);
-        for (var i = 0; i < length; i++)
+        var ii = T.Zero;
+        for (var i = 0; i < length; i++, ii++)
         {
-            var x = x0 + T.CreateTruncating(i) * dx;
+            var x = x0 + ii * dx;
             Unsafe.Add(ref ti, i) = (x >= -half && x <= half) ? half + c.I : T.Zero;
             Unsafe.Add(ref tq, i) = T.Zero;
             c *= w;

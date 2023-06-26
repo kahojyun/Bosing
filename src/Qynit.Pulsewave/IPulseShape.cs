@@ -23,9 +23,10 @@ public interface IPulseShape
         var length = target.Length;
         ref var ti = ref MemoryMarshal.GetReference(target.DataI);
         ref var tq = ref MemoryMarshal.GetReference(target.DataQ);
-        for (var i = 0; i < length; i++)
+        var ii = T.Zero;
+        for (var i = 0; i < length; i++, ii++)
         {
-            var x = x0 + T.CreateChecked(i) * dx;
+            var x = x0 + ii * dx;
             var (yi, yq) = SampleAt(x);
             Unsafe.Add(ref ti, i) = yi;
             Unsafe.Add(ref tq, i) = yq;

@@ -51,7 +51,7 @@ public class OutputNode<T> : IFilterNode<T>
         var cPhase = IqPair<T>.FromPolarCoordinates(T.CreateChecked(amplitude), T.CreateChecked(phaseStart));
         var dPhase = T.CreateChecked(Math.Tau * frequency * dt);
         var arrayIStart = iStart - IndexStart;
-        WaveformUtils.MixAddFrequency(_array.AsSpan(arrayIStart..), envelope, cPhase, dPhase);
+        WaveformUtils.MixAddFrequency(_array[arrayIStart..], envelope, cPhase, dPhase);
     }
 
     public void AddWaveform(ComplexArrayReadOnlySpan<T> waveform, WaveformInfo waveformInfo, double amplitude, double frequency, double phase, double referenceTime)
@@ -71,7 +71,7 @@ public class OutputNode<T> : IFilterNode<T>
         var phaseStart = (waveformInfo.IndexStart * dt - referenceTime) * frequency * Math.Tau + phase;
         var cPhase = IqPair<T>.FromPolarCoordinates(T.CreateChecked(amplitude), T.CreateChecked(phaseStart));
         var dPhase = T.CreateChecked(Math.Tau * frequency * dt);
-        WaveformUtils.MixAddFrequency(_array.AsSpan(arrayIStart..arrayIEnd), waveform, cPhase, dPhase);
+        WaveformUtils.MixAddFrequency(_array[arrayIStart..arrayIEnd], waveform, cPhase, dPhase);
     }
 
     public PooledComplexArray<T> TakeWaveform()

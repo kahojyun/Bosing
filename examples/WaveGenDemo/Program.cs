@@ -74,6 +74,8 @@ static void Run<T>() where T : unmanaged, IFloatingPointIeee754<T>
     var count = 0;
     while (tStart < 49e-6)
     {
+        //instructions.Add(new Play(shape, tStart, 30e-9, 0, 0.5, 0, 0, ch1));
+        //instructions.Add(new Play(shape, tStart, 30e-9, 0, 0.6, 0, 0, ch2));
         instructions.Add(new Play(shape, tStart, 30e-9, 500e-9, 0.5, 0, 0, ch1));
         instructions.Add(new Play(shape, tStart, 30e-9, 500e-9, 0.6, 0, 0, ch2));
         instructions.Add(new ShiftPhase(0.25 * Math.Tau, ch1));

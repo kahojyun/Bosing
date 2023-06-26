@@ -42,6 +42,12 @@ public record struct IqPair<T>
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static IqPair<T> operator +(IqPair<T> value)
+    {
+        return value;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static IqPair<T> operator -(IqPair<T> left, IqPair<T> right)
     {
         return new IqPair<T>(left.I - right.I, left.Q - right.Q);
@@ -59,6 +65,11 @@ public record struct IqPair<T>
         return new IqPair<T>(left - right.I, right.Q);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static IqPair<T> operator -(IqPair<T> value)
+    {
+        return new IqPair<T>(-value.I, -value.Q);
+    }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static IqPair<T> operator *(IqPair<T> left, IqPair<T> right)

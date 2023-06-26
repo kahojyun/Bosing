@@ -22,7 +22,7 @@ public static class WaveformUtils
 
         var x0 = T.CreateChecked(-t1 / width);
         var plateauStartIndex = TimeAxisUtils.NextIndex(t1, sampleRate);
-        shape.SampleIQ(array.AsSpan(..plateauStartIndex), x0, xStep);
+        shape.SampleIQ(array[..plateauStartIndex], x0, xStep);
 
         int plateauEndIndex;
         if (plateau > 0)
@@ -37,7 +37,7 @@ public static class WaveformUtils
         }
 
         var x2 = T.CreateChecked((plateauEndIndex * dt - t2) / width);
-        shape.SampleIQ(array.AsSpan(plateauEndIndex..), x2, xStep);
+        shape.SampleIQ(array[plateauEndIndex..], x2, xStep);
 
         return array;
     }
