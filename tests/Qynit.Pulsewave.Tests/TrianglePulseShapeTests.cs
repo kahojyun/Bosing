@@ -14,13 +14,13 @@
             var shape = new TrianglePulseShape();
 
             // Act
-            var result = shape.SampleAt(
+            var (i, q) = shape.SampleAt(
                 x);
 
             // Assert
             var tolerance = 1e-9;
-            Assert.Equal(ans, result.Real, tolerance);
-            Assert.Equal(0, result.Imaginary, tolerance);
+            Assert.Equal(ans, i, tolerance);
+            Assert.Equal(0, q, tolerance);
         }
     }
 }

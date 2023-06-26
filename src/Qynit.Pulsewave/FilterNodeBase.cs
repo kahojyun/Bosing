@@ -1,7 +1,10 @@
-﻿using CommunityToolkit.Diagnostics;
+﻿using System.Numerics;
+
+using CommunityToolkit.Diagnostics;
 
 namespace Qynit.Pulsewave;
-public abstract class FilterNodeBase : IFilterNode
+public abstract class FilterNodeBase<T> : IFilterNode<T>
+    where T : unmanaged, IFloatingPointIeee754<T>
 {
     public virtual double SampleRate
     {
@@ -45,8 +48,8 @@ public abstract class FilterNodeBase : IFilterNode
     }
 
     public string? Name { get; set; }
-    public IList<IFilterNode> Outputs { get; } = new List<IFilterNode>();
-    public IList<IFilterNode> Inputs { get; } = new List<IFilterNode>();
+    public IList<IFilterNode<T>> Outputs { get; } = new List<IFilterNode<T>>();
+    public IList<IFilterNode<T>> Inputs { get; } = new List<IFilterNode<T>>();
 
     public virtual void Initialize()
     {
@@ -65,5 +68,5 @@ public abstract class FilterNodeBase : IFilterNode
     }
 
     public abstract void AddPulse(IPulseShape shape, double tStart, double width, double plateau, double amplitude, double frequency, double phase, double referenceTime);
-    public abstract void AddWaveform(Waveform waveform, double tShift, double amplitude, double frequency, double phase, double referenceTime);
+    public abstract void AddWaveform(ComplexArrayReadOnlySpan<T> waveform, WaveformInfo waveformInfo, double amplitude, double frequency, double phase, double referenceTime);
 }

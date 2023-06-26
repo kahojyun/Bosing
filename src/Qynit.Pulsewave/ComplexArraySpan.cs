@@ -2,8 +2,8 @@
 using System.Runtime.CompilerServices;
 
 namespace Qynit.Pulsewave;
-internal readonly ref struct ComplexArraySpan<T>
-    where T : struct
+public readonly ref struct ComplexArraySpan<T>
+    where T : unmanaged
 {
     public Span<T> DataI { get; }
     public Span<T> DataQ { get; }

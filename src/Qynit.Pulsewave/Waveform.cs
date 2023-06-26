@@ -1,9 +1,4 @@
-﻿using System.Buffers;
-using System.Diagnostics;
-
-using CommunityToolkit.Diagnostics;
-
-namespace Qynit.Pulsewave;
+﻿namespace Qynit.Pulsewave;
 
 /// <summary>
 /// Store waveform data with pooled array.
@@ -11,99 +6,66 @@ namespace Qynit.Pulsewave;
 /// <remarks>
 /// <c>TStart</c> will be aligned to <c>Dt</c>.
 /// </remarks>
-public sealed class Waveform : IDisposable
+public sealed class Waveform<T> : IDisposable
+    where T : unmanaged
 {
     public double SampleRate { get; }
+    public int IndexStart { get; set; }
+    public int Length => _array.Length;
     public double Dt => 1 / SampleRate;
-    public double TStart { get; private set; }
-    public double TEnd => TStart + Length * Dt;
-    public int Length { get; }
-    public Span<double> DataI
+    public double TStart => IndexStart * Dt;
+    public ComplexArraySpan<T> Array => _array;
+
+    private readonly PooledComplexArray<T> _array;
+    private bool _shouldDispose;
+
+    public Waveform(int indexStart, int length, double sampleRate) : this(indexStart, length, sampleRate, true) { }
+
+    public Waveform(Waveform<T> source) : this(source.IndexStart, source.Length, source.SampleRate, false)
     {
-        get
-        {
-            if (_disposed)
-            {
-                ThrowHelper.ThrowObjectDisposedException(nameof(Waveform));
-            }
-            return _dataI.AsSpan(0, Length);
-        }
-    }
-    public Span<double> DataQ
-    {
-        get
-        {
-            if (_disposed)
-            {
-                ThrowHelper.ThrowObjectDisposedException(nameof(Waveform));
-            }
-            return _dataQ.AsSpan(0, Length);
-        }
+        source._array.CopyTo(_array);
     }
 
-    private readonly double[] _dataI;
-    private readonly double[] _dataQ;
-    private bool _disposed;
-
-    public Waveform(int length, double sampleRate, double tStart) : this(length, sampleRate, tStart, true) { }
-
-    public Waveform(Waveform waveform) : this(waveform.Length, waveform.SampleRate, waveform.TStart, false)
+    public Waveform(ComplexArrayReadOnlySpan<T> source, int indexStart, double sampleRate) : this(indexStart, source.Length, sampleRate, false)
     {
-        waveform.DataI.CopyTo(DataI);
-        waveform.DataQ.CopyTo(DataQ);
+        source.CopyTo(_array);
     }
 
-    private Waveform(int length, double sampleRate, double tStart, bool clear)
+    public Waveform(PooledComplexArray<T> array, int indexStart, double sampleRate)
     {
-        Debug.Assert(length > 0);
-        Debug.Assert(sampleRate > 0);
-        Length = length;
         SampleRate = sampleRate;
-        TStart = MathUtils.MRound(tStart, 1 / sampleRate);
-        _dataI = ArrayPool<double>.Shared.Rent(length);
-        _dataQ = ArrayPool<double>.Shared.Rent(length);
-        if (clear)
-        {
-            ClearData();
-        }
+        IndexStart = indexStart;
+        _array = array;
+        _shouldDispose = true;
     }
 
-    public static Waveform CreateFromRange(double sampleRate, double tStart, double tEnd)
+    private Waveform(int indexStart, int length, double sampleRate, bool clear)
     {
-        var dt = 1 / sampleRate;
-        tStart = MathUtils.MFloor(tStart, dt);
-        tEnd = MathUtils.MCeiling(tEnd, dt);
-        var length = (int)Math.Round((tEnd - tStart) * sampleRate) + 1;
-        return new Waveform(length, sampleRate, tStart);
+        SampleRate = sampleRate;
+        IndexStart = indexStart;
+        _array = new PooledComplexArray<T>(length, clear);
+        _shouldDispose = true;
     }
 
-    private void ClearData()
+    public static Waveform<T> CreateFromRange(double sampleRate, double tStart, double tEnd)
     {
-        _dataI.AsSpan(0, Length).Clear();
-        _dataQ.AsSpan(0, Length).Clear();
+        var (start, end) = TimeAxisUtils.GetIndexRange(tStart, tEnd, sampleRate);
+        return new Waveform<T>(start, end - start, sampleRate);
     }
-
+    public PooledComplexArray<T> TakeArray()
+    {
+        _shouldDispose = false;
+        return _array;
+    }
     public void Dispose()
     {
-        if (_disposed) return;
-        _disposed = true;
-        ClearData();
-        ArrayPool<double>.Shared.Return(_dataI, false);
-        ArrayPool<double>.Shared.Return(_dataQ, false);
+        if (_shouldDispose)
+        {
+            _array.Dispose();
+        }
     }
-
-    public void ShiftTime(double deltaT)
+    public Waveform<T> Copy()
     {
-        TStart = MathUtils.MRound(TStart + deltaT, Dt);
-    }
-
-    public double TimeAt(int index)
-    {
-        return TStart + index * Dt;
-    }
-
-    public Waveform Copy()
-    {
-        return new Waveform(this);
+        return new Waveform<T>(this);
     }
 }

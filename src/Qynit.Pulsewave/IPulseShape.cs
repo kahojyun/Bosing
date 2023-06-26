@@ -1,5 +1,4 @@
-﻿using System.Diagnostics;
-using System.Numerics;
+﻿using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
@@ -15,21 +14,21 @@ public interface IPulseShape
     /// </summary>
     /// <param name="x">x value in range -0.5 to -0.5</param>
     /// <returns>y value sampled at x</returns>
-    Complex SampleAt(double x);
+    IqPair<T> SampleAt<T>(T x)
+        where T : unmanaged, IFloatingPointIeee754<T>;
 
-    void SampleIQ(Span<double> targetI, Span<double> targetQ, double x0, double dx)
+    void SampleIQ<T>(ComplexArraySpan<T> target, T x0, T dx)
+        where T : unmanaged, IFloatingPointIeee754<T>
     {
-        var l = targetI.Length;
-        Debug.Assert(targetQ.Length == l);
-
-        ref var ti = ref MemoryMarshal.GetReference(targetI);
-        ref var tq = ref MemoryMarshal.GetReference(targetQ);
-        for (var i = 0; i < l; i++)
+        var length = target.Length;
+        ref var ti = ref MemoryMarshal.GetReference(target.DataI);
+        ref var tq = ref MemoryMarshal.GetReference(target.DataQ);
+        for (var i = 0; i < length; i++)
         {
-            var x = x0 + i * dx;
-            var y = SampleAt(x);
-            Unsafe.Add(ref ti, i) = y.Real;
-            Unsafe.Add(ref tq, i) = y.Imaginary;
+            var x = x0 + T.CreateChecked(i) * dx;
+            var (yi, yq) = SampleAt(x);
+            Unsafe.Add(ref ti, i) = yi;
+            Unsafe.Add(ref tq, i) = yq;
         }
     }
 }

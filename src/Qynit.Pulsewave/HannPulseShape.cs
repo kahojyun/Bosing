@@ -1,31 +1,36 @@
-﻿using System.Diagnostics;
-using System.Numerics;
+﻿using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
 namespace Qynit.Pulsewave;
 public sealed class HannPulseShape : IPulseShape
 {
-    public Complex SampleAt(double x)
+    public IqPair<T> SampleAt<T>(T x)
+        where T : unmanaged, IFloatingPointIeee754<T>
     {
-        return (x >= -0.5 && x <= 0.5) ? (1 + Math.Cos(Math.Tau * x)) / 2 : 0;
+        var half = T.CreateChecked(0.5);
+        var i = (x >= -half && x <= half) ? (T.One + T.Cos(T.Tau * x)) * half : T.Zero;
+        return i;
     }
 
-    public void SampleIQ(Span<double> targetI, Span<double> targetQ, double x0, double dx)
+    public void SampleIQ<T>(ComplexArraySpan<T> target, T x0, T dx)
+        where T : unmanaged, IFloatingPointIeee754<T>
     {
-        var l = targetI.Length;
-        Debug.Assert(targetQ.Length == l);
-
-        var c = Complex.FromPolarCoordinates(0.5, Math.Tau * x0);
-        var w = Complex.FromPolarCoordinates(1, Math.Tau * dx);
-
-        ref var ti = ref MemoryMarshal.GetReference(targetI);
-        ref var tq = ref MemoryMarshal.GetReference(targetQ);
-        for (var i = 0; i < l; i++)
+        var length = target.Length;
+        if (length == 0)
         {
-            var x = x0 + i * dx;
-            Unsafe.Add(ref ti, i) = (x >= -0.5 && x <= 0.5) ? 0.5 + c.Real : 0;
-            Unsafe.Add(ref tq, i) = 0;
+            return;
+        }
+        var half = T.CreateChecked(0.5);
+        var c = IqPair<T>.FromPolarCoordinates(half, T.Tau * x0);
+        var w = IqPair<T>.FromPolarCoordinates(T.One, T.Tau * dx);
+        ref var ti = ref MemoryMarshal.GetReference(target.DataI);
+        ref var tq = ref MemoryMarshal.GetReference(target.DataQ);
+        for (var i = 0; i < length; i++)
+        {
+            var x = x0 + T.CreateTruncating(i) * dx;
+            Unsafe.Add(ref ti, i) = (x >= -half && x <= half) ? half + c.I : T.Zero;
+            Unsafe.Add(ref tq, i) = T.Zero;
             c *= w;
         }
     }

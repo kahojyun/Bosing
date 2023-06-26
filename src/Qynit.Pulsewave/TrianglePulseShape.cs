@@ -3,8 +3,10 @@
 namespace Qynit.Pulsewave;
 public class TrianglePulseShape : IPulseShape
 {
-    public Complex SampleAt(double x)
+    public IqPair<T> SampleAt<T>(T x) where T : unmanaged, IFloatingPointIeee754<T>
     {
-        return (x >= -0.5 && x <= 0.5) ? 1 - 2 * Math.Abs(x) : 0;
+        var half = T.CreateChecked(0.5);
+        var i = (x >= -half && x <= half) ? (T.One - T.CreateChecked(2) * T.Abs(x)) : T.Zero;
+        return i;
     }
 }

@@ -2,8 +2,8 @@
 using System.Runtime.CompilerServices;
 
 namespace Qynit.Pulsewave;
-internal readonly ref struct ComplexArrayReadOnlySpan<T>
-    where T : struct
+public readonly ref struct ComplexArrayReadOnlySpan<T>
+    where T : unmanaged
 {
     public ReadOnlySpan<T> DataI { get; }
     public ReadOnlySpan<T> DataQ { get; }
@@ -33,5 +33,11 @@ internal readonly ref struct ComplexArrayReadOnlySpan<T>
     public ComplexArrayReadOnlySpan<T> Slice(int start, int length)
     {
         return new ComplexArrayReadOnlySpan<T>(DataI.Slice(start, length), DataQ.Slice(start, length));
+    }
+
+    public void CopyTo(ComplexArraySpan<T> destination)
+    {
+        DataI.CopyTo(destination.DataI);
+        DataQ.CopyTo(destination.DataQ);
     }
 }
