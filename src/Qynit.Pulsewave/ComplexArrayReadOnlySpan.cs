@@ -8,6 +8,7 @@ public readonly ref struct ComplexArrayReadOnlySpan<T>
     public ReadOnlySpan<T> DataI { get; }
     public ReadOnlySpan<T> DataQ { get; }
     public int Length => DataI.Length;
+    public bool IsEmpty => Length == 0;
     internal ComplexArrayReadOnlySpan(ReadOnlySpan<T> dataI, ReadOnlySpan<T> dataQ)
     {
         Debug.Assert(dataI.Length == dataQ.Length);

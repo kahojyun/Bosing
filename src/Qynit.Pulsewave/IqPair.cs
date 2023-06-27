@@ -62,7 +62,7 @@ public record struct IqPair<T>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static IqPair<T> operator -(T left, IqPair<T> right)
     {
-        return new IqPair<T>(left - right.I, right.Q);
+        return new IqPair<T>(left - right.I, -right.Q);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -88,6 +88,54 @@ public record struct IqPair<T>
     {
         return new IqPair<T>(left * right.I, left * right.Q);
     }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static IqPair<T> operator /(IqPair<T> left, IqPair<T> right)
+    {
+        // BCL implementation
+        var a = left.I;
+        var b = left.Q;
+        var c = right.I;
+        var d = right.Q;
+
+        if (T.Abs(d) < T.Abs(c))
+        {
+            var doc = d / c;
+            return new IqPair<T>((a + b * doc) / (c + d * doc), (b - a * doc) / (c + d * doc));
+        }
+        else
+        {
+            var cod = c / d;
+            return new IqPair<T>((b + a * cod) / (d + c * cod), (-a + b * cod) / (d + c * cod));
+        }
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static IqPair<T> operator /(IqPair<T> left, T right)
+    {
+        return new IqPair<T>(left.I / right, left.Q / right);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static IqPair<T> operator /(T left, IqPair<T> right)
+    {
+        // BCL implementation
+        var a = left;
+        var c = right.I;
+        var d = right.Q;
+
+        if (T.Abs(d) < T.Abs(c))
+        {
+            var doc = d / c;
+            return new IqPair<T>(a / (c + d * doc), -a * doc / (c + d * doc));
+        }
+        else
+        {
+            var cod = c / d;
+            return new IqPair<T>(a * cod / (d + c * cod), -a / (d + c * cod));
+        }
+    }
+
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static IqPair<T> Conjugate(IqPair<T> value)

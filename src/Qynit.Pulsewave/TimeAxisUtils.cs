@@ -7,7 +7,8 @@ public static class TimeAxisUtils
     }
     public static double NextFracIndex(double t, double sampleRate, int alignLevel)
     {
-        var alignIndex = Math.Ceiling(t * Math.ScaleB(sampleRate, -alignLevel));
+        var scaledSampleRate = Math.ScaleB(sampleRate, -alignLevel);
+        var alignIndex = Math.Ceiling(t * scaledSampleRate);
         return Math.ScaleB(alignIndex, alignLevel);
     }
     public static int PrevIndex(double t, double sampleRate)
@@ -16,7 +17,8 @@ public static class TimeAxisUtils
     }
     public static double PrevFracIndex(double t, double sampleRate, int alignLevel)
     {
-        var alignIndex = Math.Floor(t * Math.ScaleB(sampleRate, -alignLevel));
+        var scaledSampleRate = Math.ScaleB(sampleRate, -alignLevel);
+        var alignIndex = Math.Floor(t * scaledSampleRate);
         return Math.ScaleB(alignIndex, alignLevel);
     }
     public static int ClosestIndex(double t, double sampleRate)
@@ -25,13 +27,14 @@ public static class TimeAxisUtils
     }
     public static double ClosestFracIndex(double t, double sampleRate, int alignLevel)
     {
-        var alignIndex = Math.Round(t * Math.ScaleB(sampleRate, -alignLevel));
+        var scaledSampleRate = Math.ScaleB(sampleRate, -alignLevel);
+        var alignIndex = Math.Round(t * scaledSampleRate);
         return Math.ScaleB(alignIndex, alignLevel);
     }
     public static (int Start, int End) GetIndexRange(double tStart, double tEnd, double sampleRate)
     {
         var iStart = NextIndex(tStart, sampleRate);
         var iEnd = NextIndex(tEnd, sampleRate);
-        return (iStart, iEnd);
+        return (iStart < iEnd) ? (iStart, iEnd) : (iEnd, iStart);
     }
 }
