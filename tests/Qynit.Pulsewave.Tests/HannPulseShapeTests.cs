@@ -14,13 +14,13 @@
             var hannPulseShape = new HannPulseShape();
 
             // Act
-            var result = hannPulseShape.SampleAt(
+            var (i, q) = hannPulseShape.SampleAt(
                 x);
 
             // Assert
             var tolerance = 1e-9;
-            Assert.Equal(ans, result.Real, tolerance);
-            Assert.Equal(0, result.Imaginary, tolerance);
+            Assert.Equal(ans, i, tolerance);
+            Assert.Equal(0, q, tolerance);
         }
     }
 }

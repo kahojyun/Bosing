@@ -1,11 +1,15 @@
-﻿using CommunityToolkit.Diagnostics;
+﻿using System.Numerics;
+
+using CommunityToolkit.Diagnostics;
 
 namespace Qynit.Pulsewave;
-public class WaveformGenerator
+public class WaveformGenerator<T>
+    where T : unmanaged, IFloatingPointIeee754<T>
 {
     private readonly Dictionary<Channel, ChannelContext> _channelContexts = new();
 
-    public void AddChannel(Channel channel, InputNode inputNode, double frequency)
+    public void AddChannel(Channel channel, InputNode<T> inputNode, double frequency)
+
     {
         if (_channelContexts.ContainsKey(channel))
         {
@@ -118,7 +122,7 @@ public class WaveformGenerator
     private class ChannelContext
     {
         public required Channel Channel { get; init; }
-        public required IFilterNode InputNode { get; init; }
+        public required IFilterNode<T> InputNode { get; init; }
         public double Frequency { get; init; }
         public double FrequencyShift { get; set; }
         public double Phase { get; set; }
