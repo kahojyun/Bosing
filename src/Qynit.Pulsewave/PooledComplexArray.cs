@@ -8,6 +8,7 @@ public sealed class PooledComplexArray<T> : IDisposable
     where T : unmanaged
 {
     public int Length { get; }
+    public bool IsEmpty => Length == 0;
     public Span<T> DataI
     {
         get
@@ -56,8 +57,7 @@ public sealed class PooledComplexArray<T> : IDisposable
     }
     public void CopyTo(ComplexArraySpan<T> destination)
     {
-        DataI.CopyTo(destination.DataI);
-        DataQ.CopyTo(destination.DataQ);
+        ((ComplexArrayReadOnlySpan<T>)this).CopyTo(destination);
     }
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public ComplexArraySpan<T> Slice(int start)

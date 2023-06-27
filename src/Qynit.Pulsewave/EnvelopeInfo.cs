@@ -14,7 +14,7 @@ public sealed record class EnvelopeInfo
             {
                 ThrowHelper.ThrowArgumentOutOfRangeException(nameof(IndexOffset), value, $"Index offset of `EnvelopeInfo` should be in range [0, 1).");
             }
-            _indexOffset = IndexOffset;
+            _indexOffset = value;
         }
     }
     public double SampleRate { get; init; }

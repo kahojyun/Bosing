@@ -42,7 +42,7 @@ public class OutputNode<T> : IFilterNode<T>
     public void AddPulse(IPulseShape shape, double tStart, double width, double plateau, double amplitude, double frequency, double phase, double referenceTime)
     {
         EnsureInitialized();
-        var iFracStart = TimeAxisUtils.ClosestFracIndex(tStart, SampleRate, AlignLevel);
+        var iFracStart = TimeAxisUtils.NextFracIndex(tStart, SampleRate, AlignLevel);
         var iStart = (int)Math.Ceiling(iFracStart);
         var envelopeInfo = new EnvelopeInfo(iStart - iFracStart, SampleRate);
         using var envelope = WaveformUtils.SampleWaveform<T>(envelopeInfo, shape, width, plateau);
