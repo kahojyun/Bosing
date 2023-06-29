@@ -13,12 +13,6 @@ for (var i = 0; i < 5; i++)
     RunSingle();
 }
 
-static void ConnectNode<T>(IFilterNode<T> source, IFilterNode<T> target) where T : unmanaged, IFloatingPointIeee754<T>
-{
-    source.Outputs.Add(target);
-    target.Inputs.Add(source);
-}
-
 static void RunDouble()
 {
     Console.WriteLine("RunDouble:");
@@ -40,20 +34,9 @@ static void Run<T>() where T : unmanaged, IFloatingPointIeee754<T>
     var ch1 = new Channel("ch1");
     var ch2 = new Channel("ch2");
 
-    var inputNode1 = new InputNode<T>();
-    var inputNode2 = new InputNode<T>();
-
-    var n = 100000;
-    var sampleRate = 2e9;
-    var outputNode1 = new OutputNode<T>(n, sampleRate, 0, -4);
-    var outputNode2 = new OutputNode<T>(n, sampleRate, 0, -4);
-
-    ConnectNode(inputNode1, outputNode1);
-    ConnectNode(inputNode2, outputNode2);
-
     var generator = new WaveformGenerator<T>();
-    generator.AddChannel(ch1, inputNode1, 100e6);
-    generator.AddChannel(ch2, inputNode2, 250e6);
+    generator.AddChannel(ch1, 100e6);
+    generator.AddChannel(ch2, 250e6);
 
     var instructions = new List<Instruction>();
     var shape = new HannPulseShape();
@@ -94,8 +77,12 @@ static void Run<T>() where T : unmanaged, IFloatingPointIeee754<T>
     Console.WriteLine($"Run time: {(t2 - t1).TotalMilliseconds} ms");
     Console.WriteLine($"Total elapsed time: {sw.Elapsed.TotalMilliseconds} ms");
     Console.WriteLine($"Count = {count}");
-    using var waveform1 = outputNode1.TakeWaveform();
-    using var waveform2 = outputNode2.TakeWaveform();
+    var len1 = generator.GetPulseListLength(ch1);
+    var len2 = generator.GetPulseListLength(ch2);
+    Console.WriteLine($"Length 1 = {len1}");
+    Console.WriteLine($"Length 2 = {len2}");
+    //using var waveform1 = outputNode1.TakeWaveform();
+    //using var waveform2 = outputNode2.TakeWaveform();
     //var plot = new Plot(1920, 1080);
     //plot.AddSignal(waveform1.DataI[..300].ToArray(), sampleRate, label: $"wave 1 real");
     //plot.AddSignal(waveform1.DataQ[..300].ToArray(), sampleRate, label: $"wave 1 imag");
