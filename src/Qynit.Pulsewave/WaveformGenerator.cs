@@ -8,7 +8,7 @@ public class WaveformGenerator<T>
 {
     private readonly Dictionary<Channel, ChannelContext> _channelContexts = new();
 
-    public void AddChannel(Channel channel, InputNode<T> inputNode, double frequency)
+    public void AddChannel(Channel channel, double frequency)
 
     {
         if (_channelContexts.ContainsKey(channel))
@@ -18,18 +18,19 @@ public class WaveformGenerator<T>
         var context = new ChannelContext
         {
             Channel = channel,
-            InputNode = inputNode,
             Frequency = frequency,
         };
         _channelContexts.Add(channel, context);
     }
 
+    public int GetPulseListLength(Channel channel)
+    {
+        var context = _channelContexts[channel];
+        return context.Builder.Build().Items.Count;
+    }
+
     public void Run(IEnumerable<Instruction> instructions)
     {
-        foreach (var context in _channelContexts.Values)
-        {
-            context.InputNode.Initialize();
-        }
         foreach (var instruction in instructions)
         {
             switch (instruction)
@@ -56,10 +57,6 @@ public class WaveformGenerator<T>
                     ThrowHelper.ThrowArgumentException($"Unknown instruction {instruction}");
                     break;
             }
-        }
-        foreach (var context in _channelContexts.Values)
-        {
-            context.InputNode.Complete();
         }
     }
 
@@ -107,22 +104,22 @@ public class WaveformGenerator<T>
     {
         var channel = play.Channel;
         var context = _channelContexts[channel];
-        var inputNode = context.InputNode;
+        var builder = context.Builder;
         var pulseShape = play.PulseShape;
         var tStart = play.TStart;
         var width = play.Width;
         var plateau = play.Plateau;
         var amplitude = play.Amplitude;
         var frequency = play.Frequency + context.Frequency + context.FrequencyShift;
-        var phase = play.Phase + context.Phase;
-        var referenceTime = 0;
-        inputNode.AddPulse(pulseShape, tStart, width, plateau, amplitude, frequency, phase, referenceTime);
+        var phase = play.Phase + context.Phase + Math.Tau * frequency * tStart;
+        var envelope = new Envelope(pulseShape, width, plateau);
+        builder.Add(envelope, frequency, tStart, T.CreateChecked(phase), T.CreateChecked(amplitude), T.Zero);
     }
 
     private class ChannelContext
     {
         public required Channel Channel { get; init; }
-        public required IFilterNode<T> InputNode { get; init; }
+        public PulseList<T>.Builder Builder { get; } = new();
         public double Frequency { get; init; }
         public double FrequencyShift { get; set; }
         public double Phase { get; set; }
