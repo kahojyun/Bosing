@@ -2,14 +2,15 @@
 using System.Runtime.CompilerServices;
 
 namespace Qynit.Pulsewave;
-public record struct IqPair<T>
+public readonly record struct IqPair<T>
     where T : unmanaged, INumber<T>, ITrigonometricFunctions<T>
 {
     public static readonly IqPair<T> Zero = new(T.Zero, T.Zero);
     public static readonly IqPair<T> One = new(T.One, T.Zero);
+    public static readonly IqPair<T> ImaginaryOne = new(T.Zero, T.One);
 
-    public T I { get; set; }
-    public T Q { get; set; }
+    public T I { get; }
+    public T Q { get; }
 
     public IqPair(T i, T q)
     {
