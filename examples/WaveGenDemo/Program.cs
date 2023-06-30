@@ -35,8 +35,10 @@ static void Run<T>() where T : unmanaged, IFloatingPointIeee754<T>
     var ch2 = new Channel("ch2");
 
     var generator = new WaveformGenerator<T>();
-    generator.AddChannel(ch1, 100e6);
-    generator.AddChannel(ch2, 250e6);
+    var sampleRate = 2e9;
+    var n = 100000;
+    generator.AddChannel(ch1, 100e6, n, sampleRate, -4);
+    generator.AddChannel(ch2, 250e6, n, sampleRate, -4);
 
     var instructions = new List<Instruction>();
     var shape = new HannPulseShape();
@@ -59,8 +61,8 @@ static void Run<T>() where T : unmanaged, IFloatingPointIeee754<T>
     {
         //instructions.Add(new Play(shape, tStart, 30e-9, 0, 0.5, 0, 0, ch1));
         //instructions.Add(new Play(shape, tStart, 30e-9, 0, 0.6, 0, 0, ch2));
-        instructions.Add(new Play(shape, tStart, 30e-9, 500e-9, 0.5, 0, 0, ch1));
-        instructions.Add(new Play(shape, tStart, 30e-9, 500e-9, 0.6, 0, 0, ch2));
+        instructions.Add(new Play(shape, tStart, 30e-9, 0e-9, 0.5, 0, 0, ch1));
+        instructions.Add(new Play(shape, tStart, 30e-9, 0e-9, 0.6, 0, 0, ch2));
         instructions.Add(new ShiftPhase(0.25 * Math.Tau, ch1));
         instructions.Add(new ShiftPhase(-0.25 * Math.Tau, ch2));
         tStart += 0.1e-9;
@@ -77,17 +79,13 @@ static void Run<T>() where T : unmanaged, IFloatingPointIeee754<T>
     Console.WriteLine($"Run time: {(t2 - t1).TotalMilliseconds} ms");
     Console.WriteLine($"Total elapsed time: {sw.Elapsed.TotalMilliseconds} ms");
     Console.WriteLine($"Count = {count}");
-    var len1 = generator.GetPulseListLength(ch1);
-    var len2 = generator.GetPulseListLength(ch2);
-    Console.WriteLine($"Length 1 = {len1}");
-    Console.WriteLine($"Length 2 = {len2}");
-    //using var waveform1 = outputNode1.TakeWaveform();
-    //using var waveform2 = outputNode2.TakeWaveform();
+    using var waveform1 = generator.TakeWaveform(ch1);
+    using var waveform2 = generator.TakeWaveform(ch2);
     //var plot = new Plot(1920, 1080);
-    //plot.AddSignal(waveform1.DataI[..300].ToArray(), sampleRate, label: $"wave 1 real");
-    //plot.AddSignal(waveform1.DataQ[..300].ToArray(), sampleRate, label: $"wave 1 imag");
-    //plot.AddSignal(waveform2.DataI[..300].ToArray(), sampleRate, label: $"wave 2 real");
-    //plot.AddSignal(waveform2.DataQ[..300].ToArray(), sampleRate, label: $"wave 2 imag");
+    //plot.AddSignal(waveform1.DataI[..3000].ToArray(), sampleRate, label: $"wave 1 real");
+    //plot.AddSignal(waveform1.DataQ[..3000].ToArray(), sampleRate, label: $"wave 1 imag");
+    //plot.AddSignal(waveform2.DataI[..3000].ToArray(), sampleRate, label: $"wave 2 real");
+    //plot.AddSignal(waveform2.DataQ[..3000].ToArray(), sampleRate, label: $"wave 2 imag");
     //plot.Legend();
     //plot.SaveFig("demo2.png");
 }

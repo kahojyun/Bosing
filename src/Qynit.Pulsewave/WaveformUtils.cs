@@ -100,4 +100,30 @@ public static class WaveformUtils
             carrier *= phaser;
         }
     }
+
+    internal static PooledComplexArray<T> SampleWaveform<T>(PulseList<T> pulseList, double sampleRate, int length, int alignLevel) where T : unmanaged, IFloatingPointIeee754<T>
+    {
+        var waveform = new PooledComplexArray<T>(length, true);
+        foreach (var (binKey, bin) in pulseList.Items)
+        {
+            foreach (var pulse in bin)
+            {
+                var tStart = pulse.Time + pulseList.TimeOffset;
+                var shape = binKey.Envelope.Shape!;
+                var width = binKey.Envelope.Width;
+                var plateau = binKey.Envelope.Plateau;
+                var frequency = binKey.Frequency;
+                var iFracStart = TimeAxisUtils.NextFracIndex(tStart, sampleRate, alignLevel);
+                var iStart = (int)Math.Ceiling(iFracStart);
+                var envelopeInfo = new EnvelopeInfo(iStart - iFracStart, sampleRate);
+                using var envelope = SampleWaveform<T>(envelopeInfo, shape, width, plateau);
+                var dt = 1 / sampleRate;
+                var cPhase = pulse.Amplitude.Amplitude * pulseList.AmplitudeMultiplier * IqPair<T>.FromPolarCoordinates(T.One, T.CreateChecked((iStart * dt - tStart) * frequency * Math.Tau));
+                var dPhase = T.CreateChecked(Math.Tau * frequency * dt);
+                var arrayIStart = iStart;
+                MixAddFrequency(waveform[arrayIStart..], envelope, cPhase, dPhase);
+            }
+        }
+        return waveform;
+    }
 }

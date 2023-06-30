@@ -5,10 +5,16 @@ namespace Qynit.Pulsewave;
 internal record PulseList<T>
     where T : unmanaged, INumber<T>, ITrigonometricFunctions<T>
 {
+    public static readonly PulseList<T> Empty = new();
     public double TimeOffset { get; init; }
     public IqPair<T> AmplitudeMultiplier { get; init; } = IqPair<T>.One;
 
     internal IReadOnlyDictionary<BinInfo, IReadOnlyList<BinItem>> Items { get; }
+
+    private PulseList()
+    {
+        Items = new Dictionary<BinInfo, IReadOnlyList<BinItem>>();
+    }
 
     private PulseList(IReadOnlyDictionary<BinInfo, IReadOnlyList<BinItem>> items)
     {
@@ -17,20 +23,7 @@ internal record PulseList<T>
 
     public static PulseList<T> operator +(PulseList<T> left, PulseList<T> right)
     {
-        var newItems = new Dictionary<BinInfo, IReadOnlyList<BinItem>>(left.Items);
-        foreach (var (rightKey, rightList) in right.Items)
-        {
-            if (newItems.TryGetValue(rightKey, out var leftList))
-            {
-                var newList = MergeListWithInfo(leftList, rightList, left, right);
-                newItems[rightKey] = newList;
-            }
-            else
-            {
-                newItems.Add(rightKey, rightList);
-            }
-        }
-        return new PulseList<T>(newItems);
+        return Sum(left, right);
     }
 
     public static PulseList<T> operator *(PulseList<T> left, IqPair<T> right)
@@ -46,58 +39,82 @@ internal record PulseList<T>
         return this with { TimeOffset = TimeOffset + timeOffset };
     }
 
-    private static IReadOnlyList<BinItem> MergeListWithInfo(IReadOnlyList<BinItem> list1, IReadOnlyList<BinItem> list2, PulseList<T> info1, PulseList<T> info2)
+    public static PulseList<T> Sum(params PulseList<T>[] pulseLists)
     {
-        var newList = new List<BinItem>(list1.Count + list2.Count);
+        return Sum((IEnumerable<PulseList<T>>)pulseLists);
+    }
+
+    public static PulseList<T> Sum(IEnumerable<PulseList<T>> pulseLists)
+    {
+        var newItems = new Dictionary<BinInfo, IReadOnlyList<BinItem>>();
+        foreach (var pulseList in pulseLists)
+        {
+            foreach (var (key, list) in pulseList.Items)
+            {
+                var newList = newItems.TryGetValue(key, out var oldList)
+                    ? AddApplyInfo(oldList, list, pulseList.TimeOffset, pulseList.AmplitudeMultiplier)
+                    : ApplyInfo(list, pulseList.TimeOffset, pulseList.AmplitudeMultiplier);
+                newItems[key] = newList;
+            }
+        }
+        return new PulseList<T>(newItems);
+    }
+
+    private static IReadOnlyList<BinItem> AddApplyInfo(IReadOnlyList<BinItem> list, IReadOnlyList<BinItem> other, double timeOffset, IqPair<T> multiplier)
+    {
+        if (multiplier == IqPair<T>.Zero || other.Count == 0)
+        {
+            return list;
+        }
+        var newList = new List<BinItem>(list.Count);
         var i = 0;
         var j = 0;
-        var timeOffset1 = info1.TimeOffset;
-        var timeOffset2 = info2.TimeOffset;
-        var multiplier1 = info1.AmplitudeMultiplier;
-        var multiplier2 = info2.AmplitudeMultiplier;
-        while (i < list1.Count && j < list2.Count)
+        while (i < list.Count && j < other.Count)
         {
-            var item1 = list1[i];
-            var item2 = list2[j];
-            var newTime1 = timeOffset1 + item1.Time;
-            var newTime2 = timeOffset2 + item2.Time;
+            var item1 = list[i];
+            var item2 = other[j];
+            var newTime1 = item1.Time;
+            var newTime2 = timeOffset + item2.Time;
             if (newTime1 < newTime2)
             {
-                var newItem = new BinItem(newTime1, item1.Amplitude * multiplier1);
-                newList.Add(newItem);
+                newList.Add(item1);
                 i++;
             }
             else if (newTime1 > newTime2)
             {
-                var newItem = new BinItem(newTime2, item2.Amplitude * multiplier2);
+                var newItem = new BinItem(newTime2, item2.Amplitude * multiplier);
                 newList.Add(newItem);
                 j++;
             }
             else
             {
-                var newItem = new BinItem(newTime1, item1.Amplitude * multiplier1 + item2.Amplitude * multiplier2);
+                var newItem = new BinItem(newTime1, item1.Amplitude + item2.Amplitude * multiplier);
                 newList.Add(newItem);
                 i++;
                 j++;
             }
         }
-        while (i < list1.Count)
+        while (i < list.Count)
         {
-            var item1 = list1[i];
-            var newTime1 = timeOffset1 + item1.Time;
-            var newItem = new BinItem(newTime1, item1.Amplitude * multiplier1);
-            newList.Add(newItem);
+            newList.Add(list[i]);
             i++;
         }
-        while (j < list2.Count)
+        while (j < other.Count)
         {
-            var item2 = list2[j];
-            var newTime2 = timeOffset2 + item2.Time;
-            var newItem = new BinItem(newTime2, item2.Amplitude * multiplier2);
+            var item2 = other[j];
+            var newTime2 = timeOffset + item2.Time;
+            var newItem = new BinItem(newTime2, item2.Amplitude * multiplier);
             newList.Add(newItem);
             j++;
         }
         return newList;
+    }
+
+    private static IReadOnlyList<BinItem> ApplyInfo(IReadOnlyList<BinItem> list, double timeOffset, IqPair<T> multiplier)
+    {
+        return multiplier == T.Zero
+            ? Array.Empty<BinItem>()
+            : (IReadOnlyList<PulseList<T>.BinItem>)list.Select(item => new BinItem(timeOffset + item.Time, item.Amplitude * multiplier)).ToArray();
     }
 
     internal record BinInfo(Envelope Envelope, double Frequency);

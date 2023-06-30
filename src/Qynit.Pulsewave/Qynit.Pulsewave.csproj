@@ -8,10 +8,11 @@
 
     <ItemGroup>
         <PackageReference Include="CommunityToolkit.Diagnostics" Version="8.1.0" />
+        <PackageReference Include="QuikGraph" Version="2.5.0" />
     </ItemGroup>
 
     <ItemGroup>
-        <InternalsVisibleTo Include="Qynit.Pulsewave.Tests"/>
+        <InternalsVisibleTo Include="Qynit.Pulsewave.Tests" />
     </ItemGroup>
 
 </Project>
