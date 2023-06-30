@@ -14,7 +14,7 @@ public class WaveformUtilsTests
         var plateau = 40e-9;
 
         // Act
-        using var result = WaveformUtils.SampleWaveform<double>(
+        using var result = WaveformUtils.SampleEnvelope<double>(
             envelopeInfo,
             shape,
             width,
@@ -41,7 +41,7 @@ public class WaveformUtilsTests
         var shape = new TrianglePulseShape();
         var width = 30e-9;
         var plateau = 40e-9;
-        using var envelope = WaveformUtils.SampleWaveform<double>(
+        using var envelope = WaveformUtils.SampleEnvelope<double>(
             envelopeInfo,
             shape,
             width,
@@ -71,6 +71,62 @@ public class WaveformUtilsTests
             var p = new Complex(envelope.DataI[i], envelope.DataQ[i]) * c;
             expectI[i] = p.Real;
             expectQ[i] = p.Imaginary;
+        }
+
+        // Assert
+        var comparer = new ToleranceComparer(1e-9);
+        Assert.Equal(target.DataI.ToArray(), expectI, comparer);
+        Assert.Equal(target.DataQ.ToArray(), expectQ, comparer);
+    }
+
+    [Fact]
+    public void MixAddFrequencyWithDrag_Double_Equal()
+    {
+        // Arrange
+        var envelopeInfo = new EnvelopeInfo(0.9, 1e9);
+        var shape = new TrianglePulseShape();
+        var width = 30e-9;
+        var plateau = 40e-9;
+        using var envelope = WaveformUtils.SampleEnvelope<double>(
+            envelopeInfo,
+            shape,
+            width,
+            plateau);
+        var additionalLength = 10;
+        using var target = new PooledComplexArray<double>(envelope.Length + additionalLength, true);
+
+        var amplitude = 0.5;
+        var frequency = 100e6;
+        var phase = Math.PI / 6;
+        var dragCoefficient = 2e-9;
+
+        var cAmplitude = IqPair<double>.FromPolarCoordinates(amplitude, phase);
+        var dragAmplitude = cAmplitude * dragCoefficient * envelopeInfo.SampleRate * IqPair<double>.ImaginaryOne;
+        var dt = 1 / envelopeInfo.SampleRate;
+        var dPhase = Math.Tau * frequency * dt;
+
+        // Act
+        WaveformUtils.MixAddFrequencyWithDrag(target, envelope, cAmplitude, dragAmplitude, dPhase);
+        WaveformUtils.MixAddFrequencyWithDrag(target, envelope, cAmplitude, dragAmplitude, dPhase);
+
+        var expectI = new double[target.Length];
+        var expectQ = new double[target.Length];
+        for (var i = 0; i < envelope.Length; i++)
+        {
+            var t = i * dt;
+            var cPhase = phase + Math.Tau * frequency * t;
+            var c = Complex.FromPolarCoordinates(amplitude * 2, cPhase);
+            var env = new Complex(envelope.DataI[i], envelope.DataQ[i]);
+            var diff = i switch
+            {
+                0 => new Complex(envelope.DataI[i + 1], envelope.DataQ[i + 1]) - env,
+                _ when i == envelope.Length - 1 => env - new Complex(envelope.DataI[i - 1], envelope.DataQ[i - 1]),
+                _ => (new Complex(envelope.DataI[i + 1], envelope.DataQ[i + 1]) - new Complex(envelope.DataI[i - 1], envelope.DataQ[i - 1])) / 2,
+            };
+            var drag = diff * envelopeInfo.SampleRate * dragCoefficient * Complex.ImaginaryOne;
+            var total = (env + drag) * c;
+            expectI[i] = total.Real;
+            expectQ[i] = total.Imaginary;
         }
 
         // Assert
