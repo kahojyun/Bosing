@@ -7,26 +7,26 @@ public class WaveformGenerator<T>
     where T : unmanaged, IFloatingPointIeee754<T>
 {
     private readonly Dictionary<Channel, ChannelContext> _channelContexts = new();
+    private readonly PostProcessGraph<T> _graph = new();
 
-    public void AddChannel(Channel channel, double frequency)
+    public void AddChannel(Channel channel, double frequency, int length, double sampleRate, int alignLevel)
 
     {
         if (_channelContexts.ContainsKey(channel))
         {
             ThrowHelper.ThrowArgumentException($"Channel {channel} already exists");
         }
+        var builder = _graph.AddSourceNode(channel.Name);
         var context = new ChannelContext
         {
             Channel = channel,
             Frequency = frequency,
+            Builder = builder,
+            Length = length,
+            SampleRate = sampleRate,
+            AlignLevel = alignLevel,
         };
         _channelContexts.Add(channel, context);
-    }
-
-    public int GetPulseListLength(Channel channel)
-    {
-        var context = _channelContexts[channel];
-        return context.Builder.Build().Items.Count;
     }
 
     public void Run(IEnumerable<Instruction> instructions)
@@ -58,6 +58,26 @@ public class WaveformGenerator<T>
                     break;
             }
         }
+        _graph.Run();
+        foreach (var context in _channelContexts.Values)
+        {
+            var name = context.Channel.Name;
+            var pulseList = _graph.GetPulseList(name);
+            var waveform = WaveformUtils.SampleWaveform(pulseList, context.SampleRate, context.Length, context.AlignLevel);
+            context.Waveform = waveform;
+        }
+    }
+
+    public PooledComplexArray<T> TakeWaveform(Channel channel)
+    {
+        var context = _channelContexts[channel];
+        var waveform = context.Waveform;
+        if (waveform is null)
+        {
+            ThrowHelper.ThrowArgumentException($"Channel {channel} has not been run");
+        }
+        context.Waveform = null;
+        return waveform;
     }
 
     private void SwapPhase(SwapPhase swapPhase)
@@ -102,6 +122,10 @@ public class WaveformGenerator<T>
 
     private void Play(Play play)
     {
+        if (play.Amplitude == 0)
+        {
+            return;
+        }
         var channel = play.Channel;
         var context = _channelContexts[channel];
         var builder = context.Builder;
@@ -113,16 +137,20 @@ public class WaveformGenerator<T>
         var frequency = play.Frequency + context.Frequency + context.FrequencyShift;
         var phase = play.Phase + context.Phase + Math.Tau * frequency * tStart;
         var envelope = new Envelope(pulseShape, width, plateau);
-        builder.Add(envelope, frequency, tStart, T.CreateChecked(phase), T.CreateChecked(amplitude), T.Zero);
+        builder.Add(envelope, frequency, tStart, T.CreateChecked(amplitude), T.CreateChecked(phase), T.Zero);
     }
 
     private class ChannelContext
     {
         public required Channel Channel { get; init; }
-        public PulseList<T>.Builder Builder { get; } = new();
+        public required PulseList<T>.Builder Builder { get; init; }
+        public required int Length { get; init; }
+        public required double SampleRate { get; init; }
         public double Frequency { get; init; }
         public double FrequencyShift { get; set; }
         public double Phase { get; set; }
+        public PooledComplexArray<T>? Waveform { get; set; }
+        public int AlignLevel { get; init; }
 
         public void ShiftFrequency(double deltaFrequency, double referenceTime)
         {
