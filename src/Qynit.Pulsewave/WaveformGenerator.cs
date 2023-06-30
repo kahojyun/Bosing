@@ -134,10 +134,12 @@ public class WaveformGenerator<T>
         var width = play.Width;
         var plateau = play.Plateau;
         var amplitude = play.Amplitude;
-        var frequency = play.Frequency + context.Frequency + context.FrequencyShift;
-        var phase = play.Phase + context.Phase + Math.Tau * frequency * tStart;
+        var dragCoefficient = play.DragCoefficient;
+        var frameFrequency = context.Frequency + context.FrequencyShift;
+        var totalFrequency = play.Frequency + frameFrequency;
+        var phase = (play.Phase + context.Phase + Math.Tau * frameFrequency * tStart) % Math.Tau;
         var envelope = new Envelope(pulseShape, width, plateau);
-        builder.Add(envelope, frequency, tStart, T.CreateChecked(amplitude), T.CreateChecked(phase), T.Zero);
+        builder.Add(envelope, totalFrequency, tStart, T.CreateChecked(amplitude), T.CreateChecked(phase), T.CreateChecked(dragCoefficient));
     }
 
     private class ChannelContext

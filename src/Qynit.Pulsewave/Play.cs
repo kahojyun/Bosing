@@ -5,6 +5,7 @@ public record Play(
     double Width,
     double Plateau,
     double Amplitude,
+    double DragCoefficient,
     double Frequency,
     double Phase,
     Channel Channel) : Instruction(nameof(Play), new[] { Channel });
