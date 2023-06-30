@@ -42,16 +42,16 @@ static void Run<T>() where T : unmanaged, IFloatingPointIeee754<T>
 
     var instructions = new List<Instruction>();
     var shape = new HannPulseShape();
-    instructions.Add(new Play(shape, 0, 30e-9, 100e-9, 0.5, 0, 0, ch1));
-    instructions.Add(new Play(shape, 0, 30e-9, 100e-9, 0.6, 0, 0, ch2));
+    instructions.Add(new Play(shape, 0, 30e-9, 100e-9, 0.5, 2e-9, 0, 0, ch1));
+    instructions.Add(new Play(shape, 0, 30e-9, 100e-9, 0.6, 2e-9, 0, 0, ch2));
     instructions.Add(new ShiftPhase(0.25 * Math.Tau, ch1));
     instructions.Add(new ShiftPhase(-0.25 * Math.Tau, ch2));
-    instructions.Add(new Play(shape, 200e-9, 30e-9, 100e-9, 0.5, 0, 0, ch1));
-    instructions.Add(new Play(shape, 200e-9, 30e-9, 100e-9, 0.6, 0, 0, ch2));
+    instructions.Add(new Play(shape, 200e-9, 30e-9, 100e-9, 0.5, 2e-9, 0, 0, ch1));
+    instructions.Add(new Play(shape, 200e-9, 30e-9, 100e-9, 0.6, 2e-9, 0, 0, ch2));
     instructions.Add(new ShiftFrequency(-100e6, 400e-9, ch1));
     instructions.Add(new ShiftFrequency(-250e6, 400e-9, ch2));
-    instructions.Add(new Play(shape, 400e-9, 30e-9, 100e-9, 0.5, 0, 0, ch1));
-    instructions.Add(new Play(shape, 400e-9, 30e-9, 100e-9, 0.6, 0, 0, ch2));
+    instructions.Add(new Play(shape, 400e-9, 200e-9, 0e-9, 0.5, 2e-9, 0, 0, ch1));
+    instructions.Add(new Play(shape, 400e-9, 200e-9, 0e-9, 0.6, 2e-9, 0, 0, ch2));
     instructions.Add(new SetFrequency(0, 600e-9, ch1));
     instructions.Add(new SetFrequency(0, 600e-9, ch2));
 
@@ -59,10 +59,8 @@ static void Run<T>() where T : unmanaged, IFloatingPointIeee754<T>
     var count = 0;
     while (tStart < 49e-6)
     {
-        //instructions.Add(new Play(shape, tStart, 30e-9, 0, 0.5, 0, 0, ch1));
-        //instructions.Add(new Play(shape, tStart, 30e-9, 0, 0.6, 0, 0, ch2));
-        instructions.Add(new Play(shape, tStart, 30e-9, 0e-9, 0.5, 0, 0, ch1));
-        instructions.Add(new Play(shape, tStart, 30e-9, 0e-9, 0.6, 0, 0, ch2));
+        instructions.Add(new Play(shape, tStart, 30e-9, 0e-9, 0.5, 2e-9, 0, 0, ch1));
+        instructions.Add(new Play(shape, tStart, 30e-9, 0e-9, 0.6, 2e-9, 0, 0, ch2));
         instructions.Add(new ShiftPhase(0.25 * Math.Tau, ch1));
         instructions.Add(new ShiftPhase(-0.25 * Math.Tau, ch2));
         tStart += 0.1e-9;
