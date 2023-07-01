@@ -4,6 +4,8 @@ namespace Qynit.Pulsewave.Tests;
 
 public class WaveformUtilsTests
 {
+    private const double MixFrequency = 253.1033e6;
+
     [Fact]
     public void SampleWaveform_Double_Equal()
     {
@@ -37,101 +39,232 @@ public class WaveformUtilsTests
     public void MixAddFrequency_Double_Equal()
     {
         // Arrange
-        var envelopeInfo = new EnvelopeInfo(0.9, 1e9);
-        var shape = new TrianglePulseShape();
-        var width = 30e-9;
-        var plateau = 40e-9;
-        using var envelope = WaveformUtils.SampleEnvelope<double>(
-            envelopeInfo,
-            shape,
-            width,
-            plateau);
+        var sampleRate = 1e9;
+        using var envelope = GetEnvelope(sampleRate);
         var additionalLength = 10;
-        using var target = new PooledComplexArray<double>(envelope.Length + additionalLength, true);
+        using var expected = GetBuffer(envelope, additionalLength);
+        using var target = expected.Copy();
 
         var amplitude = 0.5;
-        var frequency = 100e6;
+        var frequency = MixFrequency;
         var phase = Math.PI / 6;
 
         var cAmplitude = IqPair<double>.FromPolarCoordinates(amplitude, phase);
-        var dt = 1 / envelopeInfo.SampleRate;
-        var dPhase = Math.Tau * frequency * dt;
+        var dragAmplitude = IqPair<double>.Zero;
+        var dPhase = Math.Tau * frequency / sampleRate;
 
         // Act
         WaveformUtils.MixAddFrequency(target, envelope, cAmplitude, dPhase);
-        WaveformUtils.MixAddFrequency(target, envelope, cAmplitude, dPhase);
-
-        var expectI = new double[target.Length];
-        var expectQ = new double[target.Length];
-        for (var i = 0; i < envelope.Length; i++)
-        {
-            var t = i * dt;
-            var cPhase = phase + Math.Tau * frequency * t;
-            var c = Complex.FromPolarCoordinates(amplitude * 2, cPhase);
-            var p = new Complex(envelope.DataI[i], envelope.DataQ[i]) * c;
-            expectI[i] = p.Real;
-            expectQ[i] = p.Imaginary;
-        }
 
         // Assert
+        MixAddWithDragSimple(expected, envelope, cAmplitude, dragAmplitude, dPhase);
         var comparer = new ToleranceComparer(1e-9);
-        Assert.Equal(target.DataI.ToArray(), expectI, comparer);
-        Assert.Equal(target.DataQ.ToArray(), expectQ, comparer);
+        Assert.Equal(target.DataI.ToArray(), expected.DataI.ToArray(), comparer);
+        Assert.Equal(target.DataQ.ToArray(), expected.DataQ.ToArray(), comparer);
+    }
+
+    [Fact]
+    public void MixAdd_Double_Equal()
+    {
+        // Arrange
+        var sampleRate = 1e9;
+        using var envelope = GetEnvelope(sampleRate);
+        var additionalLength = 10;
+        using var expected = GetBuffer(envelope, additionalLength);
+        using var target = expected.Copy();
+
+        var amplitude = 0.5;
+        var frequency = 0;
+        var phase = Math.PI / 6;
+
+        var cAmplitude = IqPair<double>.FromPolarCoordinates(amplitude, phase);
+        var dragAmplitude = IqPair<double>.Zero;
+        var dPhase = Math.Tau * frequency / sampleRate;
+
+        // Act
+        WaveformUtils.MixAdd(target, envelope, cAmplitude);
+
+        // Assert
+        MixAddWithDragSimple(expected, envelope, cAmplitude, dragAmplitude, dPhase);
+        var comparer = new ToleranceComparer(1e-9);
+        Assert.Equal(target.DataI.ToArray(), expected.DataI.ToArray(), comparer);
+        Assert.Equal(target.DataQ.ToArray(), expected.DataQ.ToArray(), comparer);
+    }
+
+    [Fact]
+    public void MixAddPlateauFrequency_Double_Equal()
+    {
+        // Arrange
+        var sampleRate = 1e9;
+        using var envelope = GetPlateau();
+        var additionalLength = 0;
+        using var expected = GetBuffer(envelope, additionalLength);
+        using var target = expected.Copy();
+
+        var amplitude = 0.5;
+        var frequency = MixFrequency;
+        var phase = Math.PI / 6;
+
+        var cAmplitude = IqPair<double>.FromPolarCoordinates(amplitude, phase);
+        var dragAmplitude = IqPair<double>.Zero;
+        var dPhase = Math.Tau * frequency / sampleRate;
+
+        // Act
+        WaveformUtils.MixAddPlateauFrequency(target, cAmplitude, dPhase);
+
+        // Assert
+        MixAddWithDragSimple(expected, envelope, cAmplitude, dragAmplitude, dPhase);
+        var comparer = new ToleranceComparer(1e-9);
+        Assert.Equal(target.DataI.ToArray(), expected.DataI.ToArray(), comparer);
+        Assert.Equal(target.DataQ.ToArray(), expected.DataQ.ToArray(), comparer);
+    }
+
+    [Fact]
+    public void MixAddPlateau_Double_Equal()
+    {
+        // Arrange
+        var sampleRate = 1e9;
+        using var envelope = GetPlateau();
+        var additionalLength = 0;
+        using var expected = GetBuffer(envelope, additionalLength);
+        using var target = expected.Copy();
+
+        var amplitude = 0.5;
+        var frequency = 0;
+        var phase = Math.PI / 6;
+
+        var cAmplitude = IqPair<double>.FromPolarCoordinates(amplitude, phase);
+        var dragAmplitude = IqPair<double>.Zero;
+        var dPhase = Math.Tau * frequency / sampleRate;
+
+        // Act
+        WaveformUtils.MixAddPlateau(target, cAmplitude);
+
+        // Assert
+        MixAddWithDragSimple(expected, envelope, cAmplitude, dragAmplitude, dPhase);
+        var comparer = new ToleranceComparer(1e-9);
+        Assert.Equal(target.DataI.ToArray(), expected.DataI.ToArray(), comparer);
+        Assert.Equal(target.DataQ.ToArray(), expected.DataQ.ToArray(), comparer);
     }
 
     [Fact]
     public void MixAddFrequencyWithDrag_Double_Equal()
     {
         // Arrange
-        var envelopeInfo = new EnvelopeInfo(0.9, 1e9);
-        var shape = new TrianglePulseShape();
-        var width = 30e-9;
-        var plateau = 40e-9;
-        using var envelope = WaveformUtils.SampleEnvelope<double>(
-            envelopeInfo,
-            shape,
-            width,
-            plateau);
+        var sampleRate = 1e9;
+        using var envelope = GetEnvelope(sampleRate);
         var additionalLength = 10;
-        using var target = new PooledComplexArray<double>(envelope.Length + additionalLength, true);
+        using var expected = GetBuffer(envelope, additionalLength);
+        using var target = expected.Copy();
 
         var amplitude = 0.5;
-        var frequency = 100e6;
+        var frequency = MixFrequency;
         var phase = Math.PI / 6;
         var dragCoefficient = 2e-9;
 
         var cAmplitude = IqPair<double>.FromPolarCoordinates(amplitude, phase);
-        var dragAmplitude = cAmplitude * dragCoefficient * envelopeInfo.SampleRate * IqPair<double>.ImaginaryOne;
-        var dt = 1 / envelopeInfo.SampleRate;
-        var dPhase = Math.Tau * frequency * dt;
+        var dragAmplitude = cAmplitude * dragCoefficient * sampleRate * IqPair<double>.ImaginaryOne;
+        var dPhase = Math.Tau * frequency / sampleRate;
 
         // Act
         WaveformUtils.MixAddFrequencyWithDrag(target, envelope, cAmplitude, dragAmplitude, dPhase);
-        WaveformUtils.MixAddFrequencyWithDrag(target, envelope, cAmplitude, dragAmplitude, dPhase);
-
-        var expectI = new double[target.Length];
-        var expectQ = new double[target.Length];
-        for (var i = 0; i < envelope.Length; i++)
-        {
-            var t = i * dt;
-            var cPhase = phase + Math.Tau * frequency * t;
-            var c = Complex.FromPolarCoordinates(amplitude * 2, cPhase);
-            var env = new Complex(envelope.DataI[i], envelope.DataQ[i]);
-            var diff = i switch
-            {
-                0 => new Complex(envelope.DataI[i + 1], envelope.DataQ[i + 1]) - env,
-                _ when i == envelope.Length - 1 => env - new Complex(envelope.DataI[i - 1], envelope.DataQ[i - 1]),
-                _ => (new Complex(envelope.DataI[i + 1], envelope.DataQ[i + 1]) - new Complex(envelope.DataI[i - 1], envelope.DataQ[i - 1])) / 2,
-            };
-            var drag = diff * envelopeInfo.SampleRate * dragCoefficient * Complex.ImaginaryOne;
-            var total = (env + drag) * c;
-            expectI[i] = total.Real;
-            expectQ[i] = total.Imaginary;
-        }
 
         // Assert
+        MixAddWithDragSimple(expected, envelope, cAmplitude, dragAmplitude, dPhase);
         var comparer = new ToleranceComparer(1e-9);
-        Assert.Equal(target.DataI.ToArray(), expectI, comparer);
-        Assert.Equal(target.DataQ.ToArray(), expectQ, comparer);
+        Assert.Equal(target.DataI.ToArray(), expected.DataI.ToArray(), comparer);
+        Assert.Equal(target.DataQ.ToArray(), expected.DataQ.ToArray(), comparer);
+    }
+
+    [Fact]
+    public void MixAddWithDrag_Double_Equal()
+    {
+        // Arrange
+        var sampleRate = 1e9;
+        using var envelope = GetEnvelope(sampleRate);
+        var additionalLength = 10;
+        using var expected = GetBuffer(envelope, additionalLength);
+        using var target = expected.Copy();
+
+        var amplitude = 0.5;
+        var frequency = 0;
+        var phase = Math.PI / 6;
+        var dragCoefficient = 2e-9;
+
+        var cAmplitude = IqPair<double>.FromPolarCoordinates(amplitude, phase);
+        var dragAmplitude = cAmplitude * dragCoefficient * sampleRate * IqPair<double>.ImaginaryOne;
+        var dPhase = Math.Tau * frequency / sampleRate;
+
+        // Act
+        WaveformUtils.MixAddWithDrag(target, envelope, cAmplitude, dragAmplitude);
+
+        // Assert
+        MixAddWithDragSimple(expected, envelope, cAmplitude, dragAmplitude, dPhase);
+        var comparer = new ToleranceComparer(1e-9);
+        Assert.Equal(target.DataI.ToArray(), expected.DataI.ToArray(), comparer);
+        Assert.Equal(target.DataQ.ToArray(), expected.DataQ.ToArray(), comparer);
+    }
+
+    private static PooledComplexArray<double> GetEnvelope(double sampleRate)
+    {
+        var envelopeInfo = new EnvelopeInfo(0.9, sampleRate);
+        var shape = new TrianglePulseShape();
+        var width = 30e-9;
+        var plateau = 45e-9;
+        var envelope = WaveformUtils.SampleEnvelope<double>(
+                    envelopeInfo,
+                    shape,
+                    width,
+                    plateau);
+        return envelope;
+    }
+
+    private static PooledComplexArray<double> GetPlateau()
+    {
+        var array = new PooledComplexArray<double>(101, true);
+        array.DataI.Fill(1);
+        return array;
+    }
+
+    private static PooledComplexArray<double> GetBuffer(PooledComplexArray<double> envelope, int additionalLength)
+    {
+        var expected = new PooledComplexArray<double>(envelope.Length + additionalLength, true);
+        var rng = new Random(42);
+        for (var i = 0; i < expected.Length; i++)
+        {
+            expected.DataI[i] = rng.NextDouble();
+            expected.DataQ[i] = rng.NextDouble();
+        }
+
+        return expected;
+    }
+
+    private static void MixAddWithDragSimple<T>(ComplexSpan<T> target, ComplexReadOnlySpan<T> source, IqPair<T> amplitude, IqPair<T> dragAmplitude, T dPhase)
+        where T : unmanaged, IFloatingPointIeee754<T>
+    {
+        var length = source.Length;
+        var sourceI = source.DataI;
+        var sourceQ = source.DataQ;
+        var targetI = target.DataI;
+        var targetQ = target.DataQ;
+
+        var carrier = amplitude;
+        var dragCarrier = dragAmplitude;
+        var phaser = IqPair<T>.FromPolarCoordinates(T.One, dPhase);
+        for (var i = 0; i < length; i++)
+        {
+            var diff = i switch
+            {
+                0 => new IqPair<T>(sourceI[i + 1], sourceQ[i + 1]) - new IqPair<T>(sourceI[i], sourceQ[i]),
+                _ when i == length - 1 => new IqPair<T>(sourceI[i], sourceQ[i]) - new IqPair<T>(sourceI[i - 1], sourceQ[i - 1]),
+                _ => (new IqPair<T>(sourceI[i + 1], sourceQ[i + 1]) - new IqPair<T>(sourceI[i - 1], sourceQ[i - 1])) * T.CreateChecked(0.5),
+            };
+            var sourceIq = new IqPair<T>(sourceI[i], sourceQ[i]);
+            var totalIq = sourceIq * carrier + diff * dragCarrier;
+            targetI[i] += totalIq.I;
+            targetQ[i] += totalIq.Q;
+            carrier *= phaser;
+            dragCarrier *= phaser;
+        }
     }
 }

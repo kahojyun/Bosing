@@ -6,6 +6,8 @@ public readonly record struct Envelope
     public IPulseShape? Shape { get; }
     public double Width { get; }
     public double Plateau { get; }
+    public bool IsRectangle => Shape is null;
+    public bool IsZero => Width == 0 && Plateau == 0;
     public Envelope(IPulseShape? shape, double width, double plateau)
     {
         Guard.IsGreaterThanOrEqualTo(width, 0);

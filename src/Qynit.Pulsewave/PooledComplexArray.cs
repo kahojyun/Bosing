@@ -45,7 +45,7 @@ public sealed class PooledComplexArray<T> : IDisposable
             Clear();
         }
     }
-    public PooledComplexArray(ComplexArrayReadOnlySpan<T> source) : this(source.Length, false)
+    public PooledComplexArray(ComplexReadOnlySpan<T> source) : this(source.Length, false)
     {
         source.DataI.CopyTo(_dataI);
         source.DataQ.CopyTo(_dataQ);
@@ -55,19 +55,19 @@ public sealed class PooledComplexArray<T> : IDisposable
     {
         return new PooledComplexArray<T>(this);
     }
-    public void CopyTo(ComplexArraySpan<T> destination)
+    public void CopyTo(ComplexSpan<T> destination)
     {
-        ((ComplexArrayReadOnlySpan<T>)this).CopyTo(destination);
+        ((ComplexReadOnlySpan<T>)this).CopyTo(destination);
     }
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public ComplexArraySpan<T> Slice(int start)
+    public ComplexSpan<T> Slice(int start)
     {
-        return new ComplexArraySpan<T>(DataI[start..], DataQ[start..]);
+        return new ComplexSpan<T>(DataI[start..], DataQ[start..]);
     }
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public ComplexArraySpan<T> Slice(int start, int length)
+    public ComplexSpan<T> Slice(int start, int length)
     {
-        return new ComplexArraySpan<T>(DataI.Slice(start, length), DataQ.Slice(start, length));
+        return new ComplexSpan<T>(DataI.Slice(start, length), DataQ.Slice(start, length));
     }
     public void Clear()
     {

@@ -14,7 +14,7 @@ public sealed class Waveform<T> : IDisposable
     public int Length => _array.Length;
     public double Dt => 1 / SampleRate;
     public double TStart => IndexStart * Dt;
-    public ComplexArraySpan<T> Array => _array;
+    public ComplexSpan<T> Array => _array;
 
     private readonly PooledComplexArray<T> _array;
     private bool _shouldDispose;
@@ -26,7 +26,7 @@ public sealed class Waveform<T> : IDisposable
         source._array.CopyTo(_array);
     }
 
-    public Waveform(ComplexArrayReadOnlySpan<T> source, int indexStart, double sampleRate) : this(indexStart, source.Length, sampleRate, false)
+    public Waveform(ComplexReadOnlySpan<T> source, int indexStart, double sampleRate) : this(indexStart, source.Length, sampleRate, false)
     {
         source.CopyTo(_array);
     }

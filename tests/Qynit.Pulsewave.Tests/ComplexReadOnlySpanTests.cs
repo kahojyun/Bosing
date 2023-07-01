@@ -1,6 +1,6 @@
 ﻿namespace Qynit.Pulsewave.Tests;
 
-public class ComplexArrayReadOnlySpanTests
+public class ComplexReadOnlySpanTests
 {
     private const int Length = 100;
 
@@ -23,19 +23,19 @@ public class ComplexArrayReadOnlySpanTests
     {
         // Arrange
         using var array = GetInitializedPooledComplexArray();
-        var complexArrayReadOnlySpan = (ComplexArrayReadOnlySpan<double>)array;
+        var complexReadOnlySpan = (ComplexReadOnlySpan<double>)array;
         var start = 15;
         var remainingLength = array.Length - start;
 
         // Act
 #pragma warning disable IDE0057 // Use range operator
-        var result = complexArrayReadOnlySpan.Slice(
+        var result = complexReadOnlySpan.Slice(
             start);
 #pragma warning restore IDE0057 // Use range operator
 
         // Assert
-        Assert.Equal(complexArrayReadOnlySpan.DataI[start..].ToArray(), result.DataI.ToArray());
-        Assert.Equal(complexArrayReadOnlySpan.DataQ[start..].ToArray(), result.DataQ.ToArray());
+        Assert.Equal(complexReadOnlySpan.DataI[start..].ToArray(), result.DataI.ToArray());
+        Assert.Equal(complexReadOnlySpan.DataQ[start..].ToArray(), result.DataQ.ToArray());
         Assert.Equal(remainingLength, result.Length);
     }
 
@@ -44,18 +44,18 @@ public class ComplexArrayReadOnlySpanTests
     {
         // Arrange
         using var array = GetInitializedPooledComplexArray();
-        var complexArrayReadOnlySpan = (ComplexArrayReadOnlySpan<double>)array;
+        var complexReadOnlySpan = (ComplexReadOnlySpan<double>)array;
         var start = 15;
         var length = 40;
 
         // Act
-        var result = complexArrayReadOnlySpan.Slice(
+        var result = complexReadOnlySpan.Slice(
             start,
             length);
 
         // Assert
-        Assert.Equal(complexArrayReadOnlySpan.DataI.Slice(start, length).ToArray(), result.DataI.ToArray());
-        Assert.Equal(complexArrayReadOnlySpan.DataQ.Slice(start, length).ToArray(), result.DataQ.ToArray());
+        Assert.Equal(complexReadOnlySpan.DataI.Slice(start, length).ToArray(), result.DataI.ToArray());
+        Assert.Equal(complexReadOnlySpan.DataQ.Slice(start, length).ToArray(), result.DataQ.ToArray());
         Assert.Equal(length, result.Length);
     }
 
@@ -71,7 +71,7 @@ public class ComplexArrayReadOnlySpanTests
 
 
         // Act
-        ((ComplexArrayReadOnlySpan<double>)source).CopyTo(
+        ((ComplexReadOnlySpan<double>)source).CopyTo(
             destination);
 
         // Assert
@@ -91,7 +91,7 @@ public class ComplexArrayReadOnlySpanTests
 
 
         // Act
-        ((ComplexArrayReadOnlySpan<double>)source).CopyTo(
+        ((ComplexReadOnlySpan<double>)source).CopyTo(
             destination);
 
         // Assert
@@ -113,7 +113,7 @@ public class ComplexArrayReadOnlySpanTests
 
 
         // Act
-        Assert.Throws<ArgumentException>(() => ((ComplexArrayReadOnlySpan<double>)source).CopyTo(
+        Assert.Throws<ArgumentException>(() => ((ComplexReadOnlySpan<double>)source).CopyTo(
                            destination));
     }
 }
