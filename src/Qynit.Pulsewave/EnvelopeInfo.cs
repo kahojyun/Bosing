@@ -2,7 +2,7 @@
 
 namespace Qynit.Pulsewave;
 
-public sealed record class EnvelopeInfo
+public readonly record struct EnvelopeInfo
 {
     private readonly double _indexOffset;
     public double IndexOffset

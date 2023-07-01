@@ -1,7 +1,7 @@
 ﻿using CommunityToolkit.Diagnostics;
 
 namespace Qynit.Pulsewave;
-public record Envelope
+public readonly record struct Envelope
 {
     public IPulseShape? Shape { get; }
     public double Width { get; }

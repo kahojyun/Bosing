@@ -1,5 +1,5 @@
 ﻿namespace Qynit.Pulsewave;
-public record Play(
+public sealed record Play(
     IPulseShape PulseShape,
     double TStart,
     double Width,
@@ -8,4 +8,4 @@ public record Play(
     double DragCoefficient,
     double Frequency,
     double Phase,
-    Channel Channel) : Instruction(nameof(Play), new[] { Channel });
+    Channel Channel) : Instruction;

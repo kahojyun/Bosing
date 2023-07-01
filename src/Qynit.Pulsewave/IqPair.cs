@@ -2,21 +2,12 @@
 using System.Runtime.CompilerServices;
 
 namespace Qynit.Pulsewave;
-public readonly record struct IqPair<T>
+public readonly record struct IqPair<T>(T I, T Q)
     where T : unmanaged, INumber<T>, ITrigonometricFunctions<T>
 {
     public static readonly IqPair<T> Zero = new(T.Zero, T.Zero);
     public static readonly IqPair<T> One = new(T.One, T.Zero);
     public static readonly IqPair<T> ImaginaryOne = new(T.Zero, T.One);
-
-    public T I { get; }
-    public T Q { get; }
-
-    public IqPair(T i, T q)
-    {
-        I = i;
-        Q = q;
-    }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static IqPair<T> FromPolarCoordinates(T magnitude, T phase)

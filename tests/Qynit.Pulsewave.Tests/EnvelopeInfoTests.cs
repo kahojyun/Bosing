@@ -34,8 +34,6 @@ public class EnvelopeInfoTests
         var envelopeInfo = new EnvelopeInfo(offset, sampleRate);
         var envelopeInfo2 = new EnvelopeInfo(offset2, sampleRate);
         Assert.True(envelopeInfo != envelopeInfo2);
-        Assert.True(envelopeInfo != null);
-        Assert.True(null != envelopeInfo);
     }
 
     [Fact]

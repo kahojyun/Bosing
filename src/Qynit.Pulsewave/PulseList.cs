@@ -117,7 +117,7 @@ internal record PulseList<T>
             : (IReadOnlyList<PulseList<T>.BinItem>)list.Select(item => new BinItem(timeOffset + item.Time, item.Amplitude * multiplier)).ToArray();
     }
 
-    internal record BinInfo(Envelope Envelope, double Frequency);
+    internal readonly record struct BinInfo(Envelope Envelope, double Frequency);
     internal readonly record struct PulseAmplitude(IqPair<T> Amplitude, IqPair<T> DragAmplitude)
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -136,7 +136,7 @@ internal record PulseList<T>
             return new PulseAmplitude(left * right.Amplitude, left * right.DragAmplitude);
         }
     }
-    internal record BinItem(double Time, PulseAmplitude Amplitude);
+    internal readonly record struct BinItem(double Time, PulseAmplitude Amplitude);
     internal class Builder
     {
         private readonly Dictionary<BinInfo, List<BinItem>> _items = new();
