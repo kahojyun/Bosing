@@ -20,6 +20,16 @@ public readonly ref struct ComplexSpan<T>
         return new ComplexSpan<T>(source.DataI, source.DataQ);
     }
 
+    public void Fill(T i, T q)
+    {
+        DataI.Fill(i);
+        DataQ.Fill(q);
+    }
+    public void Clear()
+    {
+        DataI.Clear();
+        DataQ.Clear();
+    }
     public void CopyTo(ComplexSpan<T> destination)
     {
         ((ComplexReadOnlySpan<T>)this).CopyTo(destination);

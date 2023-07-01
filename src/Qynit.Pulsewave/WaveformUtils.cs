@@ -3,6 +3,8 @@ using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
+using CommunityToolkit.Diagnostics;
+
 namespace Qynit.Pulsewave;
 public static class WaveformUtils
 {
@@ -50,61 +52,80 @@ public static class WaveformUtils
             foreach (var pulse in bin)
             {
                 var tStart = pulse.Time + pulseList.TimeOffset;
-                var shape = binKey.Envelope.Shape;
-                var width = binKey.Envelope.Width;
-                var plateau = binKey.Envelope.Plateau;
-                var frequency = binKey.Frequency;
                 var iFracStart = TimeAxisUtils.NextFracIndex(tStart, sampleRate, alignLevel);
                 var iStart = (int)Math.Ceiling(iFracStart);
                 var envelopeInfo = new EnvelopeInfo(iStart - iFracStart, sampleRate);
+                var envelopeSample = WaveformSampler<T>.GetEnvelopeSample(envelopeInfo, binKey.Envelope);
+                if (envelopeSample is null)
+                {
+                    continue;
+                }
+
+                var frequency = binKey.Frequency;
                 var dt = 1 / sampleRate;
-                var amplitude = pulse.Amplitude * pulseList.AmplitudeMultiplier * IqPair<T>.FromPolarCoordinates(T.One, T.CreateChecked((iStart * dt - tStart) * frequency * Math.Tau));
+                var phaseShift = T.CreateChecked(Math.Tau * frequency * (iStart * dt - tStart));
+                var amplitude = pulse.Amplitude * pulseList.AmplitudeMultiplier * IqPair<T>.FromPolarCoordinates(T.One, phaseShift);
                 var complexAmplitude = amplitude.Amplitude;
-                var dPhase = T.CreateChecked(Math.Tau * frequency * dt);
-                var arrayIStart = iStart;
                 var dragAmplitude = amplitude.DragAmplitude;
-                if (shape is null)
-                {
-                    var plateauLength = (int)Math.Ceiling((width + plateau) * sampleRate);
-                    if (frequency == 0)
-                    {
-                        MixAddPlateau(waveform.Slice(iStart, plateauLength), complexAmplitude);
-                    }
-                    else
-                    {
-                        MixAddPlateauFrequency(waveform.Slice(iStart, plateauLength), complexAmplitude, dPhase);
-                    }
-                }
-                else
-                {
-                    using var envelope = SampleEnvelope<T>(envelopeInfo, shape, width, plateau);
-                    if (dragAmplitude == IqPair<T>.Zero)
-                    {
-                        if (frequency == 0)
-                        {
-                            MixAdd(waveform[iStart..], envelope, complexAmplitude);
-                        }
-                        else
-                        {
-                            MixAddFrequency(waveform[iStart..], envelope, complexAmplitude, dPhase);
-                        }
-                    }
-                    else
-                    {
-                        var drag = dragAmplitude * T.CreateChecked(sampleRate);
-                        if (frequency == 0)
-                        {
-                            MixAddWithDrag(waveform[iStart..], envelope, complexAmplitude, drag);
-                        }
-                        else
-                        {
-                            MixAddFrequencyWithDrag(waveform[iStart..], envelope, complexAmplitude, drag, dPhase);
-                        }
-                    }
-                }
+                var dPhase = T.CreateChecked(Math.Tau * frequency * dt);
+                MixAddEnvelope(waveform[iStart..], envelopeSample, complexAmplitude, dragAmplitude, dPhase);
             }
         }
         return waveform;
+    }
+
+    private static void MixAddEnvelope<T>(ComplexSpan<T> target, EnvelopeSample<T> envelopeSample, IqPair<T> complexAmplitude, IqPair<T> dragAmplitude, T dPhase) where T : unmanaged, IFloatingPointIeee754<T>
+    {
+        var currentIndex = 0;
+        var leftArray = envelopeSample.LeftEdge;
+        if (leftArray is not null)
+        {
+            MixAddGeneral(target[currentIndex..], leftArray, complexAmplitude, dragAmplitude, dPhase);
+            currentIndex += leftArray.Length;
+        }
+        if (envelopeSample.Plateau > 0)
+        {
+            MixAddPlateauGeneral(target.Slice(currentIndex, envelopeSample.Plateau), complexAmplitude, dPhase);
+            currentIndex += envelopeSample.Plateau;
+        }
+        var rightArray = envelopeSample.RightEdge;
+        if (rightArray is not null)
+        {
+            MixAddGeneral(target[currentIndex..], rightArray, complexAmplitude, dragAmplitude, dPhase);
+        }
+    }
+
+    public static void MixAddPlateauGeneral<T>(ComplexSpan<T> target, IqPair<T> amplitude, T dPhase)
+        where T : unmanaged, IFloatingPointIeee754<T>
+    {
+        if (dPhase == T.Zero)
+        {
+            MixAddPlateau(target, amplitude);
+        }
+        else
+        {
+            MixAddPlateauFrequency(target, amplitude, dPhase);
+        }
+    }
+
+    public static void MixAddGeneral<T>(ComplexSpan<T> target, ComplexReadOnlySpan<T> source, IqPair<T> amplitude, IqPair<T> dragAmplitude, T dPhase)
+        where T : unmanaged, IFloatingPointIeee754<T>
+    {
+        switch ((dPhase == T.Zero, dragAmplitude == IqPair<T>.Zero))
+        {
+            case (true, true):
+                MixAdd(target, source, amplitude);
+                break;
+            case (true, false):
+                MixAddWithDrag(target, source, amplitude, dragAmplitude);
+                break;
+            case (false, true):
+                MixAddFrequency(target, source, amplitude, dPhase);
+                break;
+            case (false, false):
+                MixAddFrequencyWithDrag(target, source, amplitude, dragAmplitude, dPhase);
+                break;
+        }
     }
 
     public static void MixAddPlateau<T>(ComplexSpan<T> target, IqPair<T> amplitude)
@@ -201,7 +222,7 @@ public static class WaveformUtils
         {
             return;
         }
-        Debug.Assert(target.Length >= source.Length);
+        LengthCheck(target, source);
 
         var i = 0;
         ref var targetI = ref MemoryMarshal.GetReference(target.DataI);
@@ -245,7 +266,7 @@ public static class WaveformUtils
         {
             return;
         }
-        Debug.Assert(target.Length >= source.Length);
+        LengthCheck(target, source);
 
         var carrier = amplitude;
         var phaser = IqPair<T>.FromPolarCoordinates(T.One, dPhase);
@@ -313,7 +334,8 @@ public static class WaveformUtils
         {
             return;
         }
-        Debug.Assert(target.Length >= source.Length);
+        LengthCheck(target, source);
+
         ref var targetI = ref MemoryMarshal.GetReference(target.DataI);
         ref var targetQ = ref MemoryMarshal.GetReference(target.DataQ);
         ref var sourceI = ref MemoryMarshal.GetReference(source.DataI);
@@ -402,7 +424,8 @@ public static class WaveformUtils
         {
             return;
         }
-        Debug.Assert(target.Length >= source.Length);
+        LengthCheck(target, source);
+
         ref var targetI = ref MemoryMarshal.GetReference(target.DataI);
         ref var targetQ = ref MemoryMarshal.GetReference(target.DataQ);
         ref var sourceI = ref MemoryMarshal.GetReference(source.DataI);
@@ -517,6 +540,15 @@ public static class WaveformUtils
             var totalIq = sourceIq * carrier + diff * dragCarrier;
             Unsafe.Add(ref targetI, length - 1) += totalIq.I;
             Unsafe.Add(ref targetQ, length - 1) += totalIq.Q;
+        }
+    }
+
+    private static void LengthCheck<T>(ComplexSpan<T> target, ComplexReadOnlySpan<T> source) where T : unmanaged, IFloatingPointIeee754<T>
+    {
+        Debug.Assert(target.Length >= source.Length);
+        if (target.Length < source.Length)
+        {
+            ThrowHelper.ThrowArgumentException("Target length must be greater than or equal to source length.");
         }
     }
 }
