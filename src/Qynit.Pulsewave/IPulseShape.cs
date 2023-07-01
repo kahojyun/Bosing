@@ -17,7 +17,7 @@ public interface IPulseShape
     IqPair<T> SampleAt<T>(T x)
         where T : unmanaged, IFloatingPointIeee754<T>;
 
-    void SampleIQ<T>(ComplexArraySpan<T> target, T x0, T dx)
+    void SampleIQ<T>(ComplexSpan<T> target, T x0, T dx)
         where T : unmanaged, IFloatingPointIeee754<T>
     {
         var length = target.Length;
