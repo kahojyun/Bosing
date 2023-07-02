@@ -3,7 +3,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
 namespace Qynit.Pulsewave;
-public sealed class HannPulseShape : IPulseShape
+public sealed record HannPulseShape : IPulseShape
 {
     public IqPair<T> SampleAt<T>(T x)
         where T : unmanaged, IFloatingPointIeee754<T>

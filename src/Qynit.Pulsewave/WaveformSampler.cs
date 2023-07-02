@@ -1,7 +1,7 @@
 ﻿using System.Diagnostics;
 using System.Numerics;
 
-using Microsoft.Extensions.Caching.Memory;
+using BitFaster.Caching.Lru;
 
 namespace Qynit.Pulsewave;
 public static class WaveformSampler<T>
@@ -9,18 +9,14 @@ public static class WaveformSampler<T>
 {
     private const int PlateauThreshold = 128;
 
-    private static readonly IMemoryCache MemoryCache;
+    private static readonly FastConcurrentLru<EnvelopeCacheKey, EnvelopeSample<T>> MemoryCache;
 
     static WaveformSampler()
     {
-        var options = new MemoryCacheOptions
-        {
-            SizeLimit = 16 * 1024 * 1024,
-        };
-        MemoryCache = new MemoryCache(options);
+        MemoryCache = new FastConcurrentLru<EnvelopeCacheKey, EnvelopeSample<T>>(666);
     }
 
-    internal static EnvelopeSample<T>? GetEnvelopeSample(EnvelopeInfo envelopeInfo, Envelope envelope)
+    public static EnvelopeSample<T>? GetEnvelopeSample(EnvelopeInfo envelopeInfo, Envelope envelope)
     {
         var sampleRate = envelopeInfo.SampleRate;
         var shape = envelope.Shape;
@@ -30,12 +26,11 @@ public static class WaveformSampler<T>
             var rectLength = TimeAxisUtils.NextIndex(envelope.Plateau, sampleRate);
             return EnvelopeSample<T>.Rectangle(rectLength);
         }
+
         var dt = 1 / sampleRate;
         var tOffset = envelopeInfo.IndexOffset * dt;
         var width = envelope.Width;
         var plateau = envelope.Plateau;
-        var t1 = width / 2 - tOffset;
-        var t2 = width / 2 + plateau - tOffset;
         var t3 = width + plateau - tOffset;
         var length = TimeAxisUtils.NextIndex(t3, sampleRate);
         if (length == 0)
@@ -44,10 +39,25 @@ public static class WaveformSampler<T>
         }
 
         var key = new EnvelopeCacheKey(envelopeInfo, envelope);
-        if (MemoryCache.TryGetValue<EnvelopeSample<T>>(key, out var cachedValue))
-        {
-            return cachedValue;
-        }
+        return MemoryCache.GetOrAdd(key, CreateEnvelopeSample);
+    }
+
+    private static EnvelopeSample<T> CreateEnvelopeSample(EnvelopeCacheKey key)
+    {
+        var envelopeInfo = key.EnvelopeInfo;
+        var envelope = key.Envelope;
+        var sampleRate = envelopeInfo.SampleRate;
+        var shape = envelope.Shape;
+        Debug.Assert(shape is not null);
+
+        var dt = 1 / sampleRate;
+        var tOffset = envelopeInfo.IndexOffset * dt;
+        var width = envelope.Width;
+        var plateau = envelope.Plateau;
+        var t1 = width / 2 - tOffset;
+        var t2 = width / 2 + plateau - tOffset;
+        var t3 = width + plateau - tOffset;
+        var length = TimeAxisUtils.NextIndex(t3, sampleRate);
         var plateauStartIndex = TimeAxisUtils.NextIndex(t1, sampleRate);
         var plateauEndIndex = TimeAxisUtils.NextIndex(t2, sampleRate);
         var plateauLength = plateauEndIndex - plateauStartIndex;
@@ -82,11 +92,6 @@ public static class WaveformSampler<T>
             shape.SampleIQ(rightArray, x2, xStep);
             envelopeSample = EnvelopeSample<T>.WithPlateau(leftArray, rightArray, plateauLength);
         }
-        var cacheEntryOptions = new MemoryCacheEntryOptions
-        {
-            Size = envelopeSample.Size,
-        };
-        MemoryCache.Set(key, envelopeSample, cacheEntryOptions);
         return envelopeSample;
     }
 }

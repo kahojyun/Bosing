@@ -1,25 +1,21 @@
 ﻿using System.Diagnostics;
 
 namespace Qynit.Pulsewave;
-internal sealed record EnvelopeSample<T> : IDisposable
+public sealed class EnvelopeSample<T>
     where T : unmanaged
 {
-    public PooledComplexArray<T>? LeftEdge { get; }
-    public PooledComplexArray<T>? RightEdge { get; }
+    public ComplexReadOnlySpan<T> LeftEdge => _leftArray ?? ComplexReadOnlySpan<T>.Empty;
+    public ComplexReadOnlySpan<T> RightEdge => _rightArray ?? ComplexReadOnlySpan<T>.Empty;
+    public int Size => (_leftArray?.Length ?? 0) + (_rightArray?.Length ?? 0);
     public int Plateau { get; }
-    public int Size => (LeftEdge?.Length ?? 0) + (RightEdge?.Length ?? 0);
+    private readonly PooledComplexArray<T>? _leftArray;
+    private readonly PooledComplexArray<T>? _rightArray;
 
     private EnvelopeSample(PooledComplexArray<T>? leftEdge, PooledComplexArray<T>? rightEdge, int plateau)
     {
-        LeftEdge = leftEdge;
-        RightEdge = rightEdge;
+        _leftArray = leftEdge;
+        _rightArray = rightEdge;
         Plateau = plateau;
-    }
-
-    public void Dispose()
-    {
-        LeftEdge?.Dispose();
-        RightEdge?.Dispose();
     }
 
     public static EnvelopeSample<T>? Rectangle(int plateau)

@@ -66,7 +66,7 @@ public static class WaveformUtils
                 var phaseShift = T.CreateChecked(Math.Tau * frequency * (iStart * dt - tStart));
                 var amplitude = pulse.Amplitude * pulseList.AmplitudeMultiplier * IqPair<T>.FromPolarCoordinates(T.One, phaseShift);
                 var complexAmplitude = amplitude.Amplitude;
-                var dragAmplitude = amplitude.DragAmplitude;
+                var dragAmplitude = amplitude.DragAmplitude * T.CreateChecked(sampleRate);
                 var dPhase = T.CreateChecked(Math.Tau * frequency * dt);
                 MixAddEnvelope(waveform[iStart..], envelopeSample, complexAmplitude, dragAmplitude, dPhase);
             }
@@ -77,58 +77,60 @@ public static class WaveformUtils
     private static void MixAddEnvelope<T>(ComplexSpan<T> target, EnvelopeSample<T> envelopeSample, IqPair<T> complexAmplitude, IqPair<T> dragAmplitude, T dPhase) where T : unmanaged, IFloatingPointIeee754<T>
     {
         var currentIndex = 0;
-        var leftArray = envelopeSample.LeftEdge;
-        if (leftArray is not null)
-        {
-            MixAddGeneral(target[currentIndex..], leftArray, complexAmplitude, dragAmplitude, dPhase);
-            currentIndex += leftArray.Length;
-        }
-        if (envelopeSample.Plateau > 0)
-        {
-            MixAddPlateauGeneral(target.Slice(currentIndex, envelopeSample.Plateau), complexAmplitude, dPhase);
-            currentIndex += envelopeSample.Plateau;
-        }
-        var rightArray = envelopeSample.RightEdge;
-        if (rightArray is not null)
-        {
-            MixAddGeneral(target[currentIndex..], rightArray, complexAmplitude, dragAmplitude, dPhase);
-        }
+
+        var leftEdge = envelopeSample.LeftEdge;
+        MixAdd(target[currentIndex..], leftEdge, complexAmplitude, dragAmplitude, dPhase);
+        currentIndex += leftEdge.Length;
+
+        MixAddPlateau(target.Slice(currentIndex, envelopeSample.Plateau), complexAmplitude, dPhase);
+        currentIndex += envelopeSample.Plateau;
+
+        var rightEdge = envelopeSample.RightEdge;
+        MixAdd(target[currentIndex..], rightEdge, complexAmplitude, dragAmplitude, dPhase);
     }
 
-    public static void MixAddPlateauGeneral<T>(ComplexSpan<T> target, IqPair<T> amplitude, T dPhase)
+    public static void MixAddPlateau<T>(ComplexSpan<T> target, IqPair<T> amplitude, T dPhase)
         where T : unmanaged, IFloatingPointIeee754<T>
     {
+        if (target.Length == 0)
+        {
+            return;
+        }
         if (dPhase == T.Zero)
         {
-            MixAddPlateau(target, amplitude);
+            MixAddPlateauCore(target, amplitude);
         }
         else
         {
-            MixAddPlateauFrequency(target, amplitude, dPhase);
+            MixAddPlateauFrequencyCore(target, amplitude, dPhase);
         }
     }
 
-    public static void MixAddGeneral<T>(ComplexSpan<T> target, ComplexReadOnlySpan<T> source, IqPair<T> amplitude, IqPair<T> dragAmplitude, T dPhase)
+    public static void MixAdd<T>(ComplexSpan<T> target, ComplexReadOnlySpan<T> source, IqPair<T> amplitude, IqPair<T> dragAmplitude, T dPhase)
         where T : unmanaged, IFloatingPointIeee754<T>
     {
+        if (source.Length == 0)
+        {
+            return;
+        }
         switch ((dPhase == T.Zero, dragAmplitude == IqPair<T>.Zero))
         {
             case (true, true):
-                MixAdd(target, source, amplitude);
+                MixAddCore(target, source, amplitude);
                 break;
             case (true, false):
-                MixAddWithDrag(target, source, amplitude, dragAmplitude);
+                MixAddWithDragCore(target, source, amplitude, dragAmplitude);
                 break;
             case (false, true):
-                MixAddFrequency(target, source, amplitude, dPhase);
+                MixAddFrequencyCore(target, source, amplitude, dPhase);
                 break;
             case (false, false):
-                MixAddFrequencyWithDrag(target, source, amplitude, dragAmplitude, dPhase);
+                MixAddFrequencyWithDragCore(target, source, amplitude, dragAmplitude, dPhase);
                 break;
         }
     }
 
-    public static void MixAddPlateau<T>(ComplexSpan<T> target, IqPair<T> amplitude)
+    internal static void MixAddPlateauCore<T>(ComplexSpan<T> target, IqPair<T> amplitude)
         where T : unmanaged, IFloatingPointIeee754<T>
     {
         var length = target.Length;
@@ -159,7 +161,7 @@ public static class WaveformUtils
         }
     }
 
-    public static void MixAddPlateauFrequency<T>(ComplexSpan<T> target, IqPair<T> amplitude, T dPhase)
+    internal static void MixAddPlateauFrequencyCore<T>(ComplexSpan<T> target, IqPair<T> amplitude, T dPhase)
         where T : unmanaged, IFloatingPointIeee754<T>
     {
         var length = target.Length;
@@ -214,7 +216,7 @@ public static class WaveformUtils
         }
     }
 
-    public static void MixAdd<T>(ComplexSpan<T> target, ComplexReadOnlySpan<T> source, IqPair<T> amplitude)
+    internal static void MixAddCore<T>(ComplexSpan<T> target, ComplexReadOnlySpan<T> source, IqPair<T> amplitude)
         where T : unmanaged, IFloatingPointIeee754<T>
     {
         var length = source.Length;
@@ -258,7 +260,7 @@ public static class WaveformUtils
         }
     }
 
-    public static void MixAddFrequency<T>(ComplexSpan<T> target, ComplexReadOnlySpan<T> source, IqPair<T> amplitude, T dPhase)
+    internal static void MixAddFrequencyCore<T>(ComplexSpan<T> target, ComplexReadOnlySpan<T> source, IqPair<T> amplitude, T dPhase)
         where T : unmanaged, IFloatingPointIeee754<T>
     {
         var length = source.Length;
@@ -326,7 +328,7 @@ public static class WaveformUtils
         }
     }
 
-    public static void MixAddWithDrag<T>(ComplexSpan<T> target, ComplexReadOnlySpan<T> source, IqPair<T> amplitude, IqPair<T> dragAmplitude)
+    internal static void MixAddWithDragCore<T>(ComplexSpan<T> target, ComplexReadOnlySpan<T> source, IqPair<T> amplitude, IqPair<T> dragAmplitude)
         where T : unmanaged, IFloatingPointIeee754<T>
     {
         var length = source.Length;
@@ -416,7 +418,7 @@ public static class WaveformUtils
         }
     }
 
-    public static void MixAddFrequencyWithDrag<T>(ComplexSpan<T> target, ComplexReadOnlySpan<T> source, IqPair<T> amplitude, IqPair<T> dragAmplitude, T dPhase)
+    internal static void MixAddFrequencyWithDragCore<T>(ComplexSpan<T> target, ComplexReadOnlySpan<T> source, IqPair<T> amplitude, IqPair<T> dragAmplitude, T dPhase)
         where T : unmanaged, IFloatingPointIeee754<T>
     {
         var length = source.Length;

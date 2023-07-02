@@ -27,37 +27,37 @@ public class WaveformUtilsBench
     [Benchmark]
     public void MixAddPlateau()
     {
-        WaveformUtils.MixAddPlateau(Target!, Amplitude);
+        WaveformUtils.MixAddPlateau(Target!, Amplitude, 0);
     }
 
     [Benchmark]
     public void MixAddPlateauFrequency()
     {
-        WaveformUtils.MixAddPlateauFrequency(Target!, Amplitude, DPhase);
+        WaveformUtils.MixAddPlateau(Target!, Amplitude, DPhase);
     }
 
     [Benchmark]
     public void MixAdd()
     {
-        WaveformUtils.MixAdd(Target!, Source!, Amplitude);
+        WaveformUtils.MixAdd(Target!, Source!, Amplitude, 0, 0);
     }
 
     [Benchmark]
     public void MixAddFrequency()
     {
-        WaveformUtils.MixAddFrequency(Target!, Source!, Amplitude, DPhase);
+        WaveformUtils.MixAdd(Target!, Source!, Amplitude, 0, DPhase);
     }
 
     [Benchmark]
     public void MixAddWithDrag()
     {
-        WaveformUtils.MixAddWithDrag(Target!, Source!, Amplitude, DragAmplitude);
+        WaveformUtils.MixAdd(Target!, Source!, Amplitude, DragAmplitude, 0);
     }
 
     [Benchmark(Baseline = true)]
     public void MixAddFrequencyWithDrag()
     {
-        WaveformUtils.MixAddFrequencyWithDrag(Target!, Source!, Amplitude, DragAmplitude, DPhase);
+        WaveformUtils.MixAdd(Target!, Source!, Amplitude, DragAmplitude, DPhase);
     }
 
     [Benchmark]

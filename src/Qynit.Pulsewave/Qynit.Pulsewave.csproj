@@ -7,6 +7,7 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <PackageReference Include="BitFaster.Caching" Version="2.2.0" />
         <PackageReference Include="CommunityToolkit.Diagnostics" Version="8.2.0" />
         <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="7.0.0" />
         <PackageReference Include="QuikGraph" Version="2.5.0" />

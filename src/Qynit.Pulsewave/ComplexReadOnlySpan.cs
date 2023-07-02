@@ -5,6 +5,7 @@ namespace Qynit.Pulsewave;
 public readonly ref struct ComplexReadOnlySpan<T>
     where T : unmanaged
 {
+    public static ComplexReadOnlySpan<T> Empty => new(Span<T>.Empty, Span<T>.Empty);
     public ReadOnlySpan<T> DataI { get; }
     public ReadOnlySpan<T> DataQ { get; }
     public int Length => DataI.Length;
