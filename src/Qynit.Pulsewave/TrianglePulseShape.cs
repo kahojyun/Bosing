@@ -1,7 +1,7 @@
 ﻿using System.Numerics;
 
 namespace Qynit.Pulsewave;
-public class TrianglePulseShape : IPulseShape
+public sealed record TrianglePulseShape : IPulseShape
 {
     public IqPair<T> SampleAt<T>(T x) where T : unmanaged, IFloatingPointIeee754<T>
     {

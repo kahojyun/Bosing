@@ -54,7 +54,7 @@ public class WaveformUtilsTests
         var dPhase = Math.Tau * frequency / sampleRate;
 
         // Act
-        WaveformUtils.MixAddFrequency(target, envelope, cAmplitude, dPhase);
+        WaveformUtils.MixAddFrequencyCore(target, envelope, cAmplitude, dPhase);
 
         // Assert
         MixAddWithDragSimple(expected, envelope, cAmplitude, dragAmplitude, dPhase);
@@ -82,7 +82,7 @@ public class WaveformUtilsTests
         var dPhase = Math.Tau * frequency / sampleRate;
 
         // Act
-        WaveformUtils.MixAdd(target, envelope, cAmplitude);
+        WaveformUtils.MixAddCore(target, envelope, cAmplitude);
 
         // Assert
         MixAddWithDragSimple(expected, envelope, cAmplitude, dragAmplitude, dPhase);
@@ -110,7 +110,7 @@ public class WaveformUtilsTests
         var dPhase = Math.Tau * frequency / sampleRate;
 
         // Act
-        WaveformUtils.MixAddPlateauFrequency(target, cAmplitude, dPhase);
+        WaveformUtils.MixAddPlateauFrequencyCore(target, cAmplitude, dPhase);
 
         // Assert
         MixAddWithDragSimple(expected, envelope, cAmplitude, dragAmplitude, dPhase);
@@ -138,7 +138,7 @@ public class WaveformUtilsTests
         var dPhase = Math.Tau * frequency / sampleRate;
 
         // Act
-        WaveformUtils.MixAddPlateau(target, cAmplitude);
+        WaveformUtils.MixAddPlateauCore(target, cAmplitude);
 
         // Assert
         MixAddWithDragSimple(expected, envelope, cAmplitude, dragAmplitude, dPhase);
@@ -167,7 +167,7 @@ public class WaveformUtilsTests
         var dPhase = Math.Tau * frequency / sampleRate;
 
         // Act
-        WaveformUtils.MixAddFrequencyWithDrag(target, envelope, cAmplitude, dragAmplitude, dPhase);
+        WaveformUtils.MixAddFrequencyWithDragCore(target, envelope, cAmplitude, dragAmplitude, dPhase);
 
         // Assert
         MixAddWithDragSimple(expected, envelope, cAmplitude, dragAmplitude, dPhase);
@@ -196,7 +196,7 @@ public class WaveformUtilsTests
         var dPhase = Math.Tau * frequency / sampleRate;
 
         // Act
-        WaveformUtils.MixAddWithDrag(target, envelope, cAmplitude, dragAmplitude);
+        WaveformUtils.MixAddWithDragCore(target, envelope, cAmplitude, dragAmplitude);
 
         // Assert
         MixAddWithDragSimple(expected, envelope, cAmplitude, dragAmplitude, dPhase);

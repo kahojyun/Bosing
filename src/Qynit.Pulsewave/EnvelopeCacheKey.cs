@@ -1,2 +1,2 @@
 ﻿namespace Qynit.Pulsewave;
-internal record EnvelopeCacheKey(EnvelopeInfo EnvelopeInfo, Envelope Envelope);
+internal readonly record struct EnvelopeCacheKey(EnvelopeInfo EnvelopeInfo, Envelope Envelope);
