@@ -4,41 +4,46 @@ using QuikGraph;
 using QuikGraph.Algorithms;
 
 namespace Qynit.Pulsewave;
-internal class PostProcessGraph
+public class PostProcessTransform
 {
-    private readonly Dictionary<string, int> _vertexLookup = new();
     private readonly List<ProcessNode> _processNodes = new();
+    private readonly List<int> _terminalIds = new();
     private readonly AdjacencyGraph<int, Edge<int>> _adjacencyGraph = new();
 
-    internal PulseList.Builder AddSourceNode(string name)
+    public int AddSourceNode(PulseList pulseList)
     {
-        var node = new SourceNode();
-        AddNode(name, node);
-        return node.Builder;
+        return AddNode(new SourceNode(pulseList));
     }
 
-    public void AddBasicNode(string name)
+    public int AddTerminalNode()
     {
-        AddNode(name, new ProcessNode());
+        var id = AddSimpleNode();
+        _terminalIds.Add(id);
+        return id;
     }
 
-    public void AddDelay(string name, int delay)
+    public int AddSimpleNode()
     {
-        AddNode(name, new DelayNode(delay));
+        return AddNode(new ProcessNode());
     }
 
-    public void AddMultiply(string name, Complex multiplier)
+    public int AddDelay(double delay)
     {
-        AddNode(name, new MultiplyNode(multiplier));
+        return AddNode(new DelayNode(delay));
     }
 
-    public void AddMatrix(string name, Complex[,] matrix)
+    public int AddMultiply(Complex multiplier)
     {
-        var inputNames = Enumerable.Range(0, matrix.GetLength(1)).Select(x => $"{name}_in_{x}").ToArray();
-        var outputNames = Enumerable.Range(0, matrix.GetLength(0)).Select(x => $"{name}_out_{x}").ToArray();
-        var inputIds = inputNames.Select(x => AddNode(x, new ProcessNode())).ToArray();
-        var outputIds = outputNames.Select(x => AddNode(x, new ProcessNode())).ToArray();
-        var id = AddNode(name, new MatrixNode(matrix, inputIds, outputIds));
+        return AddNode(new MultiplyNode(multiplier));
+    }
+
+    public void AddMatrix(Complex[,] matrix, out int[] inputIds, out int[] outputIds)
+    {
+        var inputLength = matrix.GetLength(1);
+        var outputLength = matrix.GetLength(0);
+        inputIds = Enumerable.Range(0, inputLength).Select(_ => AddSimpleNode()).ToArray();
+        outputIds = Enumerable.Range(0, outputLength).Select(_ => AddSimpleNode()).ToArray();
+        var id = AddNode(new MatrixNode(matrix, inputIds, outputIds));
         foreach (var inputId in inputIds)
         {
             AddEdge(inputId, id);
@@ -49,21 +54,12 @@ internal class PostProcessGraph
         }
     }
 
-    public void AddEdge(string from, string to)
+    public bool AddEdge(int from, int to)
     {
-        var fromId = _vertexLookup[from];
-        var toId = _vertexLookup[to];
-        AddEdge(fromId, toId);
+        return _adjacencyGraph.AddEdge(new(from, to));
     }
 
-    public PulseList GetPulseList(string name)
-    {
-        var id = _vertexLookup[name];
-        var node = _processNodes[id];
-        return node.GetInboxPulseList();
-    }
-
-    public void Run()
+    public List<PulseList> Finish()
     {
         foreach (var vertex in _adjacencyGraph.TopologicalSort())
         {
@@ -87,11 +83,12 @@ internal class PostProcessGraph
                     break;
             }
         }
+        return _terminalIds.Select(x => _processNodes[x].GetInboxPulseList()).ToList();
     }
 
     private void RunSource(int id, SourceNode node)
     {
-        var pulseList = node.Builder.Build();
+        var pulseList = node.PulseList;
         node.Inbox.Add((id, pulseList));
         SendPulseListToTargets(id, pulseList);
     }
@@ -138,15 +135,9 @@ internal class PostProcessGraph
         _processNodes[targetId].Inbox.Add((id, pulseList));
     }
 
-    private void AddEdge(int from, int to)
-    {
-        _adjacencyGraph.AddEdge(new(from, to));
-    }
-
-    private int AddNode(string name, ProcessNode node)
+    private int AddNode(ProcessNode node)
     {
         var id = _processNodes.Count;
-        _vertexLookup.Add(name, id);
         _processNodes.Add(node);
         _adjacencyGraph.AddVertex(id);
         return id;
@@ -166,12 +157,9 @@ internal class PostProcessGraph
         }
     }
 
-    private record SourceNode : ProcessNode
-    {
-        public PulseList.Builder Builder { get; } = new();
-    }
+    private record SourceNode(PulseList PulseList) : ProcessNode;
 
-    private record DelayNode(int Delay) : ProcessNode;
+    private record DelayNode(double Delay) : ProcessNode;
 
     private record MultiplyNode(Complex Multiplier) : ProcessNode;
 

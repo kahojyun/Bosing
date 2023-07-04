@@ -2,4 +2,4 @@
 
 using WaveGenBenchmarks;
 
-BenchmarkRunner.Run<EnvelopeCacheBench>();
+BenchmarkRunner.Run<WaveformUtilsBench>();

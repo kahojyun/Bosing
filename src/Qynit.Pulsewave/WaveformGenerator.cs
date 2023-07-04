@@ -6,31 +6,28 @@ namespace Qynit.Pulsewave;
 public class WaveformGenerator<T>
     where T : unmanaged, IFloatingPointIeee754<T>
 {
-    private readonly Dictionary<Channel, ChannelContext> _channelContexts = new();
-    private readonly PostProcessGraph<T> _graph = new();
+    private readonly Dictionary<Channel, ChannelInfo> _channelInfo = new();
 
     public void AddChannel(Channel channel, double frequency, int length, double sampleRate, int alignLevel)
 
     {
-        if (_channelContexts.ContainsKey(channel))
+        if (_channelInfo.ContainsKey(channel))
         {
             ThrowHelper.ThrowArgumentException($"Channel {channel} already exists");
         }
-        var builder = _graph.AddSourceNode(channel.Name);
-        var context = new ChannelContext
-        {
-            Channel = channel,
-            Frequency = frequency,
-            Builder = builder,
-            Length = length,
-            SampleRate = sampleRate,
-            AlignLevel = alignLevel,
-        };
-        _channelContexts.Add(channel, context);
+        _channelInfo.Add(channel, new(channel, frequency, length, sampleRate, alignLevel));
     }
 
-    public void Run(IEnumerable<Instruction> instructions)
+    public Dictionary<Channel, PooledComplexArray<T>> Run(IEnumerable<Instruction> instructions)
     {
+        var phaseTrackingTransform = new PhaseTrackingTransform();
+        var channelIds = new Dictionary<Channel, int>();
+        foreach (var channel in _channelInfo.Values)
+        {
+            var channelId = phaseTrackingTransform.AddChannel(channel.Frequency);
+            channelIds.Add(channel.Channel, channelId);
+        }
+
         foreach (var instruction in instructions)
         {
             switch (instruction)
@@ -58,113 +55,76 @@ public class WaveformGenerator<T>
                     break;
             }
         }
-        _graph.Run();
-        foreach (var context in _channelContexts.Values)
+
+        var pulseLists = phaseTrackingTransform.Finish();
+        var result = new Dictionary<Channel, PooledComplexArray<T>>();
+        foreach (var channel in _channelInfo.Values)
         {
-            var name = context.Channel.Name;
-            var pulseList = _graph.GetPulseList(name);
-            var waveform = WaveformUtils.SampleWaveform(pulseList, context.SampleRate, context.Length, context.AlignLevel);
-            context.Waveform = waveform;
+            var channelId = channelIds[channel.Channel];
+            var pulseList = pulseLists[channelId];
+            var waveform = WaveformUtils.SampleWaveform<T>(pulseList, channel.SampleRate, 0, channel.Length, channel.AlignLevel);
+            result.Add(channel.Channel, waveform);
+        }
+        return result;
+
+        void SwapPhase(SwapPhase swapPhase)
+        {
+            var channel1 = swapPhase.Channel1;
+            var channelId1 = channelIds[channel1];
+            var channel2 = swapPhase.Channel2;
+            var channelId2 = channelIds[channel2];
+            phaseTrackingTransform.SwapPhase(channelId1, channelId2, swapPhase.ReferenceTime);
+        }
+
+        void ShiftPhase(ShiftPhase shiftPhase)
+        {
+            var channel = shiftPhase.Channel;
+            var channelId = channelIds[channel];
+            var deltaPhase = shiftPhase.Phase / Math.Tau;
+            phaseTrackingTransform.ShiftPhase(channelId, deltaPhase);
+        }
+
+        void SetPhase(SetPhase setPhase)
+        {
+            var channel = setPhase.Channel;
+            var channelId = channelIds[channel];
+            var phase = setPhase.Phase / Math.Tau;
+            phaseTrackingTransform.SetPhase(channelId, phase, 0);
+        }
+
+        void ShiftFrequency(ShiftFrequency shiftFrequency)
+        {
+            var channel = shiftFrequency.Channel;
+            var channelId = channelIds[channel];
+            var deltaFrequency = shiftFrequency.Frequency;
+            var referenceTime = shiftFrequency.ReferenceTime;
+            phaseTrackingTransform.ShiftFrequency(channelId, deltaFrequency, referenceTime);
+        }
+        void SetFrequency(SetFrequency setFrequency)
+        {
+            var channel = setFrequency.Channel;
+            var channelId = channelIds[channel];
+            var referenceTime = setFrequency.ReferenceTime;
+            var frequency = setFrequency.Frequency;
+            phaseTrackingTransform.SetFrequency(channelId, frequency, referenceTime);
+        }
+
+        void Play(Play play)
+        {
+            var channel = play.Channel;
+            var channelId = channelIds[channel];
+            var pulseShape = play.PulseShape;
+            var width = play.Width;
+            var plateau = play.Plateau;
+            var envelope = new Envelope(pulseShape, width, plateau);
+            var frequency = play.Frequency;
+            var phase = play.Phase / Math.Tau;
+            var amplitude = play.Amplitude;
+            var dragCoefficient = play.DragCoefficient;
+            var time = play.TStart;
+            phaseTrackingTransform.Play(channelId, envelope, frequency, phase, amplitude, dragCoefficient, time);
         }
     }
 
-    public PooledComplexArray<T> TakeWaveform(Channel channel)
-    {
-        var context = _channelContexts[channel];
-        var waveform = context.Waveform;
-        if (waveform is null)
-        {
-            ThrowHelper.ThrowArgumentException($"Channel {channel} has not been run");
-        }
-        context.Waveform = null;
-        return waveform;
-    }
-
-    private void SwapPhase(SwapPhase swapPhase)
-    {
-        var channel1 = swapPhase.Channel1;
-        var context1 = _channelContexts[channel1];
-        var channel2 = swapPhase.Channel2;
-        var context2 = _channelContexts[channel2];
-        (context1.Phase, context2.Phase) = (context2.Phase, context1.Phase);
-    }
-
-    private void ShiftPhase(ShiftPhase shiftPhase)
-    {
-        var channel = shiftPhase.Channel;
-        var context = _channelContexts[channel];
-        context.Phase += shiftPhase.Phase;
-    }
-
-    private void SetPhase(SetPhase setPhase)
-    {
-        var channel = setPhase.Channel;
-        var context = _channelContexts[channel];
-        context.Phase = setPhase.Phase;
-    }
-
-    private void ShiftFrequency(ShiftFrequency shiftFrequency)
-    {
-        var channel = shiftFrequency.Channel;
-        var context = _channelContexts[channel];
-        var referenceTime = shiftFrequency.ReferenceTime;
-        var deltaFrequency = shiftFrequency.Frequency;
-        context.ShiftFrequency(deltaFrequency, referenceTime);
-    }
-    private void SetFrequency(SetFrequency setFrequency)
-    {
-        var channel = setFrequency.Channel;
-        var context = _channelContexts[channel];
-        var referenceTime = setFrequency.ReferenceTime;
-        var frequency = setFrequency.Frequency;
-        context.SetFrequency(frequency, referenceTime);
-    }
-
-    private void Play(Play play)
-    {
-        if (play.Amplitude == 0)
-        {
-            return;
-        }
-        var channel = play.Channel;
-        var context = _channelContexts[channel];
-        var builder = context.Builder;
-        var pulseShape = play.PulseShape;
-        var tStart = play.TStart;
-        var width = play.Width;
-        var plateau = play.Plateau;
-        var amplitude = play.Amplitude;
-        var dragCoefficient = play.DragCoefficient;
-        var frameFrequency = context.Frequency + context.FrequencyShift;
-        var totalFrequency = play.Frequency + frameFrequency;
-        var phase = (play.Phase + context.Phase + Math.Tau * frameFrequency * tStart) % Math.Tau;
-        var envelope = new Envelope(pulseShape, width, plateau);
-        builder.Add(envelope, totalFrequency, tStart, T.CreateChecked(amplitude), T.CreateChecked(phase), T.CreateChecked(dragCoefficient));
-    }
-
-    private class ChannelContext
-    {
-        public required Channel Channel { get; init; }
-        public required PulseList<T>.Builder Builder { get; init; }
-        public required int Length { get; init; }
-        public required double SampleRate { get; init; }
-        public double Frequency { get; init; }
-        public double FrequencyShift { get; set; }
-        public double Phase { get; set; }
-        public PooledComplexArray<T>? Waveform { get; set; }
-        public int AlignLevel { get; init; }
-
-        public void ShiftFrequency(double deltaFrequency, double referenceTime)
-        {
-            var deltaPhase = -Math.Tau * deltaFrequency * referenceTime;
-            FrequencyShift += deltaFrequency;
-            Phase += deltaPhase;
-        }
-
-        public void SetFrequency(double frequency, double referenceTime)
-        {
-            var deltaFrequency = frequency - FrequencyShift;
-            ShiftFrequency(deltaFrequency, referenceTime);
-        }
-    }
+    private record ChannelInfo(Channel Channel, double Frequency, int Length, double SampleRate, int AlignLevel);
 }

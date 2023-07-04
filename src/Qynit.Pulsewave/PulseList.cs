@@ -2,12 +2,11 @@
 using System.Runtime.CompilerServices;
 
 namespace Qynit.Pulsewave;
-internal record PulseList<T>
-    where T : unmanaged, INumber<T>, ITrigonometricFunctions<T>
+public record PulseList
 {
-    public static readonly PulseList<T> Empty = new();
+    public static readonly PulseList Empty = new();
     public double TimeOffset { get; init; }
-    public IqPair<T> AmplitudeMultiplier { get; init; } = IqPair<T>.One;
+    public Complex AmplitudeMultiplier { get; init; } = Complex.One;
 
     internal IReadOnlyDictionary<BinInfo, IReadOnlyList<BinItem>> Items { get; }
 
@@ -21,48 +20,49 @@ internal record PulseList<T>
         Items = items;
     }
 
-    public static PulseList<T> operator +(PulseList<T> left, PulseList<T> right)
+    public static PulseList operator +(PulseList left, PulseList right)
     {
         return Sum(left, right);
     }
 
-    public static PulseList<T> operator *(PulseList<T> left, IqPair<T> right)
+    public static PulseList operator *(PulseList left, Complex right)
     {
         return left with { AmplitudeMultiplier = left.AmplitudeMultiplier * right };
     }
-    public static PulseList<T> operator *(IqPair<T> left, PulseList<T> right)
+    public static PulseList operator *(Complex left, PulseList right)
     {
         return right with { AmplitudeMultiplier = right.AmplitudeMultiplier * left };
     }
-    public PulseList<T> TimeShifted(double timeOffset)
+    public PulseList TimeShifted(double timeOffset)
     {
         return this with { TimeOffset = TimeOffset + timeOffset };
     }
 
-    public static PulseList<T> Sum(params PulseList<T>[] pulseLists)
+    public static PulseList Sum(params PulseList[] pulseLists)
     {
-        return Sum((IEnumerable<PulseList<T>>)pulseLists);
+        return Sum((IEnumerable<PulseList>)pulseLists);
     }
 
-    public static PulseList<T> Sum(IEnumerable<PulseList<T>> pulseLists)
+    public static PulseList Sum(IEnumerable<PulseList> pulseLists)
     {
         var newItems = new Dictionary<BinInfo, IReadOnlyList<BinItem>>();
         foreach (var pulseList in pulseLists)
         {
             foreach (var (key, list) in pulseList.Items)
             {
-                var newList = newItems.TryGetValue(key, out var oldList)
-                    ? AddApplyInfo(oldList, list, pulseList.TimeOffset, pulseList.AmplitudeMultiplier)
-                    : ApplyInfo(list, pulseList.TimeOffset, pulseList.AmplitudeMultiplier);
-                newItems[key] = newList;
+                var newKey = key with { Delay = key.Delay + pulseList.TimeOffset };
+                var newList = newItems.TryGetValue(newKey, out var oldList)
+                    ? AddApplyInfo(oldList, list, pulseList.AmplitudeMultiplier)
+                    : ApplyInfo(list, pulseList.AmplitudeMultiplier);
+                newItems[newKey] = newList;
             }
         }
-        return new PulseList<T>(newItems);
+        return new PulseList(newItems);
     }
 
-    private static IReadOnlyList<BinItem> AddApplyInfo(IReadOnlyList<BinItem> list, IReadOnlyList<BinItem> other, double timeOffset, IqPair<T> multiplier)
+    private static IReadOnlyList<BinItem> AddApplyInfo(IReadOnlyList<BinItem> list, IReadOnlyList<BinItem> other, Complex multiplier)
     {
-        if (multiplier == IqPair<T>.Zero || other.Count == 0)
+        if (multiplier == Complex.Zero || other.Count == 0)
         {
             return list;
         }
@@ -73,22 +73,20 @@ internal record PulseList<T>
         {
             var item1 = list[i];
             var item2 = other[j];
-            var newTime1 = item1.Time;
-            var newTime2 = timeOffset + item2.Time;
-            if (newTime1 < newTime2)
+            if (item1.Time < item2.Time)
             {
                 newList.Add(item1);
                 i++;
             }
-            else if (newTime1 > newTime2)
+            else if (item1.Time > item2.Time)
             {
-                var newItem = new BinItem(newTime2, item2.Amplitude * multiplier);
+                var newItem = item2 with { Amplitude = item2.Amplitude * multiplier };
                 newList.Add(newItem);
                 j++;
             }
             else
             {
-                var newItem = new BinItem(newTime1, item1.Amplitude + item2.Amplitude * multiplier);
+                var newItem = new BinItem(item1.Time, item1.Amplitude + item2.Amplitude * multiplier);
                 newList.Add(newItem);
                 i++;
                 j++;
@@ -102,23 +100,25 @@ internal record PulseList<T>
         while (j < other.Count)
         {
             var item2 = other[j];
-            var newTime2 = timeOffset + item2.Time;
-            var newItem = new BinItem(newTime2, item2.Amplitude * multiplier);
+            var newItem = item2 with { Amplitude = item2.Amplitude * multiplier };
             newList.Add(newItem);
             j++;
         }
         return newList;
     }
 
-    private static IReadOnlyList<BinItem> ApplyInfo(IReadOnlyList<BinItem> list, double timeOffset, IqPair<T> multiplier)
+    private static IReadOnlyList<BinItem> ApplyInfo(IReadOnlyList<BinItem> list, Complex multiplier)
     {
-        return multiplier == T.Zero
-            ? Array.Empty<BinItem>()
-            : (IReadOnlyList<PulseList<T>.BinItem>)list.Select(item => new BinItem(timeOffset + item.Time, item.Amplitude * multiplier)).ToArray();
+        return multiplier switch
+        {
+            { Real: 0, Imaginary: 0 } => Array.Empty<BinItem>(),
+            { Real: 1, Imaginary: 0 } => list,
+            _ => list.Select(item => new BinItem(item.Time, item.Amplitude * multiplier)).ToArray()
+        };
     }
 
-    internal readonly record struct BinInfo(Envelope Envelope, double Frequency);
-    internal readonly record struct PulseAmplitude(IqPair<T> Amplitude, IqPair<T> DragAmplitude)
+    internal readonly record struct BinInfo(Envelope Envelope, double GlobalFrequency, double LocalFrequency, double Delay);
+    internal readonly record struct PulseAmplitude(Complex Amplitude, Complex DragAmplitude)
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static PulseAmplitude operator +(PulseAmplitude left, PulseAmplitude right)
@@ -126,12 +126,12 @@ internal record PulseList<T>
             return new PulseAmplitude(left.Amplitude + right.Amplitude, left.DragAmplitude + right.DragAmplitude);
         }
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static PulseAmplitude operator *(PulseAmplitude left, IqPair<T> right)
+        public static PulseAmplitude operator *(PulseAmplitude left, Complex right)
         {
             return new PulseAmplitude(left.Amplitude * right, left.DragAmplitude * right);
         }
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static PulseAmplitude operator *(IqPair<T> left, PulseAmplitude right)
+        public static PulseAmplitude operator *(Complex left, PulseAmplitude right)
         {
             return new PulseAmplitude(left * right.Amplitude, left * right.DragAmplitude);
         }
@@ -140,15 +140,19 @@ internal record PulseList<T>
     internal class Builder
     {
         private readonly Dictionary<BinInfo, List<BinItem>> _items = new();
-        public void Add(Envelope envelope, double frequency, double time, T amplitude, T phase, T dragCoefficient)
+        public void Add(Envelope envelope, double globalFrequency, double localFrequency, double time, double amplitude, double phase, double dragCoefficient)
         {
-            var cAmplitude = IqPair<T>.FromPolarCoordinates(amplitude, phase);
-            var cDragAmplitude = cAmplitude * IqPair<T>.ImaginaryOne * dragCoefficient;
-            Add(envelope, frequency, time, cAmplitude, cDragAmplitude);
+            if (amplitude == 0)
+            {
+                return;
+            }
+            var cAmplitude = Complex.FromPolarCoordinates(amplitude, phase);
+            var cDragAmplitude = cAmplitude * Complex.ImaginaryOne * dragCoefficient;
+            Add(envelope, globalFrequency, localFrequency, 0, time, cAmplitude, cDragAmplitude);
         }
-        public void Add(Envelope envelope, double frequency, double time, IqPair<T> amplitude, IqPair<T> dragAmplitude)
+        public void Add(Envelope envelope, double globalFrequency, double localFrequency, double delay, double time, Complex amplitude, Complex dragAmplitude)
         {
-            var binInfo = new BinInfo(envelope, frequency);
+            var binInfo = new BinInfo(envelope, globalFrequency, localFrequency, delay);
             var item = new BinItem(time, new PulseAmplitude(amplitude, dragAmplitude));
             Add(binInfo, item);
         }
@@ -161,13 +165,13 @@ internal record PulseList<T>
             }
             list.Add(item);
         }
-        public PulseList<T> Build()
+        public PulseList Build()
         {
             foreach (var item in _items.Values)
             {
                 SortAndCompress(item);
             }
-            var result = new PulseList<T>(_items.ToDictionary(x => x.Key, x => (IReadOnlyList<BinItem>)x.Value));
+            var result = new PulseList(_items.ToDictionary(x => x.Key, x => (IReadOnlyList<BinItem>)x.Value));
             _items.Clear();
             return result;
         }
