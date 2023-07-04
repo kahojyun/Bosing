@@ -54,7 +54,7 @@ public record PulseList
                 var newList = newItems.TryGetValue(newKey, out var oldList)
                     ? AddApplyInfo(oldList, list, pulseList.AmplitudeMultiplier)
                     : ApplyInfo(list, pulseList.AmplitudeMultiplier);
-                newItems[key] = newList;
+                newItems[newKey] = newList;
             }
         }
         return new PulseList(newItems);
@@ -142,6 +142,10 @@ public record PulseList
         private readonly Dictionary<BinInfo, List<BinItem>> _items = new();
         public void Add(Envelope envelope, double globalFrequency, double localFrequency, double time, double amplitude, double phase, double dragCoefficient)
         {
+            if (amplitude == 0)
+            {
+                return;
+            }
             var cAmplitude = Complex.FromPolarCoordinates(amplitude, phase);
             var cDragAmplitude = cAmplitude * Complex.ImaginaryOne * dragCoefficient;
             Add(envelope, globalFrequency, localFrequency, 0, time, cAmplitude, cDragAmplitude);

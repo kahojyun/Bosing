@@ -35,6 +35,12 @@ public class PhaseTrackingTransform
         ChannelStatus.SwapPhase(_channels[channelId1], _channels[channelId2], time);
     }
 
+    public void Play(int channelId, Envelope envelope, double frequency, double phase, double amplitude, double dragCoefficient, double time)
+    {
+        var globalFrequency = _channels[channelId].TotalFrequency;
+        _channels[channelId].Builder.Add(envelope, globalFrequency, frequency, time, amplitude, phase, dragCoefficient);
+    }
+
     public List<PulseList> Finish()
     {
         var pulseLists = new List<PulseList>();

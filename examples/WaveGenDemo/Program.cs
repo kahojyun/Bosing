@@ -69,7 +69,7 @@ static void Run<T>() where T : unmanaged, IFloatingPointIeee754<T>
 
     var t1 = sw.Elapsed;
 
-    generator.Run(instructions);
+    var result = generator.Run(instructions);
 
     sw.Stop();
     var t2 = sw.Elapsed;
@@ -77,8 +77,8 @@ static void Run<T>() where T : unmanaged, IFloatingPointIeee754<T>
     Console.WriteLine($"Run time: {(t2 - t1).TotalMilliseconds} ms");
     Console.WriteLine($"Total elapsed time: {sw.Elapsed.TotalMilliseconds} ms");
     Console.WriteLine($"Count = {count}");
-    using var waveform1 = generator.TakeWaveform(ch1);
-    using var waveform2 = generator.TakeWaveform(ch2);
+    using var waveform1 = result[ch1];
+    using var waveform2 = result[ch2];
     //var plot = new Plot(1920, 1080);
     //plot.AddSignal(waveform1.DataI[2000..5000].ToArray(), sampleRate, label: $"wave 1 real");
     //plot.AddSignal(waveform1.DataQ[2000..5000].ToArray(), sampleRate, label: $"wave 1 imag");
