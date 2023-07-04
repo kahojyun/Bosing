@@ -7,7 +7,8 @@ using Qynit.Pulsewave;
 namespace WaveGenBenchmarks;
 public class WaveformUtilsBench
 {
-    [Params(16, 64, 256, 1024)]
+    //[Params(16, 64, 256, 1024)]
+    [Params(1024)]
     public int Length { get; set; }
     private PooledComplexArray<double>? Source { get; set; }
     private PooledComplexArray<double>? Target { get; set; }
@@ -24,35 +25,35 @@ public class WaveformUtilsBench
         Target = new PooledComplexArray<double>(Length, true);
     }
 
-    [Benchmark]
-    public void MixAddPlateau()
-    {
-        WaveformUtils.MixAddPlateau(Target!, Amplitude, 0);
-    }
+    //[Benchmark]
+    //public void MixAddPlateau()
+    //{
+    //    WaveformUtils.MixAddPlateau(Target!, Amplitude, 0);
+    //}
 
-    [Benchmark]
-    public void MixAddPlateauFrequency()
-    {
-        WaveformUtils.MixAddPlateau(Target!, Amplitude, DPhase);
-    }
+    //[Benchmark]
+    //public void MixAddPlateauFrequency()
+    //{
+    //    WaveformUtils.MixAddPlateau(Target!, Amplitude, DPhase);
+    //}
 
-    [Benchmark]
-    public void MixAdd()
-    {
-        WaveformUtils.MixAdd(Target!, Source!, Amplitude, 0, 0);
-    }
+    //[Benchmark]
+    //public void MixAdd()
+    //{
+    //    WaveformUtils.MixAdd(Target!, Source!, Amplitude, 0, 0);
+    //}
 
-    [Benchmark]
-    public void MixAddFrequency()
-    {
-        WaveformUtils.MixAdd(Target!, Source!, Amplitude, 0, DPhase);
-    }
+    //[Benchmark]
+    //public void MixAddFrequency()
+    //{
+    //    WaveformUtils.MixAdd(Target!, Source!, Amplitude, 0, DPhase);
+    //}
 
-    [Benchmark]
-    public void MixAddWithDrag()
-    {
-        WaveformUtils.MixAdd(Target!, Source!, Amplitude, DragAmplitude, 0);
-    }
+    //[Benchmark]
+    //public void MixAddWithDrag()
+    //{
+    //    WaveformUtils.MixAdd(Target!, Source!, Amplitude, DragAmplitude, 0);
+    //}
 
     [Benchmark(Baseline = true)]
     public void MixAddFrequencyWithDrag()
@@ -60,11 +61,11 @@ public class WaveformUtilsBench
         WaveformUtils.MixAdd(Target!, Source!, Amplitude, DragAmplitude, DPhase);
     }
 
-    [Benchmark]
-    public void Simple()
-    {
-        MixAddWithDragSimple(Target!, Source!, Amplitude, DragAmplitude, DPhase);
-    }
+    //[Benchmark]
+    //public void Simple()
+    //{
+    //    MixAddWithDragSimple(Target!, Source!, Amplitude, DragAmplitude, DPhase);
+    //}
 
     private static void MixAddWithDragSimple<T>(ComplexSpan<T> target, ComplexReadOnlySpan<T> source, IqPair<T> amplitude, IqPair<T> dragAmplitude, T dPhase)
        where T : unmanaged, IFloatingPointIeee754<T>

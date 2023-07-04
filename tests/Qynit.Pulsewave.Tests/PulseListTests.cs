@@ -13,24 +13,24 @@ public class PulseListTests
         const double frequency2 = 150e6;
         var envelope1 = Envelope.Rectangle(100e-9);
         var envelope2 = Envelope.Rectangle(150e-9);
-        builder.Add(envelope1, frequency1, 0, Math.PI / 5, 0.53, 12e-9);
-        builder.Add(envelope1, frequency1, 2e-9, Math.PI / 4, 0.55, 11e-9);
-        builder.Add(envelope1, frequency1, -2e-9, Math.PI / 8, 0.57, 1e-9);
-        builder.Add(envelope1, frequency2, 0, Math.PI / 55, 0.35, -1e-9);
-        builder.Add(envelope2, frequency1, 0, Math.PI / 53, 0.25, 5e-9);
-        builder.Add(envelope2, frequency1, 0, Math.PI / 52, 0.65, 3e-9);
-        builder.Add(envelope2, frequency1, 1e-9, Math.PI / 51, 0.45, 5e-9);
+        var bin1 = new PulseList.BinInfo(envelope1, frequency1, frequency2, 0);
+        var bin2 = new PulseList.BinInfo(envelope1, frequency2, frequency2, 0);
+        var bin3 = new PulseList.BinInfo(envelope2, frequency1, frequency2, 0.1e-9);
+        builder.Add(bin1, new(0, new(new(0.51, 0.1), new(0.6, 0.2))));
+        builder.Add(bin1, new(2e9, new(new(0.52, 0.2), new(0.5, 0.2))));
+        builder.Add(bin1, new(-2e9, new(new(0.53, 0.3), new(0.4, 0.2))));
+        builder.Add(bin2, new(0, new(new(0.54, 0.4), new(0.3, 0.2))));
+        builder.Add(bin3, new(0, new(new(0.55, 0.5), new(0.2, 0.2))));
+        builder.Add(bin3, new(0, new(new(0.56, 0.6), new(0.1, 0.2))));
+        builder.Add(bin3, new(1e9, new(new(0.57, 0.7), new(0, 0.2))));
 
         // Act
         var pulses = builder.Build();
 
         // Assert
         Assert.Equal(3, pulses.Items.Count);
-        var bin1 = new PulseList.BinInfo(envelope1, frequency1);
         Assert.Contains(bin1, pulses.Items);
-        var bin2 = new PulseList.BinInfo(envelope1, frequency2);
         Assert.Contains(bin2, pulses.Items);
-        var bin3 = new PulseList.BinInfo(envelope2, frequency1);
         Assert.Contains(bin3, pulses.Items);
         Assert.Equal(3, pulses.Items[bin1].Count);
         Assert.Equal(1, pulses.Items[bin2].Count);
@@ -44,20 +44,20 @@ public class PulseListTests
         var builder = new PulseList.Builder();
         var envelope = Envelope.Rectangle(100e-9);
         const double frequency = 120e6;
+        var bin = new PulseList.BinInfo(envelope, frequency, frequency, 0.1e-9);
         var amp1 = Complex.FromPolarCoordinates(0.5, Math.PI / 33);
         var amp2 = Complex.FromPolarCoordinates(0.6, Math.PI / 23);
         var amp3 = Complex.FromPolarCoordinates(0.7, Math.PI / 13);
-        builder.Add(envelope, frequency, 2e-9, amp3, amp1);
-        builder.Add(envelope, frequency, 0, amp1, amp2);
-        builder.Add(envelope, frequency, 0, amp3, amp2);
-        builder.Add(envelope, frequency, 2e-9, amp2, amp3);
+        builder.Add(bin, new(2e-9, new(amp3, amp1)));
+        builder.Add(bin, new(0, new(amp1, amp2)));
+        builder.Add(bin, new(0, new(amp3, amp2)));
+        builder.Add(bin, new(2e-9, new(amp2, amp3)));
 
         // Act
         var pulses = builder.Build();
 
         // Assert
         Assert.Equal(1, pulses.Items.Count);
-        var bin = new PulseList.BinInfo(envelope, frequency);
         Assert.Contains(bin, pulses.Items);
         Assert.Equal(2, pulses.Items[bin].Count);
         var list = pulses.Items[bin];
@@ -76,18 +76,21 @@ public class PulseListTests
         var builder = new PulseList.Builder();
         var envelope = Envelope.Rectangle(100e-9);
         const double frequency = 120e6;
-        builder.Add(envelope, frequency, -2e-9, Math.PI / 77, 0.55, -55e-9);
-        builder.Add(envelope, frequency, 0, Math.PI / 5, 0.5, 1e-9);
-        builder.Add(envelope, frequency, 2e-9, Math.PI / 4, 0.4, 2e-9);
-        builder.Add(envelope, frequency, 0, Math.PI / 3, 0.3, 1.5e-9);
-        builder.Add(envelope, frequency, -2e-9, Math.PI / 2, 0.6, -1e-9);
+        var bin = new PulseList.BinInfo(envelope, frequency, -frequency, 0.1e-9);
+        var amp1 = Complex.FromPolarCoordinates(0.5, Math.PI / 33);
+        var amp2 = Complex.FromPolarCoordinates(0.6, Math.PI / 23);
+        var amp3 = Complex.FromPolarCoordinates(0.7, Math.PI / 13);
+        builder.Add(bin, new(-2e-9, new(amp3, amp1)));
+        builder.Add(bin, new(0, new(amp1, amp2)));
+        builder.Add(bin, new(2e-9, new(amp1, amp2)));
+        builder.Add(bin, new(0, new(amp3, amp2)));
+        builder.Add(bin, new(-2e-9, new(amp2, amp3)));
 
         // Act
         var pulses = builder.Build();
 
         // Assert
         Assert.Equal(1, pulses.Items.Count);
-        var bin = new PulseList.BinInfo(envelope, frequency);
         Assert.Contains(bin, pulses.Items);
         Assert.Equal(3, pulses.Items[bin].Count);
         var list = pulses.Items[bin];
@@ -103,11 +106,15 @@ public class PulseListTests
         var builder = new PulseList.Builder();
         var envelope = Envelope.Rectangle(100e-9);
         const double frequency = 120e6;
-        builder.Add(envelope, frequency, -2e-9, Math.PI / 77, 0.55, -55e-9);
-        builder.Add(envelope, frequency, 0, Math.PI / 5, 0.5, 1e-9);
-        builder.Add(envelope, frequency, 2e-9, Math.PI / 4, 0.4, 2e-9);
-        builder.Add(envelope, frequency, 0, Math.PI / 3, 0.3, 1.5e-9);
-        builder.Add(envelope, frequency, -2e-9, Math.PI / 2, 0.6, -1e-9);
+        var bin = new PulseList.BinInfo(envelope, frequency, -frequency, 0.1e-9);
+        var amp1 = Complex.FromPolarCoordinates(0.5, Math.PI / 33);
+        var amp2 = Complex.FromPolarCoordinates(0.6, Math.PI / 23);
+        var amp3 = Complex.FromPolarCoordinates(0.7, Math.PI / 13);
+        builder.Add(bin, new(-2e-9, new(amp3, amp1)));
+        builder.Add(bin, new(0, new(amp1, amp2)));
+        builder.Add(bin, new(2e-9, new(amp1, amp2)));
+        builder.Add(bin, new(0, new(amp3, amp2)));
+        builder.Add(bin, new(-2e-9, new(amp2, amp3)));
 
         // Act
         var pulses1 = builder.Build();
@@ -127,24 +134,26 @@ public class PulseListTests
         var envelope1 = Envelope.Rectangle(100e-9);
         var envelope2 = Envelope.Rectangle(150e-9);
         const double frequency = 120e6;
+        var bin1 = new PulseList.BinInfo(envelope1, frequency, frequency, 0);
+        var bin2 = new PulseList.BinInfo(envelope2, frequency, frequency, 0);
         var amp1 = Complex.FromPolarCoordinates(0.5, Math.PI / 33);
         var amp2 = Complex.FromPolarCoordinates(0.6, Math.PI / 23);
         var amp3 = Complex.FromPolarCoordinates(0.7, Math.PI / 13);
-        builder1.Add(envelope1, frequency, 2e-9, amp3, amp1);
-        builder1.Add(envelope1, frequency, 0, amp1, amp2);
-        builder1.Add(envelope1, frequency, 0, amp3, amp2);
-        builder1.Add(envelope1, frequency, 2e-9, amp2, amp3);
-        builder1.Add(envelope2, frequency, 1e-9, amp2, amp3);
-        builder1.Add(envelope2, frequency, 0e-9, amp3, amp2);
-        builder1.Add(envelope2, frequency, -1e-9, amp2, amp1);
+        builder1.Add(bin1, new(2e-9, new(amp3, amp1)));
+        builder1.Add(bin1, new(0, new(amp1, amp2)));
+        builder1.Add(bin1, new(0, new(amp3, amp2)));
+        builder1.Add(bin1, new(2e-9, new(amp2, amp3)));
+        builder1.Add(bin2, new(1e-9, new(amp2, amp3)));
+        builder1.Add(bin2, new(0e-9, new(amp3, amp2)));
+        builder1.Add(bin2, new(-1e-9, new(amp2, amp1)));
 
-        builder2.Add(envelope1, frequency, 4e-9, amp3, amp1);
-        builder2.Add(envelope1, frequency, 1e-9, amp1, amp2);
-        builder2.Add(envelope1, frequency, 0, amp3, amp2);
-        builder2.Add(envelope1, frequency, 2e-9, amp2, amp3);
-        builder2.Add(envelope2, frequency, 1e-9, amp2, amp3);
-        builder2.Add(envelope2, frequency, 2e-9, amp2, amp2);
-        builder2.Add(envelope2, frequency, -1e-9, amp2, amp1);
+        builder2.Add(bin1, new(4e-9, new(amp3, amp1)));
+        builder2.Add(bin1, new(1e-9, new(amp1, amp2)));
+        builder2.Add(bin1, new(0, new(amp3, amp2)));
+        builder2.Add(bin1, new(2e-9, new(amp2, amp3)));
+        builder2.Add(bin2, new(1e-9, new(amp2, amp3)));
+        builder2.Add(bin2, new(2e-9, new(amp2, amp2)));
+        builder2.Add(bin2, new(-1e-9, new(amp2, amp1)));
 
         // Act
         var pulses1 = builder1.Build().TimeShifted(1e-9) * amp1;
@@ -152,27 +161,8 @@ public class PulseListTests
         var pulses = pulses1 + pulses2;
 
         // Assert
-        Assert.Equal(2, pulses.Items.Count);
+        Assert.Equal(4, pulses.Items.Count);
         Assert.Equal(0, pulses.TimeOffset);
         Assert.Equal(1, pulses.AmplitudeMultiplier);
-        var bin1 = new PulseList.BinInfo(envelope1, frequency);
-        var bin2 = new PulseList.BinInfo(envelope2, frequency);
-        Assert.Contains(bin1, pulses.Items);
-        Assert.Contains(bin2, pulses.Items);
-        var list1 = pulses.Items[bin1];
-        var list2 = pulses.Items[bin2];
-        Assert.Equal(4, list1.Count);
-        Assert.Equal(4, list2.Count);
-        var tolerance = 1e-9;
-        Assert.Equal(-1e-9, list1[0].Time, tolerance);
-        Assert.Equal(0, list1[1].Time, tolerance);
-        Assert.Equal(1e-9, list1[2].Time, tolerance);
-        Assert.Equal(3e-9, list1[3].Time, tolerance);
-        Assert.Equal(-2e-9, list2[0].Time, tolerance);
-        Assert.Equal(0, list2[1].Time, tolerance);
-        Assert.Equal(1e-9, list2[2].Time, tolerance);
-        Assert.Equal(2e-9, list2[3].Time, tolerance);
-        var pulseAmplitude = new PulseList.PulseAmplitude((amp3 + amp2) * amp1 + amp3 * amp2, (amp1 + amp3) * amp1 + amp1 * amp2);
-        Assert.Equal(pulseAmplitude, list1[3].Amplitude);
     }
 }

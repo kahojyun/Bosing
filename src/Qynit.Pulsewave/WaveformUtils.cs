@@ -44,14 +44,16 @@ public static class WaveformUtils
         return array;
     }
 
-    internal static PooledComplexArray<T> SampleWaveform<T>(PulseList pulseList, double sampleRate, int length, int alignLevel) where T : unmanaged, IFloatingPointIeee754<T>
+    internal static PooledComplexArray<T> SampleWaveform<T>(PulseList pulseList, double sampleRate, double loFrequency, int length, int alignLevel) where T : unmanaged, IFloatingPointIeee754<T>
     {
         var waveform = new PooledComplexArray<T>(length, true);
         foreach (var (binKey, bin) in pulseList.Items)
         {
             foreach (var pulse in bin)
             {
-                var tStart = pulse.Time + pulseList.TimeOffset;
+                var delay = pulseList.TimeOffset + binKey.Delay;
+                var time = pulse.Time;
+                var tStart = time + delay;
                 var iFracStart = TimeAxisUtils.NextFracIndex(tStart, sampleRate, alignLevel);
                 var iStart = (int)Math.Ceiling(iFracStart);
                 var envelopeInfo = new EnvelopeInfo(iStart - iFracStart, sampleRate);
@@ -61,13 +63,15 @@ public static class WaveformUtils
                     continue;
                 }
 
-                var frequency = binKey.Frequency;
+                var globalFrequency = binKey.GlobalFrequency - loFrequency;
+                var localFrequency = binKey.LocalFrequency;
+                var totalFrequency = globalFrequency + localFrequency;
                 var dt = 1 / sampleRate;
-                var phaseShift = Math.Tau * frequency * (iStart * dt - tStart);
+                var phaseShift = Math.Tau * globalFrequency * (iStart * dt - delay);
                 var amplitude = pulse.Amplitude * pulseList.AmplitudeMultiplier * Complex.FromPolarCoordinates(1, phaseShift);
                 var complexAmplitude = amplitude.Amplitude;
                 var dragAmplitude = amplitude.DragAmplitude * sampleRate;
-                var dPhase = T.CreateChecked(Math.Tau * frequency * dt);
+                var dPhase = T.CreateChecked(Math.Tau * totalFrequency * dt);
                 MixAddEnvelope(waveform[iStart..], envelopeSample, (IqPair<T>)complexAmplitude, (IqPair<T>)dragAmplitude, dPhase);
             }
         }

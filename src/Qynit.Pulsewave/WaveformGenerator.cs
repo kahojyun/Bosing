@@ -63,7 +63,7 @@ public class WaveformGenerator<T>
         {
             var name = context.Channel.Name;
             var pulseList = _graph.GetPulseList(name);
-            var waveform = WaveformUtils.SampleWaveform<T>(pulseList, context.SampleRate, context.Length, context.AlignLevel);
+            var waveform = WaveformUtils.SampleWaveform<T>(pulseList, context.SampleRate, 0, context.Length, context.AlignLevel);
             context.Waveform = waveform;
         }
     }
@@ -136,10 +136,9 @@ public class WaveformGenerator<T>
         var amplitude = play.Amplitude;
         var dragCoefficient = play.DragCoefficient;
         var frameFrequency = context.Frequency + context.FrequencyShift;
-        var totalFrequency = play.Frequency + frameFrequency;
-        var phase = (play.Phase + context.Phase + Math.Tau * frameFrequency * tStart) % Math.Tau;
+        var phase = (play.Phase + context.Phase) % Math.Tau;
         var envelope = new Envelope(pulseShape, width, plateau);
-        builder.Add(envelope, totalFrequency, tStart, amplitude, phase, dragCoefficient);
+        builder.Add(envelope, frameFrequency, play.Frequency, tStart, amplitude, phase, dragCoefficient);
     }
 
     private class ChannelContext
