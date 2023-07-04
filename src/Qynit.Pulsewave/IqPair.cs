@@ -142,6 +142,12 @@ public readonly record struct IqPair<T>(T I, T Q)
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static explicit operator IqPair<T>(Complex value)
+    {
+        return new IqPair<T>(T.CreateChecked(value.Real), T.CreateChecked(value.Imaginary));
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public readonly void Deconstruct(out T i, out T q)
     {
         i = I;

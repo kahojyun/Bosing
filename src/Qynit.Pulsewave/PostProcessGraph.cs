@@ -4,14 +4,13 @@ using QuikGraph;
 using QuikGraph.Algorithms;
 
 namespace Qynit.Pulsewave;
-internal class PostProcessGraph<T>
-    where T : unmanaged, INumber<T>, ITrigonometricFunctions<T>
+internal class PostProcessGraph
 {
     private readonly Dictionary<string, int> _vertexLookup = new();
     private readonly List<ProcessNode> _processNodes = new();
     private readonly AdjacencyGraph<int, Edge<int>> _adjacencyGraph = new();
 
-    internal PulseList<T>.Builder AddSourceNode(string name)
+    internal PulseList.Builder AddSourceNode(string name)
     {
         var node = new SourceNode();
         AddNode(name, node);
@@ -28,12 +27,12 @@ internal class PostProcessGraph<T>
         AddNode(name, new DelayNode(delay));
     }
 
-    public void AddMultiply(string name, IqPair<T> multiplier)
+    public void AddMultiply(string name, Complex multiplier)
     {
         AddNode(name, new MultiplyNode(multiplier));
     }
 
-    public void AddMatrix(string name, IqPair<T>[,] matrix)
+    public void AddMatrix(string name, Complex[,] matrix)
     {
         var inputNames = Enumerable.Range(0, matrix.GetLength(1)).Select(x => $"{name}_in_{x}").ToArray();
         var outputNames = Enumerable.Range(0, matrix.GetLength(0)).Select(x => $"{name}_out_{x}").ToArray();
@@ -57,7 +56,7 @@ internal class PostProcessGraph<T>
         AddEdge(fromId, toId);
     }
 
-    public PulseList<T> GetPulseList(string name)
+    public PulseList GetPulseList(string name)
     {
         var id = _vertexLookup[name];
         var node = _processNodes[id];
@@ -109,7 +108,7 @@ internal class PostProcessGraph<T>
                               select inboxItem.pulseList;
         for (var i = 0; i < node.Matrix.GetLength(0); i++)
         {
-            var outputPulseList = PulseList<T>.Sum(inputPulseLists.Select((x, j) => x * node.Matrix[i, j]));
+            var outputPulseList = PulseList.Sum(inputPulseLists.Select((x, j) => x * node.Matrix[i, j]));
             SendPulseListToTarget(id, node.OutputIds[i], outputPulseList);
         }
     }
@@ -126,7 +125,7 @@ internal class PostProcessGraph<T>
         SendPulseListToTargets(id, pulseList);
     }
 
-    private void SendPulseListToTargets(int id, PulseList<T> pulseList)
+    private void SendPulseListToTargets(int id, PulseList pulseList)
     {
         foreach (var edge in _adjacencyGraph.OutEdges(id))
         {
@@ -134,7 +133,7 @@ internal class PostProcessGraph<T>
         }
     }
 
-    private void SendPulseListToTarget(int id, int targetId, PulseList<T> pulseList)
+    private void SendPulseListToTarget(int id, int targetId, PulseList pulseList)
     {
         _processNodes[targetId].Inbox.Add((id, pulseList));
     }
@@ -155,26 +154,26 @@ internal class PostProcessGraph<T>
 
     private record class ProcessNode
     {
-        public List<(int id, PulseList<T> pulseList)> Inbox { get; } = new();
-        public PulseList<T> GetInboxPulseList()
+        public List<(int id, PulseList pulseList)> Inbox { get; } = new();
+        public PulseList GetInboxPulseList()
         {
             return Inbox.Count switch
             {
-                0 => PulseList<T>.Empty,
+                0 => PulseList.Empty,
                 1 => Inbox[0].pulseList,
-                _ => PulseList<T>.Sum(Inbox.Select(x => x.pulseList)),
+                _ => PulseList.Sum(Inbox.Select(x => x.pulseList)),
             };
         }
     }
 
     private record SourceNode : ProcessNode
     {
-        public PulseList<T>.Builder Builder { get; } = new();
+        public PulseList.Builder Builder { get; } = new();
     }
 
     private record DelayNode(int Delay) : ProcessNode;
 
-    private record MultiplyNode(IqPair<T> Multiplier) : ProcessNode;
+    private record MultiplyNode(Complex Multiplier) : ProcessNode;
 
-    private record MatrixNode(IqPair<T>[,] Matrix, int[] InputIds, int[] OutputIds) : ProcessNode;
+    private record MatrixNode(Complex[,] Matrix, int[] InputIds, int[] OutputIds) : ProcessNode;
 }

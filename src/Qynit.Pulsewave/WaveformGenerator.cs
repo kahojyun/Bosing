@@ -7,7 +7,7 @@ public class WaveformGenerator<T>
     where T : unmanaged, IFloatingPointIeee754<T>
 {
     private readonly Dictionary<Channel, ChannelContext> _channelContexts = new();
-    private readonly PostProcessGraph<T> _graph = new();
+    private readonly PostProcessGraph _graph = new();
 
     public void AddChannel(Channel channel, double frequency, int length, double sampleRate, int alignLevel)
 
@@ -63,7 +63,7 @@ public class WaveformGenerator<T>
         {
             var name = context.Channel.Name;
             var pulseList = _graph.GetPulseList(name);
-            var waveform = WaveformUtils.SampleWaveform(pulseList, context.SampleRate, context.Length, context.AlignLevel);
+            var waveform = WaveformUtils.SampleWaveform<T>(pulseList, context.SampleRate, context.Length, context.AlignLevel);
             context.Waveform = waveform;
         }
     }
@@ -139,13 +139,13 @@ public class WaveformGenerator<T>
         var totalFrequency = play.Frequency + frameFrequency;
         var phase = (play.Phase + context.Phase + Math.Tau * frameFrequency * tStart) % Math.Tau;
         var envelope = new Envelope(pulseShape, width, plateau);
-        builder.Add(envelope, totalFrequency, tStart, T.CreateChecked(amplitude), T.CreateChecked(phase), T.CreateChecked(dragCoefficient));
+        builder.Add(envelope, totalFrequency, tStart, amplitude, phase, dragCoefficient);
     }
 
     private class ChannelContext
     {
         public required Channel Channel { get; init; }
-        public required PulseList<T>.Builder Builder { get; init; }
+        public required PulseList.Builder Builder { get; init; }
         public required int Length { get; init; }
         public required double SampleRate { get; init; }
         public double Frequency { get; init; }

@@ -44,7 +44,7 @@ public static class WaveformUtils
         return array;
     }
 
-    internal static PooledComplexArray<T> SampleWaveform<T>(PulseList<T> pulseList, double sampleRate, int length, int alignLevel) where T : unmanaged, IFloatingPointIeee754<T>
+    internal static PooledComplexArray<T> SampleWaveform<T>(PulseList pulseList, double sampleRate, int length, int alignLevel) where T : unmanaged, IFloatingPointIeee754<T>
     {
         var waveform = new PooledComplexArray<T>(length, true);
         foreach (var (binKey, bin) in pulseList.Items)
@@ -63,12 +63,12 @@ public static class WaveformUtils
 
                 var frequency = binKey.Frequency;
                 var dt = 1 / sampleRate;
-                var phaseShift = T.CreateChecked(Math.Tau * frequency * (iStart * dt - tStart));
-                var amplitude = pulse.Amplitude * pulseList.AmplitudeMultiplier * IqPair<T>.FromPolarCoordinates(T.One, phaseShift);
+                var phaseShift = Math.Tau * frequency * (iStart * dt - tStart);
+                var amplitude = pulse.Amplitude * pulseList.AmplitudeMultiplier * Complex.FromPolarCoordinates(1, phaseShift);
                 var complexAmplitude = amplitude.Amplitude;
-                var dragAmplitude = amplitude.DragAmplitude * T.CreateChecked(sampleRate);
+                var dragAmplitude = amplitude.DragAmplitude * sampleRate;
                 var dPhase = T.CreateChecked(Math.Tau * frequency * dt);
-                MixAddEnvelope(waveform[iStart..], envelopeSample, complexAmplitude, dragAmplitude, dPhase);
+                MixAddEnvelope(waveform[iStart..], envelopeSample, (IqPair<T>)complexAmplitude, (IqPair<T>)dragAmplitude, dPhase);
             }
         }
         return waveform;
