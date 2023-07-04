@@ -12,7 +12,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Qynit.Pulsewave\Qynit.Pulsewave.csproj" />
+    <ProjectReference Include="..\..\src\Qynit.PulseGen\Qynit.PulseGen.csproj" />
   </ItemGroup>
 
 </Project>

@@ -1,7 +1,7 @@
 ﻿using System.Diagnostics;
 using System.Numerics;
 
-using Qynit.Pulsewave;
+using Qynit.PulseGen;
 
 for (var i = 0; i < 5; i++)
 {
