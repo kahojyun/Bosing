@@ -1,4 +1,4 @@
-# Qynit.Pulsewave
+# Qynit.PulseGen
 
 Waveform generator for superconducting circuits.
 
