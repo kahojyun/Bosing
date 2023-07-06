@@ -38,7 +38,8 @@ public class PhaseTrackingTransform
     public void Play(int channelId, Envelope envelope, double frequency, double phase, double amplitude, double dragCoefficient, double time)
     {
         var globalFrequency = _channels[channelId].TotalFrequency;
-        _channels[channelId].Builder.Add(envelope, globalFrequency, frequency, time, amplitude, phase, dragCoefficient);
+        var totalPhase = _channels[channelId].Phase + phase;
+        _channels[channelId].Builder.Add(envelope, globalFrequency, frequency, time, amplitude, totalPhase, dragCoefficient);
     }
 
     public List<PulseList> Finish()

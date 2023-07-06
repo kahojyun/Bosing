@@ -44,7 +44,7 @@ public static class WaveformUtils
         return array;
     }
 
-    internal static PooledComplexArray<T> SampleWaveform<T>(PulseList pulseList, double sampleRate, double loFrequency, int length, int alignLevel) where T : unmanaged, IFloatingPointIeee754<T>
+    public static PooledComplexArray<T> SampleWaveform<T>(PulseList pulseList, double sampleRate, double loFrequency, int length, int alignLevel) where T : unmanaged, IFloatingPointIeee754<T>
     {
         var waveform = new PooledComplexArray<T>(length, true);
         foreach (var (binKey, bin) in pulseList.Items)
