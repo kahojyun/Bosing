@@ -20,7 +20,9 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "examples", "examples", "{67
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "WaveGenDemo", "examples\WaveGenDemo\WaveGenDemo.csproj", "{B83CB224-4C00-4011-BF6A-C76C7D786908}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WaveGenBenchmarks", "examples\WaveGenBenchmarks\WaveGenBenchmarks.csproj", "{ECE2579D-700C-4BB3-9009-F35395177B7A}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "WaveGenBenchmarks", "examples\WaveGenBenchmarks\WaveGenBenchmarks.csproj", "{ECE2579D-700C-4BB3-9009-F35395177B7A}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Qynit.PulseGen.Server", "src\Qynit.PulseGen.Server\Qynit.PulseGen.Server.csproj", "{3AF1B594-E5D8-43A1-9E74-A8F9570BD0FA}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -44,6 +46,10 @@ Global
 		{ECE2579D-700C-4BB3-9009-F35395177B7A}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{ECE2579D-700C-4BB3-9009-F35395177B7A}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{ECE2579D-700C-4BB3-9009-F35395177B7A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3AF1B594-E5D8-43A1-9E74-A8F9570BD0FA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3AF1B594-E5D8-43A1-9E74-A8F9570BD0FA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3AF1B594-E5D8-43A1-9E74-A8F9570BD0FA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3AF1B594-E5D8-43A1-9E74-A8F9570BD0FA}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -53,6 +59,7 @@ Global
 		{33659EDC-29F9-45DB-A9FA-E01E648BE4B9} = {3B8B8B3E-9095-4A7E-9309-661439C30D9A}
 		{B83CB224-4C00-4011-BF6A-C76C7D786908} = {6741804E-962A-4762-B289-CD4899A62AD8}
 		{ECE2579D-700C-4BB3-9009-F35395177B7A} = {6741804E-962A-4762-B289-CD4899A62AD8}
+		{3AF1B594-E5D8-43A1-9E74-A8F9570BD0FA} = {3EBAD22F-230A-4BCB-B16C-A9063E2A4E9A}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {1DC52AEE-D9FC-4B2F-9492-0C92B0479A3C}

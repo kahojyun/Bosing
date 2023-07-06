@@ -146,7 +146,7 @@ public record PulseList
             {
                 return;
             }
-            var cAmplitude = Complex.FromPolarCoordinates(amplitude, phase);
+            var cAmplitude = Complex.FromPolarCoordinates(amplitude, Math.Tau * phase);
             var cDragAmplitude = cAmplitude * Complex.ImaginaryOne * dragCoefficient;
             Add(envelope, globalFrequency, localFrequency, 0, time, cAmplitude, cDragAmplitude);
         }

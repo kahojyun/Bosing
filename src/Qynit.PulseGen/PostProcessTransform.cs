@@ -15,9 +15,10 @@ public class PostProcessTransform
         return AddNode(new SourceNode(pulseList));
     }
 
-    public int AddTerminalNode()
+    public int AddTerminalNode(out int resultId)
     {
         var id = AddSimpleNode();
+        resultId = _terminalIds.Count;
         _terminalIds.Add(id);
         return id;
     }
