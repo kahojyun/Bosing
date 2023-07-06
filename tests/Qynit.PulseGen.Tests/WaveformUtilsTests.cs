@@ -1,4 +1,5 @@
-﻿using System.Numerics;
+﻿using System.Diagnostics;
+using System.Numerics;
 
 namespace Qynit.PulseGen.Tests;
 
@@ -14,25 +15,28 @@ public class WaveformUtilsTests
         var shape = new TrianglePulseShape();
         var width = 30e-9;
         var plateau = 40e-9;
+        var envelope = new Envelope(shape, width, plateau);
 
         // Act
-        using var result = WaveformUtils.SampleEnvelope<double>(
+        var result = WaveformSampler<double>.GetEnvelopeSample(
             envelopeInfo,
-            shape,
-            width,
-            plateau);
+            envelope);
 
         // Assert
         var index = new[] { 0, 9, 14, 24, 54, 55, 64, 69 };
         var valueI = new[] { 0.9 / 15, 9.9 / 15, 14.9 / 15, 1, 1, 14.1 / 15, 5.1 / 15, 0.1 / 15 };
         var valueQ = new double[index.Length];
-        var resultI = index.Select(i => result.DataI[i]);
-        var resultQ = index.Select(i => result.DataQ[i]);
+        // TODO: get continuous envelope
+        Assert.NotNull(result);
+        Assert.Equal(0, result.Plateau);
+        Assert.True(result.RightEdge.IsEmpty);
+        var resultI = index.Select(i => result.LeftEdge.DataI[i]);
+        var resultQ = index.Select(i => result.LeftEdge.DataQ[i]);
         var comparer = new ToleranceComparer(1e-9);
         Assert.Equal(valueI, resultI, comparer);
         Assert.Equal(valueQ, resultQ, comparer);
         var expectedLength = (int)Math.Round((width + plateau) * envelopeInfo.SampleRate);
-        Assert.Equal(expectedLength, result.Length);
+        Assert.Equal(expectedLength, result.LeftEdge.Length);
     }
 
     [Fact]
@@ -40,9 +44,9 @@ public class WaveformUtilsTests
     {
         // Arrange
         var sampleRate = 1e9;
-        using var envelope = GetEnvelope(sampleRate);
+        var envelope = GetEnvelope(sampleRate);
         var additionalLength = 10;
-        using var expected = GetBuffer(envelope, additionalLength);
+        using var expected = GetBuffer(envelope.LeftEdge, additionalLength);
         using var target = expected.Copy();
 
         var amplitude = 0.5;
@@ -54,10 +58,10 @@ public class WaveformUtilsTests
         var dPhase = Math.Tau * frequency / sampleRate;
 
         // Act
-        WaveformUtils.MixAddFrequencyCore(target, envelope, cAmplitude, dPhase);
+        WaveformUtils.MixAddFrequencyCore(target, envelope.LeftEdge, cAmplitude, dPhase);
 
         // Assert
-        MixAddWithDragSimple(expected, envelope, cAmplitude, dragAmplitude, dPhase);
+        MixAddWithDragSimple(expected, envelope.LeftEdge, cAmplitude, dragAmplitude, dPhase);
         var comparer = new ToleranceComparer(1e-9);
         Assert.Equal(target.DataI.ToArray(), expected.DataI.ToArray(), comparer);
         Assert.Equal(target.DataQ.ToArray(), expected.DataQ.ToArray(), comparer);
@@ -68,9 +72,9 @@ public class WaveformUtilsTests
     {
         // Arrange
         var sampleRate = 1e9;
-        using var envelope = GetEnvelope(sampleRate);
+        var envelope = GetEnvelope(sampleRate);
         var additionalLength = 10;
-        using var expected = GetBuffer(envelope, additionalLength);
+        using var expected = GetBuffer(envelope.LeftEdge, additionalLength);
         using var target = expected.Copy();
 
         var amplitude = 0.5;
@@ -82,10 +86,10 @@ public class WaveformUtilsTests
         var dPhase = Math.Tau * frequency / sampleRate;
 
         // Act
-        WaveformUtils.MixAddCore(target, envelope, cAmplitude);
+        WaveformUtils.MixAddCore(target, envelope.LeftEdge, cAmplitude);
 
         // Assert
-        MixAddWithDragSimple(expected, envelope, cAmplitude, dragAmplitude, dPhase);
+        MixAddWithDragSimple(expected, envelope.LeftEdge, cAmplitude, dragAmplitude, dPhase);
         var comparer = new ToleranceComparer(1e-9);
         Assert.Equal(target.DataI.ToArray(), expected.DataI.ToArray(), comparer);
         Assert.Equal(target.DataQ.ToArray(), expected.DataQ.ToArray(), comparer);
@@ -152,9 +156,9 @@ public class WaveformUtilsTests
     {
         // Arrange
         var sampleRate = 1e9;
-        using var envelope = GetEnvelope(sampleRate);
+        var envelope = GetEnvelope(sampleRate);
         var additionalLength = 10;
-        using var expected = GetBuffer(envelope, additionalLength);
+        using var expected = GetBuffer(envelope.LeftEdge, additionalLength);
         using var target = expected.Copy();
 
         var amplitude = 0.5;
@@ -167,10 +171,10 @@ public class WaveformUtilsTests
         var dPhase = Math.Tau * frequency / sampleRate;
 
         // Act
-        WaveformUtils.MixAddFrequencyWithDragCore(target, envelope, cAmplitude, dragAmplitude, dPhase);
+        WaveformUtils.MixAddFrequencyWithDragCore(target, envelope.LeftEdge, cAmplitude, dragAmplitude, dPhase);
 
         // Assert
-        MixAddWithDragSimple(expected, envelope, cAmplitude, dragAmplitude, dPhase);
+        MixAddWithDragSimple(expected, envelope.LeftEdge, cAmplitude, dragAmplitude, dPhase);
         var comparer = new ToleranceComparer(1e-9);
         Assert.Equal(target.DataI.ToArray(), expected.DataI.ToArray(), comparer);
         Assert.Equal(target.DataQ.ToArray(), expected.DataQ.ToArray(), comparer);
@@ -181,9 +185,9 @@ public class WaveformUtilsTests
     {
         // Arrange
         var sampleRate = 1e9;
-        using var envelope = GetEnvelope(sampleRate);
+        var envelope = GetEnvelope(sampleRate);
         var additionalLength = 10;
-        using var expected = GetBuffer(envelope, additionalLength);
+        using var expected = GetBuffer(envelope.LeftEdge, additionalLength);
         using var target = expected.Copy();
 
         var amplitude = 0.5;
@@ -196,27 +200,28 @@ public class WaveformUtilsTests
         var dPhase = Math.Tau * frequency / sampleRate;
 
         // Act
-        WaveformUtils.MixAddWithDragCore(target, envelope, cAmplitude, dragAmplitude);
+        WaveformUtils.MixAddWithDragCore(target, envelope.LeftEdge, cAmplitude, dragAmplitude);
 
         // Assert
-        MixAddWithDragSimple(expected, envelope, cAmplitude, dragAmplitude, dPhase);
+        MixAddWithDragSimple(expected, envelope.LeftEdge, cAmplitude, dragAmplitude, dPhase);
         var comparer = new ToleranceComparer(1e-9);
         Assert.Equal(target.DataI.ToArray(), expected.DataI.ToArray(), comparer);
         Assert.Equal(target.DataQ.ToArray(), expected.DataQ.ToArray(), comparer);
     }
 
-    private static PooledComplexArray<double> GetEnvelope(double sampleRate)
+    // TODO: get continuous envelope
+    private static EnvelopeSample<double> GetEnvelope(double sampleRate)
     {
         var envelopeInfo = new EnvelopeInfo(0.9, sampleRate);
         var shape = new TrianglePulseShape();
         var width = 30e-9;
         var plateau = 45e-9;
-        var envelope = WaveformUtils.SampleEnvelope<double>(
-                    envelopeInfo,
-                    shape,
-                    width,
-                    plateau);
-        return envelope;
+        var envelope = new Envelope(shape, width, plateau);
+        var result = WaveformSampler<double>.GetEnvelopeSample(envelopeInfo, envelope);
+        Debug.Assert(result is not null);
+        Debug.Assert(result.Plateau == 0);
+        Debug.Assert(result.RightEdge.IsEmpty);
+        return result;
     }
 
     private static PooledComplexArray<double> GetPlateau()
@@ -226,7 +231,7 @@ public class WaveformUtilsTests
         return array;
     }
 
-    private static PooledComplexArray<double> GetBuffer(PooledComplexArray<double> envelope, int additionalLength)
+    private static PooledComplexArray<double> GetBuffer(ComplexReadOnlySpan<double> envelope, int additionalLength)
     {
         var expected = new PooledComplexArray<double>(envelope.Length + additionalLength, true);
         var rng = new Random(42);

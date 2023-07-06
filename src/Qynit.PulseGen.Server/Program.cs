@@ -12,26 +12,28 @@ var resolver = CompositeResolver.Create(
     new[] { StandardResolver.Instance });
 var options = MessagePackSerializerOptions.Standard.WithResolver(resolver);
 
-app.MapPost("/run", async (HttpContext context, CancellationToken token) =>
+const string contentType = "application/msgpack";
+
+app.MapPost("/run", async (HttpRequest request, CancellationToken token) =>
 {
-    if (context.Request.ContentType == "application/msgpack")
+    if (request.ContentType != contentType)
     {
-        var request = await MessagePackSerializer.DeserializeAsync<PulseGenRequest>(context.Request.BodyReader.AsStream(), cancellationToken: token);
-        var runner = new PulseGenRunner(request);
-        var response = runner.Run();
-        return Results.Stream(async s =>
-        {
-            using (response)
-            {
-                await MessagePackSerializer.SerializeAsync(s, response, options, token);
-            }
-        }, "application/msgpack");
+        return Results.BadRequest();
     }
-    return Results.BadRequest();
+    var pgRequest = await MessagePackSerializer.DeserializeAsync<PulseGenRequest>(request.Body, cancellationToken: token);
+    var runner = new PulseGenRunner(pgRequest);
+    var response = runner.Run();
+    return Results.Stream(async s =>
+    {
+        using (response)
+        {
+            await MessagePackSerializer.SerializeAsync(s, response, options, token);
+        }
+    }, contentType);
 })
 .WithName("Run")
-.Accepts<PulseGenRequest>("application/msgpack")
-.Produces<PulseGenResponse>(StatusCodes.Status200OK, "application/msgpack")
+.Accepts<PulseGenRequest>(contentType)
+.Produces<PulseGenResponse>(StatusCodes.Status200OK, contentType)
 .Produces(StatusCodes.Status400BadRequest);
 
 app.Run();

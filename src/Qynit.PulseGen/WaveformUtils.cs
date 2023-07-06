@@ -8,45 +8,15 @@ using CommunityToolkit.Diagnostics;
 namespace Qynit.PulseGen;
 public static class WaveformUtils
 {
-    public static PooledComplexArray<T> SampleEnvelope<T>(EnvelopeInfo envelopeInfo, IPulseShape shape, double width, double plateau)
-       where T : unmanaged, IFloatingPointIeee754<T>
-    {
-        var sampleRate = envelopeInfo.SampleRate;
-        var dt = 1 / sampleRate;
-        var tOffset = envelopeInfo.IndexOffset * dt;
-        var t1 = width / 2 - tOffset;
-        var t2 = width / 2 + plateau - tOffset;
-        var t3 = width + plateau - tOffset;
-        var length = TimeAxisUtils.NextIndex(t3, sampleRate);
-        var array = new PooledComplexArray<T>(length, false);
-
-        var xStep = T.CreateChecked(dt / width);
-
-        var x0 = T.CreateChecked(-t1 / width);
-        var plateauStartIndex = TimeAxisUtils.NextIndex(t1, sampleRate);
-        shape.SampleIQ(array[..plateauStartIndex], x0, xStep);
-
-        int plateauEndIndex;
-        if (plateau > 0)
-        {
-            plateauEndIndex = TimeAxisUtils.NextIndex(t2, sampleRate);
-            array.DataI[plateauStartIndex..plateauEndIndex].Fill(T.One);
-            array.DataQ[plateauStartIndex..plateauEndIndex].Clear();
-        }
-        else
-        {
-            plateauEndIndex = plateauStartIndex;
-        }
-
-        var x2 = T.CreateChecked((plateauEndIndex * dt - t2) / width);
-        shape.SampleIQ(array[plateauEndIndex..], x2, xStep);
-
-        return array;
-    }
-
     public static PooledComplexArray<T> SampleWaveform<T>(PulseList pulseList, double sampleRate, double loFrequency, int length, int alignLevel) where T : unmanaged, IFloatingPointIeee754<T>
     {
         var waveform = new PooledComplexArray<T>(length, true);
+        SampleWaveformTo<T>(waveform, pulseList, sampleRate, loFrequency, alignLevel);
+        return waveform;
+    }
+
+    public static void SampleWaveformTo<T>(ComplexSpan<T> waveform, PulseList pulseList, double sampleRate, double loFrequency, int alignLevel) where T : unmanaged, IFloatingPointIeee754<T>
+    {
         foreach (var (binKey, bin) in pulseList.Items)
         {
             foreach (var pulse in bin)
@@ -75,7 +45,6 @@ public static class WaveformUtils
                 MixAddEnvelope(waveform[iStart..], envelopeSample, (IqPair<T>)complexAmplitude, (IqPair<T>)dragAmplitude, dPhase);
             }
         }
-        return waveform;
     }
 
     private static void MixAddEnvelope<T>(ComplexSpan<T> target, EnvelopeSample<T> envelopeSample, IqPair<T> complexAmplitude, IqPair<T> dragAmplitude, T dPhase) where T : unmanaged, IFloatingPointIeee754<T>
