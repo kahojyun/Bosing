@@ -106,7 +106,7 @@ public sealed class PulseGenRunner
         {
             var channelId = play.ChannelId;
             var shapeId = play.ShapeId;
-            var pulseShape = _shapeTable[shapeId].GetPulseShape();
+            var pulseShape = (shapeId == -1) ? null : _shapeTable[shapeId].GetPulseShape();
             var width = play.Width;
             var plateau = play.Plateau;
             var envelope = new Envelope(pulseShape, width, plateau);
