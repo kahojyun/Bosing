@@ -2,33 +2,39 @@
 
 Waveform generator for superconducting circuits.
 
-## Simple waveform generator
+> **Note:** This package is still under development and the API may change.
 
-A basic waveform generator without scheduling support.
+> **Related projects:** [pulsegen-client](https://github.com/kahojyun/pulsegen-client)
 
-* Place waveform at
+## Usage
 
-  * shape
-  * width
-  * plateau
-  * position
-* Shift phase
-* Set LO
+> **Note:** This package requires .NET 7 or higher. Install the latest .NET SDK from [here](https://dotnet.microsoft.com/download/dotnet/7.0).
 
-  * frequency
-  * phase
-  * position
+First, clone the repository:
 
-Channel options
+```bash
+git clone https://github.com/kahojyun/Qynit.PulseGen.git
+```
 
-* delay
-* crosstalk
+Then, build the project:
 
-  * complex amplitude
-  * delay?
-* IQ mixer calibration
+```bash
+cd Qynit.PulseGen
+dotnet build
+```
 
-  * imbalance
-  * skew
-  * offset
-  * delay?
+Finally, run the server:
+
+```bash
+dotnet run --project src/Qynit.PulseGen.Server
+```
+
+You can specify the url and port number to listen to:
+
+```bash
+dotnet run --project src/Qynit.PulseGen.Server --urls http://localhost:5200
+```
+
+## Development
+
+Use Visual Studio or Visual Studio Code with the [C# extension](https://marketplace.visualstudio.com/items?itemName=ms-dotnettools.csharp).
