@@ -9,12 +9,7 @@ public static class WaveformSampler<T>
 {
     private const int PlateauThreshold = 128;
 
-    private static readonly FastConcurrentLru<EnvelopeCacheKey, EnvelopeSample<T>> MemoryCache;
-
-    static WaveformSampler()
-    {
-        MemoryCache = new FastConcurrentLru<EnvelopeCacheKey, EnvelopeSample<T>>(666);
-    }
+    private static readonly FastConcurrentLru<EnvelopeCacheKey, EnvelopeSample<T>> MemoryCache = new(666);
 
     public static EnvelopeSample<T>? GetEnvelopeSample(EnvelopeInfo envelopeInfo, Envelope envelope)
     {
