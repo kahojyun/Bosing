@@ -7,7 +7,8 @@ public abstract class ScheduleElement
 {
     public ScheduleElement? Parent { get; internal set; }
     public Thickness Margin { get; set; }
-    public bool IsVisible { get; set; }
+    public Alignment Alignment { get; set; }
+    public bool IsVisible { get; set; } = true;
     public double? DesiredDuration { get; private set; }
     public double? ActualDuration { get; private set; }
     public double? ActualTime { get; private set; }
@@ -51,4 +52,19 @@ public abstract class ScheduleElement
         ActualTime = innerTime;
     }
     protected abstract double ArrangeOverride(double time, double finalDuration);
+    public void Render(double time, PhaseTrackingTransform phaseTrackingTransform)
+    {
+        if (ActualTime is null || ActualDuration is null)
+        {
+            ThrowHelper.ThrowInvalidOperationException("Not arranged");
+        }
+        if (!IsVisible)
+        {
+            return;
+        }
+        var innerTime = time + ActualTime.Value;
+        Debug.Assert(double.IsFinite(innerTime));
+        RenderOverride(innerTime, phaseTrackingTransform);
+    }
+    protected abstract void RenderOverride(double time, PhaseTrackingTransform phaseTrackingTransform);
 }

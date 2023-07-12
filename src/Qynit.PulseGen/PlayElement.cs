@@ -1,7 +1,7 @@
 ﻿using System.Diagnostics;
 
 namespace Qynit.PulseGen;
-internal sealed class PlayElement : ScheduleElement
+public sealed class PlayElement : ScheduleElement
 {
     private HashSet<int>? _channels;
     public override IReadOnlySet<int> Channels => _channels ??= new HashSet<int> { ChannelId };
@@ -31,5 +31,10 @@ internal sealed class PlayElement : ScheduleElement
     protected override double MeasureOverride(double maxDuration)
     {
         return Envelope.Duration;
+    }
+
+    protected override void RenderOverride(double time, PhaseTrackingTransform phaseTrackingTransform)
+    {
+        phaseTrackingTransform.Play(ChannelId, Envelope, Frequency, Phase, Amplitude, DragCoefficient, time);
     }
 }

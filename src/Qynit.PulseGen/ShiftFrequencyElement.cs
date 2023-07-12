@@ -1,5 +1,5 @@
 ﻿namespace Qynit.PulseGen;
-internal sealed class ShiftFrequencyElement : ScheduleElement
+public sealed class ShiftFrequencyElement : ScheduleElement
 {
     private HashSet<int>? _channels;
     public override IReadOnlySet<int> Channels => _channels ??= new HashSet<int> { ChannelId };
@@ -21,5 +21,10 @@ internal sealed class ShiftFrequencyElement : ScheduleElement
     protected override double MeasureOverride(double maxDuration)
     {
         return 0;
+    }
+
+    protected override void RenderOverride(double time, PhaseTrackingTransform phaseTrackingTransform)
+    {
+        phaseTrackingTransform.ShiftFrequency(ChannelId, DeltaFrequency, time);
     }
 }

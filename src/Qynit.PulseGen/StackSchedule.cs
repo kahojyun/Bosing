@@ -3,12 +3,17 @@
 using CommunityToolkit.Diagnostics;
 
 namespace Qynit.PulseGen;
-internal class StackSchedule : ScheduleElement
+public class StackSchedule : ScheduleElement
 {
     public ArrangeOption ArrangeOption { get; set; }
     public override IReadOnlySet<int> Channels => _channels ??= _elements.SelectMany(e => e.Channels).ToHashSet();
     private HashSet<int>? _channels;
     private readonly List<ScheduleElement> _elements = new();
+
+    public StackSchedule()
+    {
+        Alignment = Alignment.Stretch;
+    }
 
     public void Add(ScheduleElement element)
     {
@@ -31,9 +36,6 @@ internal class StackSchedule : ScheduleElement
             _ => throw new NotImplementedException(),
         };
         var durations = channels.ToDictionary(c => c, _ => 0.0);
-        Debug.Assert(DesiredDuration is not null);
-        var totalDuration = DesiredDuration.Value;
-        Debug.Assert(finalDuration >= totalDuration);
         foreach (var element in elements)
         {
             var elementChannels = element.Channels;
@@ -43,7 +45,7 @@ internal class StackSchedule : ScheduleElement
             var innerTime = arrangeOption switch
             {
                 ArrangeOption.StartToEnd => usedDuration,
-                ArrangeOption.EndToStart => totalDuration - usedDuration - innerDuration,
+                ArrangeOption.EndToStart => finalDuration - usedDuration - innerDuration,
                 _ => throw new NotImplementedException(),
             };
             element.Arrange(innerTime, innerDuration);
@@ -54,7 +56,7 @@ internal class StackSchedule : ScheduleElement
                 durations[channel] = newDuration;
             }
         }
-        return totalDuration;
+        return finalDuration;
     }
 
     protected override double MeasureOverride(double maxDuration)
@@ -83,5 +85,13 @@ internal class StackSchedule : ScheduleElement
             }
         }
         return durations.Values.Max();
+    }
+
+    protected override void RenderOverride(double time, PhaseTrackingTransform phaseTrackingTransform)
+    {
+        foreach (var element in _elements)
+        {
+            element.Render(time, phaseTrackingTransform);
+        }
     }
 }
