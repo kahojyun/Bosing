@@ -33,7 +33,7 @@ public class PulseListTests
         Assert.Contains(bin2, pulses.Items);
         Assert.Contains(bin3, pulses.Items);
         Assert.Equal(3, pulses.Items[bin1].Count);
-        Assert.Equal(1, pulses.Items[bin2].Count);
+        Assert.Single(pulses.Items[bin2]);
         Assert.Equal(2, pulses.Items[bin3].Count);
     }
 
@@ -57,7 +57,7 @@ public class PulseListTests
         var pulses = builder.Build();
 
         // Assert
-        Assert.Equal(1, pulses.Items.Count);
+        Assert.Single(pulses.Items);
         Assert.Contains(bin, pulses.Items);
         Assert.Equal(2, pulses.Items[bin].Count);
         var list = pulses.Items[bin];
@@ -90,7 +90,7 @@ public class PulseListTests
         var pulses = builder.Build();
 
         // Assert
-        Assert.Equal(1, pulses.Items.Count);
+        Assert.Single(pulses.Items);
         Assert.Contains(bin, pulses.Items);
         Assert.Equal(3, pulses.Items[bin].Count);
         var list = pulses.Items[bin];
@@ -121,8 +121,8 @@ public class PulseListTests
         var pulses2 = builder.Build();
 
         // Assert
-        Assert.Equal(1, pulses1.Items.Count);
-        Assert.Equal(0, pulses2.Items.Count);
+        Assert.Single(pulses1.Items);
+        Assert.Empty(pulses2.Items);
     }
 
     [Fact]
