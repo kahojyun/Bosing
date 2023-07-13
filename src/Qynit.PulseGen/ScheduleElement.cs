@@ -5,18 +5,53 @@ using CommunityToolkit.Diagnostics;
 namespace Qynit.PulseGen;
 public abstract class ScheduleElement
 {
+    private double _maxDuration = double.PositiveInfinity;
+    private double _minDuration;
+    private double? _duration;
+
     public ScheduleElement? Parent { get; internal set; }
     public Thickness Margin { get; set; }
     public Alignment Alignment { get; set; }
     public bool IsVisible { get; set; } = true;
+    public double? Duration
+    {
+        get => _duration;
+        set
+        {
+            if (value is not null)
+            {
+                Guard.IsGreaterThanOrEqualTo(value.Value, 0);
+            }
+            _duration = value;
+        }
+    }
+    public double MaxDuration
+    {
+        get => _maxDuration;
+        set
+        {
+            Guard.IsGreaterThanOrEqualTo(value, 0);
+            _maxDuration = value;
+        }
+    }
+    public double MinDuration
+    {
+        get => _minDuration;
+        set
+        {
+            Guard.IsGreaterThanOrEqualTo(value, 0);
+            _minDuration = value;
+        }
+    }
     public double? DesiredDuration { get; private set; }
     public double? ActualDuration { get; private set; }
     public double? ActualTime { get; private set; }
     public abstract IReadOnlySet<int> Channels { get; }
     internal bool IsMeasuring { get; private set; }
-    public void Measure(double maxDuration)
+    internal double? UnclippedDesiredDuration { get; private set; }
+    public void Measure(double availableDuration)
     {
-        Debug.Assert(maxDuration >= 0 || double.IsPositiveInfinity(maxDuration));
+        Debug.Assert(availableDuration >= 0 || double.IsPositiveInfinity(availableDuration));
         if (IsMeasuring)
         {
             ThrowHelper.ThrowInvalidOperationException("Already measuring");
@@ -24,10 +59,14 @@ public abstract class ScheduleElement
         IsMeasuring = true;
         var margin = Margin.Total;
         Debug.Assert(double.IsFinite(margin));
-        var availableDuration = Math.Max(maxDuration - margin, 0);
-        var desiredDuration = MeasureOverride(availableDuration) + margin;
-        Debug.Assert(double.IsFinite(desiredDuration));
-        DesiredDuration = Math.Max(desiredDuration, 0);
+        var maxDuration = Math.Clamp(Duration ?? double.PositiveInfinity, MinDuration, MaxDuration);
+        var minDuration = Math.Clamp(Duration ?? 0, MinDuration, MaxDuration);
+        var innerDuration = Math.Max(availableDuration - margin, 0);
+        var clampedDuration = Math.Clamp(innerDuration, minDuration, maxDuration);
+        var measuredDuration = MeasureOverride(clampedDuration);
+        Debug.Assert(double.IsFinite(measuredDuration));
+        UnclippedDesiredDuration = Math.Max(measuredDuration + margin, 0);
+        DesiredDuration = Math.Min(Math.Clamp(measuredDuration, minDuration, maxDuration) + margin, availableDuration);
         IsMeasuring = false;
     }
     protected abstract double MeasureOverride(double maxDuration);
@@ -35,18 +74,26 @@ public abstract class ScheduleElement
     {
         Debug.Assert(double.IsFinite(time));
         Debug.Assert(double.IsFinite(finalDuration) && finalDuration >= 0);
-        if (DesiredDuration is null)
+        if (DesiredDuration is null || UnclippedDesiredDuration is null)
         {
             ThrowHelper.ThrowInvalidOperationException("Not measured");
         }
-        if (finalDuration < DesiredDuration)
+        if (finalDuration < UnclippedDesiredDuration)
         {
-            ThrowHelper.ThrowArgumentOutOfRangeException(nameof(finalDuration), finalDuration, "Final duration is less than desired duration");
+            ThrowHelper.ThrowArgumentOutOfRangeException(nameof(finalDuration), finalDuration, "Final duration is less than unclipped desired duration");
         }
         var innerTime = time + Margin.Start;
         Debug.Assert(double.IsFinite(innerTime));
-        var innerDuration = Math.Max(finalDuration - Margin.Total, 0);
-        var actualDuration = ArrangeOverride(innerTime, innerDuration);
+        var maxDuration = Math.Clamp(Duration ?? double.PositiveInfinity, MinDuration, MaxDuration);
+        var minDuration = Math.Clamp(Duration ?? 0, MinDuration, MaxDuration);
+        var margin = Margin.Total;
+        var innerDuration = Math.Max(finalDuration - margin, 0);
+        var clampedDuration = Math.Clamp(innerDuration, minDuration, maxDuration);
+        if (clampedDuration + margin < UnclippedDesiredDuration)
+        {
+            ThrowHelper.ThrowInvalidOperationException("User specified duration is less than unclipped desired duration");
+        }
+        var actualDuration = ArrangeOverride(innerTime, clampedDuration);
         Debug.Assert(double.IsFinite(actualDuration));
         ActualDuration = actualDuration;
         ActualTime = innerTime;

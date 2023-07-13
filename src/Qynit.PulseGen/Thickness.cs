@@ -1,7 +1,7 @@
 ﻿namespace Qynit.PulseGen;
-public record struct Thickness(double Start, double End)
+public readonly record struct Thickness(double Start, double End)
 {
     public Thickness(double value) : this(value, value) { }
 
-    public readonly double Total => Start + End;
+    public double Total => Start + End;
 }

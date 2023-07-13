@@ -53,9 +53,12 @@ static void Run<T>() where T : unmanaged, IFloatingPointIeee754<T>
 
     stack.Add(new BarrierElement(ch1, ch2) { Margin = new(15e-9) });
 
-    var grid = new GridSchedule() { Margin = new(0, 90e-9) };
-    grid.Add(new PlayElement(ch1, new(shape, 30e-9, 100e-9), 0, 0, 0.5, 2e-9) { Alignment = Qynit.PulseGen.Alignment.Center });
-    grid.Add(new PlayElement(ch2, new(shape, 30e-9, 50e-9), 0, 0, 0.6, 2e-9) { Alignment = Qynit.PulseGen.Alignment.Center });
+    var grid = new GridSchedule() { Duration = 500e-9 };
+    grid.AddColumn(GridLength.Absolute(90e-9));
+    grid.AddColumn(GridLength.Star(1));
+    grid.AddColumn(GridLength.Absolute(90e-9));
+    grid.Add(new PlayElement(ch1, new(shape, 30e-9, 200e-9), 0, 0, 0.5, 2e-9) { Alignment = Qynit.PulseGen.Alignment.Center }, 1, 1);
+    grid.Add(new PlayElement(ch2, new(shape, 30e-9, 50e-9), -250e6, 0, 0.6, 2e-9) { Alignment = Qynit.PulseGen.Alignment.Stretch, FlexiblePlateau = true }, 0, 3);
     stack.Add(grid);
 
     stack.Add(new ShiftFrequencyElement(ch1, -100e6));

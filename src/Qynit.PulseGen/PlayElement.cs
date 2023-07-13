@@ -5,8 +5,11 @@ public sealed class PlayElement : ScheduleElement
 {
     private HashSet<int>? _channels;
     public override IReadOnlySet<int> Channels => _channels ??= new HashSet<int> { ChannelId };
+    public bool FlexiblePlateau { get; set; }
     public int ChannelId { get; }
-    public Envelope Envelope { get; }
+    public IPulseShape? PulseShape { get; }
+    public double Width { get; }
+    public double Plateau { get; }
     public double Frequency { get; }
     public double Phase { get; }
     public double Amplitude { get; }
@@ -16,7 +19,9 @@ public sealed class PlayElement : ScheduleElement
     {
         Debug.Assert(envelope.Duration >= 0);
         ChannelId = channelId;
-        Envelope = envelope;
+        PulseShape = envelope.Shape;
+        Width = envelope.Width;
+        Plateau = envelope.Plateau;
         Frequency = frequency;
         Phase = phase;
         Amplitude = amplitude;
@@ -25,16 +30,19 @@ public sealed class PlayElement : ScheduleElement
 
     protected override double ArrangeOverride(double time, double finalDuration)
     {
-        return Envelope.Duration;
+        return FlexiblePlateau ? finalDuration : (Plateau + Width);
     }
 
     protected override double MeasureOverride(double maxDuration)
     {
-        return Envelope.Duration;
+        return FlexiblePlateau ? Width : (Plateau + Width);
     }
 
     protected override void RenderOverride(double time, PhaseTrackingTransform phaseTrackingTransform)
     {
-        phaseTrackingTransform.Play(ChannelId, Envelope, Frequency, Phase, Amplitude, DragCoefficient, time);
+        Debug.Assert(ActualDuration is not null);
+        var plateau = FlexiblePlateau ? ActualDuration.Value - Width : Plateau;
+        var envelope = new Envelope(PulseShape, Width, plateau);
+        phaseTrackingTransform.Play(ChannelId, envelope, Frequency, Phase, Amplitude, DragCoefficient, time);
     }
 }
