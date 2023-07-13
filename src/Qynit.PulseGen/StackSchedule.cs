@@ -3,12 +3,9 @@
 using CommunityToolkit.Diagnostics;
 
 namespace Qynit.PulseGen;
-public class StackSchedule : ScheduleElement
+public class StackSchedule : Schedule
 {
     public ArrangeOption ArrangeOption { get; set; }
-    public override IReadOnlySet<int> Channels => _channels ??= _elements.SelectMany(e => e.Channels).ToHashSet();
-    private HashSet<int>? _channels;
-    private readonly List<ScheduleElement> _elements = new();
 
     public StackSchedule()
     {
@@ -21,7 +18,7 @@ public class StackSchedule : ScheduleElement
         {
             ThrowHelper.ThrowArgumentException("The element is already added to another schedule.");
         }
-        _elements.Add(element);
+        Children.Add(element);
         element.Parent = this;
     }
 
@@ -31,8 +28,8 @@ public class StackSchedule : ScheduleElement
         var arrangeOption = ArrangeOption;
         var elements = arrangeOption switch
         {
-            ArrangeOption.StartToEnd => _elements.AsEnumerable(),
-            ArrangeOption.EndToStart => _elements.AsEnumerable().Reverse(),
+            ArrangeOption.StartToEnd => Children.AsEnumerable(),
+            ArrangeOption.EndToStart => Children.AsEnumerable().Reverse(),
             _ => throw new NotImplementedException(),
         };
         var durations = channels.ToDictionary(c => c, _ => 0.0);
@@ -64,8 +61,8 @@ public class StackSchedule : ScheduleElement
         var channels = Channels;
         var elements = ArrangeOption switch
         {
-            ArrangeOption.StartToEnd => _elements.AsEnumerable(),
-            ArrangeOption.EndToStart => _elements.AsEnumerable().Reverse(),
+            ArrangeOption.StartToEnd => Children.AsEnumerable(),
+            ArrangeOption.EndToStart => Children.AsEnumerable().Reverse(),
             _ => throw new NotImplementedException(),
         };
         var durations = channels.ToDictionary(c => c, _ => 0.0);
@@ -85,13 +82,5 @@ public class StackSchedule : ScheduleElement
             }
         }
         return durations.Values.Max();
-    }
-
-    protected override void RenderOverride(double time, PhaseTrackingTransform phaseTrackingTransform)
-    {
-        foreach (var element in _elements)
-        {
-            element.Render(time, phaseTrackingTransform);
-        }
     }
 }

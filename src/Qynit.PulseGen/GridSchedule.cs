@@ -3,11 +3,8 @@
 using CommunityToolkit.Diagnostics;
 
 namespace Qynit.PulseGen;
-public class GridSchedule : ScheduleElement
+public class GridSchedule : Schedule
 {
-    public override IReadOnlySet<int> Channels => _channels ??= _elements.SelectMany(e => e.Channels).ToHashSet();
-    private HashSet<int>? _channels;
-    private readonly List<ScheduleElement> _elements = new();
     private readonly List<(int Column, int Span)> _elementColumns = new();
     private readonly List<GridLength> _columns = new();
     private List<double>? _minimumColumnSizes;
@@ -36,7 +33,7 @@ public class GridSchedule : ScheduleElement
         }
         Guard.IsGreaterThanOrEqualTo(column, 0);
         Guard.IsGreaterThanOrEqualTo(span, 1);
-        _elements.Add(element);
+        Children.Add(element);
         element.Parent = this;
         _elementColumns.Add((column, span));
     }
@@ -53,7 +50,7 @@ public class GridSchedule : ScheduleElement
         {
             columnStarts.Add(columnStarts[i - 1] + columnSizes[i - 1]);
         }
-        foreach (var (element, (column, span)) in _elements.Zip(_elementColumns))
+        foreach (var (element, (column, span)) in Children.Zip(_elementColumns))
         {
             Debug.Assert(element.DesiredDuration is not null);
             var actualColumn = Math.Min(column, numColumns - 1);
@@ -83,7 +80,7 @@ public class GridSchedule : ScheduleElement
         }
         var numColumns = _columns.Count;
         var columnSizes = _columns.Select(l => (l.IsAbsolute) ? l.Value : 0).ToList();
-        foreach (var (element, (column, span)) in _elements.Zip(_elementColumns))
+        foreach (var (element, (column, span)) in Children.Zip(_elementColumns))
         {
             var actualColumn = Math.Min(column, numColumns - 1);
             var actualSpan = Math.Min(span, numColumns - actualColumn);
@@ -96,7 +93,7 @@ public class GridSchedule : ScheduleElement
             var elementDuration = element.DesiredDuration.Value;
             columnSizes[actualColumn] = Math.Max(columnSizes[actualColumn], elementDuration);
         }
-        foreach (var (element, (column, span)) in _elements.Zip(_elementColumns))
+        foreach (var (element, (column, span)) in Children.Zip(_elementColumns))
         {
             var actualColumn = Math.Min(column, numColumns - 1);
             var actualSpan = Math.Min(span, numColumns - actualColumn);
@@ -162,14 +159,6 @@ public class GridSchedule : ScheduleElement
                 }
                 break;
             }
-        }
-    }
-
-    protected override void RenderOverride(double time, PhaseTrackingTransform phaseTrackingTransform)
-    {
-        foreach (var element in _elements)
-        {
-            element.Render(time, phaseTrackingTransform);
         }
     }
 }

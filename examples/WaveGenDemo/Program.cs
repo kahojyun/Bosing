@@ -64,8 +64,12 @@ static void Run<T>() where T : unmanaged, IFloatingPointIeee754<T>
     stack.Add(new ShiftFrequencyElement(ch1, -100e6));
     stack.Add(new ShiftFrequencyElement(ch2, -250e6));
     stack.Add(new BarrierElement(ch1, ch2) { Margin = new(15e-9) });
-    stack.Add(new PlayElement(ch1, new(null, 200e-9, 0), 0, 0, 0.5, 2e-9));
-    stack.Add(new PlayElement(ch2, new(null, 100e-9, 0), 0, 0, 0.6, 2e-9));
+
+    var abs = new AbsoluteSchedule();
+    abs.Add(new PlayElement(ch1, new(null, 200e-9, 0), 0, 0, 0.5, 2e-9), 10e-9);
+    abs.Add(new RepeatElement(new PlayElement(ch2, new(null, 100e-9, 0), 0, 0, 0.6, 2e-9), 2) { Spacing = 10e-9 }, 210e-9);
+    stack.Add(abs);
+
     stack.Add(new SetFrequencyElement(ch1, 0));
     stack.Add(new SetFrequencyElement(ch2, 0));
     stack.Add(new BarrierElement(ch1, ch2) { Margin = new(15e-9) });
@@ -95,10 +99,10 @@ static void Run<T>() where T : unmanaged, IFloatingPointIeee754<T>
     using var waveform1 = waveforms[ch1];
     using var waveform2 = waveforms[ch2];
     var plot = new Plot(1920, 1080);
-    plot.AddSignal(waveform1.DataI[^2000..].ToArray(), sampleRate, label: $"wave 1 real");
-    plot.AddSignal(waveform1.DataQ[^2000..].ToArray(), sampleRate, label: $"wave 1 imag");
-    plot.AddSignal(waveform2.DataI[^2000..].ToArray(), sampleRate, label: $"wave 2 real");
-    plot.AddSignal(waveform2.DataQ[^2000..].ToArray(), sampleRate, label: $"wave 2 imag");
+    plot.AddSignal(waveform1.DataI[^4000..].ToArray(), sampleRate, label: $"wave 1 real");
+    plot.AddSignal(waveform1.DataQ[^4000..].ToArray(), sampleRate, label: $"wave 1 imag");
+    plot.AddSignal(waveform2.DataI[^4000..].ToArray(), sampleRate, label: $"wave 2 real");
+    plot.AddSignal(waveform2.DataQ[^4000..].ToArray(), sampleRate, label: $"wave 2 imag");
     plot.Legend();
     plot.SaveFig("demo2.png");
 }
