@@ -36,4 +36,26 @@ app.MapPost("/run", async (HttpRequest request, CancellationToken token) =>
 .Produces<PulseGenResponse>(StatusCodes.Status200OK, contentType)
 .Produces(StatusCodes.Status400BadRequest);
 
+app.MapPost("/schedule", async (HttpRequest request, CancellationToken token) =>
+{
+    if (request.ContentType != contentType)
+    {
+        return Results.BadRequest();
+    }
+    var pgRequest = await MessagePackSerializer.DeserializeAsync<ScheduleRequest>(request.Body, cancellationToken: token);
+    var runner = new ScheduleRunner(pgRequest);
+    var response = runner.Run();
+    return Results.Stream(async s =>
+    {
+        using (response)
+        {
+            await MessagePackSerializer.SerializeAsync(s, response, options, token);
+        }
+    }, contentType);
+})
+.WithName("Schedule")
+.Accepts<PulseGenRequest>(contentType)
+.Produces<PulseGenResponse>(StatusCodes.Status200OK, contentType)
+.Produces(StatusCodes.Status400BadRequest);
+
 app.Run();
