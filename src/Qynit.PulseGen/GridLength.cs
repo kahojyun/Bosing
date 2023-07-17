@@ -21,4 +21,15 @@ public readonly record struct GridLength(double Value, GridLengthUnit Unit)
     public bool IsStar => Unit == GridLengthUnit.Star;
     public bool IsAbsolute => Unit == GridLengthUnit.Second;
     public bool IsValid => IsAuto || (IsStar && Value > 0) || (IsAbsolute && Value >= 0);
+
+    public override string ToString()
+    {
+        return Unit switch
+        {
+            GridLengthUnit.Auto => "Auto",
+            GridLengthUnit.Star => $"{Value}*",
+            GridLengthUnit.Second => $"{Value}s",
+            _ => $$"""GridLength { Value = {{Value}}, Unit = {{Unit}} }""",
+        };
+    }
 }

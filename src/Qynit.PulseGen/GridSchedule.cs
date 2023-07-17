@@ -79,6 +79,10 @@ public class GridSchedule : Schedule
             _columns.Add(GridLength.Star(1));
         }
         var numColumns = _columns.Count;
+        foreach (var element in Children)
+        {
+            element.Measure(maxDuration);
+        }
         var columnSizes = _columns.Select(l => (l.IsAbsolute) ? l.Value : 0).ToList();
         foreach (var (element, (column, span)) in Children.Zip(_elementColumns))
         {
@@ -88,7 +92,10 @@ public class GridSchedule : Schedule
             {
                 continue;
             }
-            element.Measure(maxDuration);
+            if (_columns[actualColumn].IsAbsolute)
+            {
+                continue;
+            }
             Debug.Assert(element.DesiredDuration is not null);
             var elementDuration = element.DesiredDuration.Value;
             columnSizes[actualColumn] = Math.Max(columnSizes[actualColumn], elementDuration);
@@ -101,7 +108,6 @@ public class GridSchedule : Schedule
             {
                 continue;
             }
-            element.Measure(maxDuration);
             Debug.Assert(element.DesiredDuration is not null);
             var elementDuration = element.DesiredDuration.Value;
             var columnSize = Enumerable.Range(actualColumn, actualSpan).Sum(i => columnSizes[i]);

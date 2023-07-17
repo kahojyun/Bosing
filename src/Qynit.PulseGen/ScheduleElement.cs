@@ -59,14 +59,14 @@ public abstract class ScheduleElement
         IsMeasuring = true;
         var margin = Margin.Total;
         Debug.Assert(double.IsFinite(margin));
-        var maxDuration = Math.Clamp(Duration ?? double.PositiveInfinity, MinDuration, MaxDuration);
-        var minDuration = Math.Clamp(Duration ?? 0, MinDuration, MaxDuration);
+        var maxDuration = MathUtils.Clamp(Duration ?? double.PositiveInfinity, MinDuration, MaxDuration);
+        var minDuration = MathUtils.Clamp(Duration ?? 0, MinDuration, MaxDuration);
         var innerDuration = Math.Max(availableDuration - margin, 0);
-        var clampedDuration = Math.Clamp(innerDuration, minDuration, maxDuration);
+        var clampedDuration = MathUtils.Clamp(innerDuration, minDuration, maxDuration);
         var measuredDuration = MeasureOverride(clampedDuration);
         Debug.Assert(double.IsFinite(measuredDuration));
         UnclippedDesiredDuration = Math.Max(measuredDuration + margin, 0);
-        DesiredDuration = Math.Min(Math.Clamp(measuredDuration, minDuration, maxDuration) + margin, availableDuration);
+        DesiredDuration = MathUtils.Clamp(MathUtils.Clamp(measuredDuration, minDuration, maxDuration) + margin, 0, availableDuration);
         IsMeasuring = false;
     }
     protected abstract double MeasureOverride(double maxDuration);
@@ -80,15 +80,15 @@ public abstract class ScheduleElement
         }
         if (finalDuration < UnclippedDesiredDuration)
         {
-            ThrowHelper.ThrowArgumentOutOfRangeException(nameof(finalDuration), finalDuration, "Final duration is less than unclipped desired duration");
+            ThrowHelper.ThrowInvalidOperationException("Final duration is less than unclipped desired duration");
         }
         var innerTime = time + Margin.Start;
         Debug.Assert(double.IsFinite(innerTime));
-        var maxDuration = Math.Clamp(Duration ?? double.PositiveInfinity, MinDuration, MaxDuration);
-        var minDuration = Math.Clamp(Duration ?? 0, MinDuration, MaxDuration);
+        var maxDuration = MathUtils.Clamp(Duration ?? double.PositiveInfinity, MinDuration, MaxDuration);
+        var minDuration = MathUtils.Clamp(Duration ?? 0, MinDuration, MaxDuration);
         var margin = Margin.Total;
         var innerDuration = Math.Max(finalDuration - margin, 0);
-        var clampedDuration = Math.Clamp(innerDuration, minDuration, maxDuration);
+        var clampedDuration = MathUtils.Clamp(innerDuration, minDuration, maxDuration);
         if (clampedDuration + margin < UnclippedDesiredDuration)
         {
             ThrowHelper.ThrowInvalidOperationException("User specified duration is less than unclipped desired duration");

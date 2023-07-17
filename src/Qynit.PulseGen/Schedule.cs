@@ -1,5 +1,7 @@
-﻿namespace Qynit.PulseGen;
-public abstract class Schedule : ScheduleElement
+﻿using System.Collections;
+
+namespace Qynit.PulseGen;
+public abstract class Schedule : ScheduleElement, IEnumerable<ScheduleElement>
 {
     public override IReadOnlySet<int> Channels => _channels ??= Children.SelectMany(e => e.Channels).ToHashSet();
     private HashSet<int>? _channels;
@@ -12,5 +14,15 @@ public abstract class Schedule : ScheduleElement
         {
             element.Render(time, phaseTrackingTransform);
         }
+    }
+
+    public IEnumerator<ScheduleElement> GetEnumerator()
+    {
+        return ((IEnumerable<ScheduleElement>)Children).GetEnumerator();
+    }
+
+    IEnumerator IEnumerable.GetEnumerator()
+    {
+        return ((IEnumerable)Children).GetEnumerator();
     }
 }
