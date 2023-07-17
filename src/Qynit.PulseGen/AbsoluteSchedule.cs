@@ -6,6 +6,12 @@ namespace Qynit.PulseGen;
 public class AbsoluteSchedule : Schedule
 {
     private readonly List<double> _elementTimes = new();
+
+    public AbsoluteSchedule()
+    {
+        Alignment = Alignment.Stretch;
+    }
+
     public void Add(ScheduleElement element)
     {
         Add(element, 0);
@@ -17,9 +23,9 @@ public class AbsoluteSchedule : Schedule
         {
             ThrowHelper.ThrowArgumentException("The element is already added to another schedule.");
         }
-        if (!double.IsFinite(time))
+        if (!double.IsFinite(time) || time < 0)
         {
-            ThrowHelper.ThrowArgumentException("The time is not finite.");
+            ThrowHelper.ThrowArgumentOutOfRangeException(nameof(time));
         }
         Children.Add(element);
         element.Parent = this;
