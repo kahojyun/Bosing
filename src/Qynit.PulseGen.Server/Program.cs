@@ -3,6 +3,7 @@ using MessagePack.Formatters;
 using MessagePack.Resolvers;
 
 using Qynit.PulseGen.Server;
+using Qynit.PulseGen.Server.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 var app = builder.Build();

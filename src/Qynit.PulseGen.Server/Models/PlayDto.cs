@@ -1,9 +1,9 @@
 ﻿using MessagePack;
 
-namespace Qynit.PulseGen.Server;
+namespace Qynit.PulseGen.Server.Models;
 
 [MessagePackObject]
-public sealed record Play(
+public sealed record PlayDto(
     [property: Key(0)] double Time,
     [property: Key(1)] int ChannelId,
     [property: Key(2)] int ShapeId,
@@ -12,4 +12,4 @@ public sealed record Play(
     [property: Key(5)] double FrequencyShift,
     [property: Key(6)] double PhaseShift,
     [property: Key(7)] double Amplitude,
-    [property: Key(8)] double DragCoefficient) : Instruction;
+    [property: Key(8)] double DragCoefficient) : InstructionDto;

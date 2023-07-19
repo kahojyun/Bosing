@@ -4,7 +4,7 @@ using CommunityToolkit.Diagnostics;
 
 using MessagePack;
 
-namespace Qynit.PulseGen.Server;
+namespace Qynit.PulseGen.Server.Models;
 
 
 [Union(0, typeof(PlayElementDto))]
@@ -66,7 +66,7 @@ public sealed class PlayElementDto : ScheduleElementDto
     {
         var shapes = request.ShapeTable;
         Debug.Assert(shapes is not null);
-        var pulseShape = (ShapeId == -1) ? null : shapes[ShapeId].GetPulseShape();
+        var pulseShape = ShapeId == -1 ? null : shapes[ShapeId].GetPulseShape();
         var envelope = new Envelope(pulseShape, Width, Plateau);
         return new PlayElement(ChannelId, envelope, Frequency, Phase, Amplitude, DragCoefficient)
         {
@@ -335,16 +335,4 @@ public sealed class GridScheduleDto : ScheduleElementDto
         }
         return result;
     }
-}
-
-
-[MessagePackObject]
-public sealed class ScheduleRequest
-{
-    [Key(0)]
-    public IList<ChannelInfo>? ChannelTable { get; init; }
-    [Key(1)]
-    public IList<ShapeInfo>? ShapeTable { get; init; }
-    [Key(2)]
-    public ScheduleElementDto? Schedule { get; init; }
 }

@@ -2,6 +2,8 @@
 
 using CommunityToolkit.Diagnostics;
 
+using Qynit.PulseGen.Server.Models;
+
 namespace Qynit.PulseGen.Server;
 
 public sealed class ScheduleRunner
