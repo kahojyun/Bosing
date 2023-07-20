@@ -5,7 +5,9 @@
   "private": true,
   "scripts": {
     "build": "rollup -c",
-    "watch": "rollup -c -w"
+    "watch": "rollup -c -w",
+    "lint": "eslint .",
+    "format": "prettier --write ."
   },
   "devDependencies": {
     "@rollup/plugin-commonjs": "^25.0.3",
