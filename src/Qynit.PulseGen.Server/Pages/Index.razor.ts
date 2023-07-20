@@ -1,5 +1,5 @@
-import { ChartXY, LegendBox, LineSeries, lightningChart } from "@arction/lcjs"
-import { DotNet } from "@microsoft/dotnet-js-interop"
+import { ChartXY, LegendBox, LineSeries, lightningChart } from "@arction/lcjs";
+import { DotNet } from "@microsoft/dotnet-js-interop";
 
 let chart: ChartXY;
 let legend: LegendBox;
@@ -16,11 +16,11 @@ export function init(targetElem: HTMLDivElement, objRef: DotNet.DotNetObject) {
 }
 
 type WaveformSeries = {
-  i: LineSeries,
-  q: LineSeries,
+  i: LineSeries;
+  q: LineSeries;
 };
 
-let series = new Map<string, WaveformSeries>();
+const series = new Map<string, WaveformSeries>();
 
 export async function addWaveform(name: string, iqBytesStream) {
   const iqBytesArray: ArrayBuffer = await iqBytesStream.arrayBuffer();
@@ -38,31 +38,36 @@ export async function addWaveform(name: string, iqBytesStream) {
       q.clear();
       q.addArrayY(qArray);
     }
-  }
-  else {
-    const i = chart.addLineSeries({
-      dataPattern: {
-        pattern: 'ProgressiveX',
-        regularProgressiveStep: true,
-      }
-    }).setName(`${name}_I`).addArrayY(iArray);
+  } else {
+    const i = chart
+      .addLineSeries({
+        dataPattern: {
+          pattern: "ProgressiveX",
+          regularProgressiveStep: true,
+        },
+      })
+      .setName(`${name}_I`)
+      .addArrayY(iArray);
     legend.add(i);
     i.onVisibleStateChanged(async (_, state) => {
       if (state) {
-        await dotnetRef.invokeMethodAsync('UpdateWaveform', name);
+        await dotnetRef.invokeMethodAsync("UpdateWaveform", name);
       }
     });
-    const q = chart.addLineSeries({
-      dataPattern: {
-        pattern: 'ProgressiveX',
-        regularProgressiveStep: true,
-      }
-    }).setName(`${name}_Q`).addArrayY(qArray);
+    const q = chart
+      .addLineSeries({
+        dataPattern: {
+          pattern: "ProgressiveX",
+          regularProgressiveStep: true,
+        },
+      })
+      .setName(`${name}_Q`)
+      .addArrayY(qArray);
     series.set(name, { i, q });
     legend.add(q);
     q.onVisibleStateChanged(async (_, state) => {
       if (state) {
-        await dotnetRef.invokeMethodAsync('UpdateWaveform', name);
+        await dotnetRef.invokeMethodAsync("UpdateWaveform", name);
       }
     });
   }
