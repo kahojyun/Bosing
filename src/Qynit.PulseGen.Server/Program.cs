@@ -3,10 +3,22 @@ using MessagePack.Formatters;
 using MessagePack.Resolvers;
 
 using Qynit.PulseGen.Server;
+using Qynit.PulseGen.Server.Hubs;
 using Qynit.PulseGen.Server.Models;
+using Qynit.PulseGen.Server.Services;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddRazorPages();
+builder.Services.AddServerSideBlazor();
+builder.Services.AddSingleton<IPlotService, PlotService>();
 var app = builder.Build();
+
+app.UseStaticFiles();
+app.UseRouting();
+
+app.MapBlazorHub();
+app.MapHub<PlotHub>(PlotHub.Uri);
+app.MapFallbackToPage("/_Host");
 
 var resolver = CompositeResolver.Create(
     new IMessagePackFormatter[] { new ComplexArrayFormatter() },
@@ -15,7 +27,7 @@ var options = MessagePackSerializerOptions.Standard.WithResolver(resolver);
 
 const string contentType = "application/msgpack";
 
-app.MapPost("/run", async (HttpRequest request, CancellationToken token) =>
+app.MapPost("/api/run", async (HttpRequest request, CancellationToken token, IPlotService plotService) =>
 {
     if (request.ContentType != contentType)
     {
@@ -23,12 +35,19 @@ app.MapPost("/run", async (HttpRequest request, CancellationToken token) =>
     }
     var pgRequest = await MessagePackSerializer.DeserializeAsync<PulseGenRequest>(request.Body, cancellationToken: token);
     var runner = new PulseGenRunner(pgRequest);
-    var response = runner.Run();
-    return Results.Stream(async s =>
+    var waveforms = runner.Run();
+    var arcWaveforms = waveforms.Select(ArcUnsafe.Wrap).ToList();
+    plotService.UpdatePlots(pgRequest.ChannelTable.Zip(arcWaveforms).ToDictionary(x => x.First.Name, x => x.Second.Clone()));
+    return Results.Stream(async stream =>
     {
-        using (response)
+        try
         {
-            await MessagePackSerializer.SerializeAsync(s, response, options, token);
+            var response = new PulseGenResponse(waveforms);
+            await MessagePackSerializer.SerializeAsync(stream, response, options, token);
+        }
+        finally
+        {
+            arcWaveforms.ForEach(x => x.Dispose());
         }
     }, contentType);
 })
@@ -37,7 +56,7 @@ app.MapPost("/run", async (HttpRequest request, CancellationToken token) =>
 .Produces<PulseGenResponse>(StatusCodes.Status200OK, contentType)
 .Produces(StatusCodes.Status400BadRequest);
 
-app.MapPost("/schedule", async (HttpRequest request, CancellationToken token) =>
+app.MapPost("/api/schedule", async (HttpRequest request, CancellationToken token, IPlotService plotService) =>
 {
     if (request.ContentType != contentType)
     {
@@ -45,12 +64,19 @@ app.MapPost("/schedule", async (HttpRequest request, CancellationToken token) =>
     }
     var pgRequest = await MessagePackSerializer.DeserializeAsync<ScheduleRequest>(request.Body, cancellationToken: token);
     var runner = new ScheduleRunner(pgRequest);
-    var response = runner.Run();
-    return Results.Stream(async s =>
+    var waveforms = runner.Run();
+    var arcWaveforms = waveforms.Select(ArcUnsafe.Wrap).ToList();
+    plotService.UpdatePlots(pgRequest.ChannelTable!.Zip(arcWaveforms).ToDictionary(x => x.First.Name, x => x.Second.Clone()));
+    return Results.Stream(async stream =>
     {
-        using (response)
+        try
         {
-            await MessagePackSerializer.SerializeAsync(s, response, options, token);
+            var response = new PulseGenResponse(waveforms);
+            await MessagePackSerializer.SerializeAsync(stream, response, options, token);
+        }
+        finally
+        {
+            arcWaveforms.ForEach(x => x.Dispose());
         }
     }, contentType);
 })

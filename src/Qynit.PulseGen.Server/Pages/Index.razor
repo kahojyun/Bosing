@@ -1,0 +1,117 @@
+@page "/"
+@using Microsoft.AspNetCore.SignalR.Client
+@using System.Runtime.InteropServices
+@using Qynit.PulseGen.Server.Hubs
+@using Qynit.PulseGen.Server.Services
+@using System.IO.Pipelines;
+@using System.Buffers;
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+@inject IPlotService PlotService
+@implements IAsyncDisposable
+@implements IPlotClient
+
+<div class="box">
+    <h1 class="row header">Qynit PulseGen</h1>
+    <div @ref="chart" class="row content" />
+</div>
+
+@code
+{
+    private HubConnection? hubConnection;
+    private ElementReference chart;
+    private IJSObjectReference? module;
+    private DotNetObjectReference<Index>? objRef;
+    private Task? updateWaveforms;
+    private CancellationTokenSource? cancellationTokenSource;
+
+    protected override async Task OnInitializedAsync()
+    {
+        hubConnection = new HubConnectionBuilder()
+            .WithUrl(Navigation.ToAbsoluteUri(PlotHub.Uri))
+            .Build();
+
+        hubConnection.On<IEnumerable<string>>(nameof(ReceiveNames), ReceiveNames);
+
+        await hubConnection.StartAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            module = await JS.InvokeAsync<IJSObjectReference>("import", "./Pages/Index.razor.js");
+            objRef = DotNetObjectReference.Create(this);
+            await module.InvokeVoidAsync("init", chart, objRef);
+        }
+    }
+
+    public async Task ReceiveNames(IEnumerable<string> names)
+    {
+        if (updateWaveforms is not null)
+        {
+            if (!updateWaveforms.IsCompleted)
+            {
+                cancellationTokenSource!.Cancel();
+            }
+            try
+            {
+                await updateWaveforms;
+            }
+            catch (OperationCanceledException) { }
+            cancellationTokenSource!.Dispose();
+        }
+        cancellationTokenSource = new();
+        updateWaveforms = UpdateWaveforms(names, cancellationTokenSource.Token);
+    }
+
+    public async Task UpdateWaveforms(IEnumerable<string> names, CancellationToken token)
+    {
+        foreach (var name in names)
+        {
+            if (token.IsCancellationRequested)
+            {
+                break;
+            }
+            await UpdateWaveform(name);
+        }
+    }
+
+    [JSInvokable]
+    public async Task UpdateWaveform(string name)
+    {
+        if (PlotService.TryGetPlot(name, out var arc))
+        {
+            using (arc)
+            {
+                var pipe = new Pipe();
+                var writer = pipe.Writer;
+                var reader = pipe.Reader;
+                using var streamRef = new DotNetStreamReference(reader.AsStream());
+                var task = module!.InvokeVoidAsync("addWaveform", name, streamRef);
+                writer.Write(MemoryMarshal.AsBytes(arc.Target.DataI));
+                writer.Write(MemoryMarshal.AsBytes(arc.Target.DataQ));
+                await writer.CompleteAsync();
+                await task;
+            }
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        cancellationTokenSource?.Dispose();
+        objRef?.Dispose();
+        if (hubConnection is not null)
+        {
+            await hubConnection.DisposeAsync();
+        }
+        if (module is not null)
+        {
+            try
+            {
+                await module.DisposeAsync();
+            }
+            catch (JSDisconnectedException) { }
+        }
+    }
+}

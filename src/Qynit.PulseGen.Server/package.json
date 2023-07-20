@@ -1,0 +1,25 @@
+{
+  "version": "1.0.0",
+  "name": "asp.net",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "build": "rollup -c",
+    "watch": "rollup -c -w"
+  },
+  "devDependencies": {
+    "@rollup/plugin-commonjs": "^25.0.3",
+    "@rollup/plugin-node-resolve": "^15.1.0",
+    "@rollup/plugin-terser": "^0.4.3",
+    "@rollup/plugin-typescript": "^11.1.2",
+    "globby": "^13.2.2",
+    "rollup": "^3.26.3",
+    "rollup-plugin-css-only": "^4.3.0",
+    "tslib": "^2.6.0",
+    "typescript": "^5.1.6"
+  },
+  "dependencies": {
+    "@arction/lcjs": "4.1.2",
+    "@microsoft/dotnet-js-interop": "7.0.9"
+  }
+}

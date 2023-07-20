@@ -17,7 +17,7 @@ public sealed class PulseGenRunner
         _instructions = request.Instructions;
     }
 
-    public PulseGenResponse Run()
+    public List<PooledComplexArray<double>> Run()
     {
         var phaseTrackingTransform = new PhaseTrackingTransform();
         foreach (var channel in _channelTable)
@@ -66,7 +66,7 @@ public sealed class PulseGenRunner
         }
         var pulseLists2 = postProcessTransform.Finish();
         var result = pulseLists2.Zip(_channelTable).Select(x => WaveformUtils.SampleWaveform<double>(x.First, x.Second.SampleRate, 0, x.Second.Length, x.Second.AlignLevel));
-        return new PulseGenResponse(result.ToList());
+        return result.ToList();
 
         void SwapPhase(SwapPhaseDto swapPhase)
         {

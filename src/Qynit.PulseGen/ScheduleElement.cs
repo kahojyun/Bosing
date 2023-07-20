@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 
 using CommunityToolkit.Diagnostics;
 
@@ -78,7 +78,7 @@ public abstract class ScheduleElement
         {
             ThrowHelper.ThrowInvalidOperationException("Not measured");
         }
-        if (finalDuration < UnclippedDesiredDuration)
+        if (finalDuration < UnclippedDesiredDuration - 1e-10)
         {
             ThrowHelper.ThrowInvalidOperationException("Final duration is less than unclipped desired duration");
         }
@@ -89,7 +89,7 @@ public abstract class ScheduleElement
         var margin = Margin.Total;
         var innerDuration = Math.Max(finalDuration - margin, 0);
         var clampedDuration = MathUtils.Clamp(innerDuration, minDuration, maxDuration);
-        if (clampedDuration + margin < UnclippedDesiredDuration)
+        if (clampedDuration + margin < UnclippedDesiredDuration - 1e-10)
         {
             ThrowHelper.ThrowInvalidOperationException("User specified duration is less than unclipped desired duration");
         }
