@@ -19,6 +19,4 @@
     <ProjectReference Include="..\Qynit.PulseGen\Qynit.PulseGen.csproj" />
   </ItemGroup>
 
-  <ProjectExtensions><VisualStudio><UserProperties tsconfig_1json__JsonSchema="https://json.schemastore.org/tsconfig.json" /></VisualStudio></ProjectExtensions>
-
 </Project>

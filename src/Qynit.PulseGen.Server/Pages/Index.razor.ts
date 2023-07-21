@@ -1,4 +1,10 @@
-import { ChartXY, LegendBox, LineSeries, lightningChart } from "@arction/lcjs";
+import {
+  ChartXY,
+  LegendBox,
+  LineSeries,
+  LineSeriesOptions,
+  lightningChart,
+} from "@arction/lcjs";
 import { DotNet } from "@microsoft/dotnet-js-interop";
 
 let chart: ChartXY;
@@ -11,7 +17,10 @@ export function init(targetElem: HTMLDivElement, objRef: DotNet.DotNetObject) {
       container: targetElem,
     })
     .setAnimationsEnabled(false);
-  legend = chart.addLegendBox();
+  legend = chart.addLegendBox().setAutoDispose({
+    type: "max-width",
+    maxWidth: 0.2,
+  });
   dotnetRef = objRef;
 }
 
@@ -22,53 +31,40 @@ type WaveformSeries = {
 
 const series = new Map<string, WaveformSeries>();
 
-export async function addWaveform(name: string, iqBytesStream) {
+export async function renderWaveform(name: string, iqBytesStream) {
   const iqBytesArray: ArrayBuffer = await iqBytesStream.arrayBuffer();
   const float64Array = new Float64Array(iqBytesArray);
   const length = float64Array.length / 2;
   const iArray = float64Array.subarray(0, length);
   const qArray = float64Array.subarray(length, length * 2);
-  if (series.has(name)) {
-    const { i, q } = series.get(name);
-    if (i.getVisible()) {
-      i.clear();
-      i.addArrayY(iArray);
-    }
-    if (q.getVisible()) {
-      q.clear();
-      q.addArrayY(qArray);
-    }
+  if (!series.has(name)) {
+    const { i, q } = initSeries(name);
+    i.addArrayY(iArray);
+    q.addArrayY(qArray);
   } else {
-    const i = chart
-      .addLineSeries({
-        dataPattern: {
-          pattern: "ProgressiveX",
-          regularProgressiveStep: true,
-        },
-      })
-      .setName(`${name}_I`)
-      .addArrayY(iArray);
-    legend.add(i);
-    i.onVisibleStateChanged(async (_, state) => {
-      if (state) {
-        await dotnetRef.invokeMethodAsync("UpdateWaveform", name);
-      }
-    });
-    const q = chart
-      .addLineSeries({
-        dataPattern: {
-          pattern: "ProgressiveX",
-          regularProgressiveStep: true,
-        },
-      })
-      .setName(`${name}_Q`)
-      .addArrayY(qArray);
-    series.set(name, { i, q });
-    legend.add(q);
-    q.onVisibleStateChanged(async (_, state) => {
-      if (state) {
-        await dotnetRef.invokeMethodAsync("UpdateWaveform", name);
-      }
-    });
+    const { i, q } = series.get(name);
+    i.clear();
+    i.addArrayY(iArray);
+    q.clear();
+    q.addArrayY(qArray);
   }
+}
+
+function initSeries(name: string) {
+  const opts: LineSeriesOptions = {
+    dataPattern: {
+      pattern: "ProgressiveX",
+      regularProgressiveStep: true,
+    },
+  };
+  const i = chart.addLineSeries(opts).setName(`${name}_I`);
+  const q = chart.addLineSeries(opts).setName(`${name}_Q`);
+  series.set(name, { i, q });
+  legend.add(i).add(q);
+  const handler = async (_, state: boolean) => {
+    await dotnetRef.invokeMethodAsync("VisibilityChanged", name, state);
+  };
+  i.onVisibleStateChanged(handler);
+  q.onVisibleStateChanged(handler);
+  return { i, q };
 }
