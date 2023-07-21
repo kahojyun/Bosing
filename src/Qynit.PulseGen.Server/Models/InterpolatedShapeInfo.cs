@@ -1,6 +1,6 @@
 ﻿using MessagePack;
 
-namespace Qynit.PulseGen.Server;
+namespace Qynit.PulseGen.Server.Models;
 
 [MessagePackObject]
 public sealed record InterpolatedShapeInfo(

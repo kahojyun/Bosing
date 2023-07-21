@@ -1,0 +1,8 @@
+{
+  "exclude": ["node_modules", "wwwroot"],
+  "compilerOptions": {
+    "lib": ["ES2015", "DOM"],
+    "sourceMap": true,
+    "esModuleInterop": true
+  }
+}

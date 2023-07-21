@@ -2,6 +2,8 @@
 
 using CommunityToolkit.Diagnostics;
 
+using Qynit.PulseGen.Server.Models;
+
 namespace Qynit.PulseGen.Server;
 
 public sealed class ScheduleRunner
@@ -16,7 +18,7 @@ public sealed class ScheduleRunner
         _scheduleRequest = scheduleRequest;
     }
 
-    public PulseGenResponse Run()
+    public List<PooledComplexArray<double>> Run()
     {
         var scheduleDto = _scheduleRequest.Schedule;
         Debug.Assert(scheduleDto is not null);
@@ -48,6 +50,6 @@ public sealed class ScheduleRunner
         }
         var pulseLists2 = postProcessTransform.Finish();
         var result = pulseLists2.Zip(channels).Select(x => WaveformUtils.SampleWaveform<double>(x.First, x.Second.SampleRate, 0, x.Second.Length, x.Second.AlignLevel));
-        return new PulseGenResponse(result.ToList());
+        return result.ToList();
     }
 }

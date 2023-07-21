@@ -1,0 +1,3 @@
+## Ignore bundled JS files
+**/*.razor.js
+**/*.razor.js.map

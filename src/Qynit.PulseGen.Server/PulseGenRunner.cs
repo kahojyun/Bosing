@@ -1,12 +1,14 @@
 ﻿using CommunityToolkit.Diagnostics;
 
+using Qynit.PulseGen.Server.Models;
+
 namespace Qynit.PulseGen.Server;
 
 public sealed class PulseGenRunner
 {
     private readonly IList<ChannelInfo> _channelTable;
     private readonly IList<ShapeInfo> _shapeTable;
-    private readonly IEnumerable<Instruction> _instructions;
+    private readonly IEnumerable<InstructionDto> _instructions;
 
     public PulseGenRunner(PulseGenRequest request)
     {
@@ -15,7 +17,7 @@ public sealed class PulseGenRunner
         _instructions = request.Instructions;
     }
 
-    public PulseGenResponse Run()
+    public List<PooledComplexArray<double>> Run()
     {
         var phaseTrackingTransform = new PhaseTrackingTransform();
         foreach (var channel in _channelTable)
@@ -27,22 +29,22 @@ public sealed class PulseGenRunner
         {
             switch (instruction)
             {
-                case Play play:
+                case PlayDto play:
                     Play(play);
                     break;
-                case ShiftFrequency shiftFrequency:
+                case ShiftFrequencyDto shiftFrequency:
                     ShiftFrequency(shiftFrequency);
                     break;
-                case SetFrequency setFrequency:
+                case SetFrequencyDto setFrequency:
                     SetFrequency(setFrequency);
                     break;
-                case ShiftPhase shiftPhase:
+                case ShiftPhaseDto shiftPhase:
                     ShiftPhase(shiftPhase);
                     break;
-                case SetPhase setPhase:
+                case SetPhaseDto setPhase:
                     SetPhase(setPhase);
                     break;
-                case SwapPhase swapPhase:
+                case SwapPhaseDto swapPhase:
                     SwapPhase(swapPhase);
                     break;
                 default:
@@ -64,37 +66,37 @@ public sealed class PulseGenRunner
         }
         var pulseLists2 = postProcessTransform.Finish();
         var result = pulseLists2.Zip(_channelTable).Select(x => WaveformUtils.SampleWaveform<double>(x.First, x.Second.SampleRate, 0, x.Second.Length, x.Second.AlignLevel));
-        return new PulseGenResponse(result.ToList());
+        return result.ToList();
 
-        void SwapPhase(SwapPhase swapPhase)
+        void SwapPhase(SwapPhaseDto swapPhase)
         {
             var channelId1 = swapPhase.ChannelId1;
             var channelId2 = swapPhase.ChannelId2;
             phaseTrackingTransform.SwapPhase(channelId1, channelId2, swapPhase.Time);
         }
 
-        void ShiftPhase(ShiftPhase shiftPhase)
+        void ShiftPhase(ShiftPhaseDto shiftPhase)
         {
             var channelId = shiftPhase.ChannelId;
             var deltaPhase = shiftPhase.Phase;
             phaseTrackingTransform.ShiftPhase(channelId, deltaPhase);
         }
 
-        void SetPhase(SetPhase setPhase)
+        void SetPhase(SetPhaseDto setPhase)
         {
             var channelId = setPhase.ChannelId;
             var phase = setPhase.Phase;
             phaseTrackingTransform.SetPhase(channelId, phase, 0);
         }
 
-        void ShiftFrequency(ShiftFrequency shiftFrequency)
+        void ShiftFrequency(ShiftFrequencyDto shiftFrequency)
         {
             var channelId = shiftFrequency.ChannelId;
             var deltaFrequency = shiftFrequency.Frequency;
             var referenceTime = shiftFrequency.Time;
             phaseTrackingTransform.ShiftFrequency(channelId, deltaFrequency, referenceTime);
         }
-        void SetFrequency(SetFrequency setFrequency)
+        void SetFrequency(SetFrequencyDto setFrequency)
         {
             var channelId = setFrequency.ChannelId;
             var frequency = setFrequency.Frequency;
@@ -102,7 +104,7 @@ public sealed class PulseGenRunner
             phaseTrackingTransform.SetFrequency(channelId, frequency, referenceTime);
         }
 
-        void Play(Play play)
+        void Play(PlayDto play)
         {
             var channelId = play.ChannelId;
             var shapeId = play.ShapeId;
