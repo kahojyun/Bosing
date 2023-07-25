@@ -2,6 +2,7 @@
 @using Microsoft.AspNetCore.SignalR.Client
 @using System.Runtime.InteropServices
 @using Qynit.PulseGen.Server.Hubs
+@using Qynit.PulseGen.Server.Models;
 @using Qynit.PulseGen.Server.Services
 @using System.IO.Pipelines;
 @using System.Buffers;
@@ -14,7 +15,6 @@
 @implements IPlotClient
 
 <div class="box">
-    <h1 class="row header">Qynit PulseGen</h1>
     <div @ref="_chart" class="row content" />
 </div>
 
@@ -118,7 +118,9 @@
                 writer.Write(MemoryMarshal.AsBytes(arc.Target.DataQ));
                 await writer.CompleteAsync();
                 using var streamRef = new DotNetStreamReference(pipe.Reader.AsStream());
-                await _module!.InvokeVoidAsync("renderWaveform", token, name, streamRef);
+                var dataType = DataType.Float32;
+                var isReal = arc.Target.IsReal;
+                await _module!.InvokeVoidAsync("renderWaveform", token, name, dataType, isReal, streamRef);
             }
         }
     }

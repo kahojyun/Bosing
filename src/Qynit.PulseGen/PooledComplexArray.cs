@@ -1,14 +1,18 @@
-﻿using System.Buffers;
+using System.Buffers;
 using System.Runtime.CompilerServices;
 
 using CommunityToolkit.Diagnostics;
 
 namespace Qynit.PulseGen;
-public sealed class PooledComplexArray<T> : IDisposable
+
+public abstract class PooledComplexArray { }
+
+public sealed class PooledComplexArray<T> : PooledComplexArray, IDisposable
     where T : unmanaged
 {
     public int Length { get; }
     public bool IsEmpty => Length == 0;
+    public bool IsReal { get; set; }
     public Span<T> DataI
     {
         get
