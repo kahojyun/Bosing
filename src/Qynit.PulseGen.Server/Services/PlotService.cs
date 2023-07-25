@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.SignalR;
+using Microsoft.AspNetCore.SignalR;
 
 using Qynit.PulseGen.Server.Hubs;
 
@@ -8,7 +8,7 @@ public class PlotService : IPlotService
 {
     private readonly ILogger<PlotService> _logger;
     private readonly IHubContext<PlotHub, IPlotClient> _hubContext;
-    private readonly Dictionary<string, ArcUnsafe<PooledComplexArray<double>>> _waveforms = new();
+    private readonly Dictionary<string, ArcUnsafe<PooledComplexArray<float>>> _waveforms = new();
 
     public PlotService(ILogger<PlotService> logger, IHubContext<PlotHub, IPlotClient> hubContext)
     {
@@ -36,7 +36,7 @@ public class PlotService : IPlotService
         }
     }
 
-    public bool TryGetPlot(string name, out ArcUnsafe<PooledComplexArray<double>> waveform)
+    public bool TryGetPlot(string name, out ArcUnsafe<PooledComplexArray<float>> waveform)
     {
         lock (_waveforms)
         {
@@ -50,7 +50,7 @@ public class PlotService : IPlotService
         }
     }
 
-    public void UpdatePlots(IReadOnlyDictionary<string, ArcUnsafe<PooledComplexArray<double>>> waveforms)
+    public void UpdatePlots(IReadOnlyDictionary<string, ArcUnsafe<PooledComplexArray<float>>> waveforms)
     {
         lock (_waveforms)
         {

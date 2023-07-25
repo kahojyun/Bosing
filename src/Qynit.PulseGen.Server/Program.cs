@@ -2,6 +2,7 @@ using MessagePack;
 using MessagePack.Formatters;
 using MessagePack.Resolvers;
 
+using Qynit.PulseGen;
 using Qynit.PulseGen.Server;
 using Qynit.PulseGen.Server.Hubs;
 using Qynit.PulseGen.Server.Models;
@@ -27,25 +28,6 @@ var options = MessagePackSerializerOptions.Standard.WithResolver(resolver);
 
 const string contentType = "application/msgpack";
 
-app.MapPost("/api/run", async (HttpRequest request, HttpResponse response, CancellationToken token, IPlotService plotService) =>
-{
-    if (request.ContentType != contentType)
-    {
-        return TypedResults.BadRequest();
-    }
-    var pgRequest = await MessagePackSerializer.DeserializeAsync<PulseGenRequest>(request.Body, options, token);
-    var runner = new PulseGenRunner(pgRequest);
-    var waveforms = runner.Run();
-    var arcWaveforms = waveforms.Select(ArcUnsafe.Wrap).ToList();
-    plotService.UpdatePlots(pgRequest.ChannelTable.Zip(arcWaveforms).ToDictionary(x => x.First.Name, x => x.Second.Clone()));
-    var pgResponse = new PulseGenResponse(arcWaveforms);
-    response.RegisterForDispose(pgResponse);
-    return Results.Extensions.MessagePack(pgResponse, options);
-})
-.WithName("Run")
-.Accepts<PulseGenRequest>(contentType)
-.Produces(StatusCodes.Status400BadRequest);
-
 app.MapPost("/api/schedule", async (HttpRequest request, HttpResponse response, CancellationToken token, IPlotService plotService) =>
 {
     if (request.ContentType != contentType)
@@ -56,7 +38,14 @@ app.MapPost("/api/schedule", async (HttpRequest request, HttpResponse response, 
     var pgRequest = await MessagePackSerializer.DeserializeAsync<ScheduleRequest>(request.Body, options, token);
     var runner = new ScheduleRunner(pgRequest);
     var waveforms = runner.Run();
-    var arcWaveforms = waveforms.Select(ArcUnsafe.Wrap).ToList();
+    var floatWaveforms = waveforms.Select(x =>
+    {
+        var floatArray = new PooledComplexArray<float>(x.Length, false);
+        WaveformUtils.ConvertDoubleToFloat(floatArray, x);
+        return floatArray;
+    }).ToList();
+    waveforms.ForEach(x => x.Dispose());
+    var arcWaveforms = floatWaveforms.Select(ArcUnsafe.Wrap).ToList();
     plotService.UpdatePlots(pgRequest.ChannelTable!.Zip(arcWaveforms).ToDictionary(x => x.First.Name, x => x.Second.Clone()));
     var pgResponse = new PulseGenResponse(arcWaveforms);
     response.RegisterForDispose(pgResponse);

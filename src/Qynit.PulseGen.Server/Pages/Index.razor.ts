@@ -16,6 +16,7 @@ export function init(targetElem: HTMLDivElement, objRef: DotNet.DotNetObject) {
     .ChartXY({
       container: targetElem,
     })
+    .setTitle("Waveform Viewer")
     .setAnimationsEnabled(false);
   legend = chart.addLegendBox().setAutoDispose({
     type: "max-width",
@@ -26,31 +27,49 @@ export function init(targetElem: HTMLDivElement, objRef: DotNet.DotNetObject) {
 
 type WaveformSeries = {
   i: LineSeries;
-  q: LineSeries;
+  q?: LineSeries;
 };
 
 const series = new Map<string, WaveformSeries>();
 
-export async function renderWaveform(name: string, iqBytesStream) {
-  const iqBytesArray: ArrayBuffer = await iqBytesStream.arrayBuffer();
-  const float64Array = new Float64Array(iqBytesArray);
-  const length = float64Array.length / 2;
-  const iArray = float64Array.subarray(0, length);
-  const qArray = float64Array.subarray(length, length * 2);
-  if (!series.has(name)) {
-    const { i, q } = initSeries(name);
-    i.addArrayY(iArray);
-    q.addArrayY(qArray);
-  } else {
-    const { i, q } = series.get(name);
-    i.clear();
-    i.addArrayY(iArray);
-    q.clear();
-    q.addArrayY(qArray);
-  }
+enum DataType {
+  Float32,
+  Float64,
 }
 
-function initSeries(name: string) {
+type StreamRef = {
+  arrayBuffer: () => Promise<ArrayBuffer>;
+};
+
+export async function renderWaveform(
+  name: string,
+  type: DataType,
+  isReal: boolean,
+  iqBytesStream: StreamRef,
+) {
+  const iqBytesArray = await iqBytesStream.arrayBuffer();
+  const iqArray = (() => {
+    if (type === DataType.Float32) {
+      return new Float32Array(iqBytesArray);
+    } else if (type === DataType.Float64) {
+      return new Float64Array(iqBytesArray);
+    } else {
+      throw new Error("Unsupported data type");
+    }
+  })();
+
+  const length = isReal ? iqArray.length : iqArray.length / 2;
+  const iArray = iqArray.subarray(0, length);
+  const qArray = isReal ? undefined : iqArray.subarray(length, length * 2);
+
+  const { i, q } = series.get(name) ?? initSeries(name, isReal);
+  i.clear();
+  i.addArrayY(iArray);
+  q?.clear();
+  q?.addArrayY(qArray!);
+}
+
+function initSeries(name: string, isReal: boolean): WaveformSeries {
   const opts: LineSeriesOptions = {
     dataPattern: {
       pattern: "ProgressiveX",
@@ -58,13 +77,16 @@ function initSeries(name: string) {
     },
   };
   const i = chart.addLineSeries(opts).setName(`${name}_I`);
-  const q = chart.addLineSeries(opts).setName(`${name}_Q`);
+  const q = isReal ? undefined : chart.addLineSeries(opts).setName(`${name}_Q`);
   series.set(name, { i, q });
-  legend.add(i).add(q);
-  const handler = async (_, state: boolean) => {
+  const handler = async (_: LineSeries, state: boolean) => {
     await dotnetRef.invokeMethodAsync("VisibilityChanged", name, state);
   };
+  legend.add(i);
   i.onVisibleStateChanged(handler);
-  q.onVisibleStateChanged(handler);
+  if (q) {
+    legend.add(q);
+    q.onVisibleStateChanged(handler);
+  }
   return { i, q };
 }

@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -44,6 +44,24 @@ public static class WaveformUtils
                 var dPhase = T.CreateChecked(Math.Tau * totalFrequency * dt);
                 MixAddEnvelope(waveform[iStart..], envelopeSample, (IqPair<T>)complexAmplitude, (IqPair<T>)dragAmplitude, dPhase);
             }
+        }
+    }
+
+    public static void ConvertDoubleToFloat(ComplexSpan<float> target, ComplexReadOnlySpan<double> source)
+    {
+        if (target.Length != source.Length)
+        {
+            ThrowHelper.ThrowArgumentException("target.Length != source.Length");
+        }
+        ref var targetI = ref MemoryMarshal.GetReference(target.DataI);
+        ref var targetQ = ref MemoryMarshal.GetReference(target.DataQ);
+        ref var sourceI = ref MemoryMarshal.GetReference(source.DataI);
+        ref var sourceQ = ref MemoryMarshal.GetReference(source.DataQ);
+        var length = target.Length;
+        for (var i = 0; i < length; i++)
+        {
+            Unsafe.Add(ref targetI, i) = (float)Unsafe.Add(ref sourceI, i);
+            Unsafe.Add(ref targetQ, i) = (float)Unsafe.Add(ref sourceQ, i);
         }
     }
 
