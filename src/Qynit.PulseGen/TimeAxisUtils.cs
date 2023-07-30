@@ -1,4 +1,4 @@
-﻿namespace Qynit.PulseGen;
+namespace Qynit.PulseGen;
 public static class TimeAxisUtils
 {
     public static int NextIndex(double t, double sampleRate)

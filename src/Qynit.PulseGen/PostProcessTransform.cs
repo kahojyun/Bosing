@@ -1,4 +1,4 @@
-﻿using System.Numerics;
+using System.Numerics;
 
 using QuikGraph;
 using QuikGraph.Algorithms;
@@ -36,6 +36,11 @@ public class PostProcessTransform
     public int AddMultiply(Complex multiplier)
     {
         return AddNode(new MultiplyNode(multiplier));
+    }
+
+    public int AddFilter(BiquadChain<double> filter)
+    {
+        return AddNode(new FilterNode(filter));
     }
 
     public void AddMatrix(Complex[,] matrix, out int[] inputIds, out int[] outputIds)
@@ -76,6 +81,9 @@ public class PostProcessTransform
                 case MultiplyNode multiplyNode:
                     RunMultiply(vertex, multiplyNode);
                     break;
+                case FilterNode filterNode:
+                    RunFilter(vertex, filterNode);
+                    break;
                 case MatrixNode matrixNode:
                     RunMatrix(vertex, matrixNode);
                     break;
@@ -97,6 +105,12 @@ public class PostProcessTransform
     private void RunBasic(int id, ProcessNode node)
     {
         SendPulseListToTargets(id, node.GetInboxPulseList());
+    }
+
+    private void RunFilter(int id, FilterNode node)
+    {
+        var pulseList = node.GetInboxPulseList().Filtered(node.BiquadChain);
+        SendPulseListToTargets(id, pulseList);
     }
 
     private void RunMatrix(int id, MatrixNode node)
@@ -163,6 +177,8 @@ public class PostProcessTransform
     private record DelayNode(double Delay) : ProcessNode;
 
     private record MultiplyNode(Complex Multiplier) : ProcessNode;
+
+    private record FilterNode(BiquadChain<double> BiquadChain) : ProcessNode;
 
     private record MatrixNode(Complex[,] Matrix, int[] InputIds, int[] OutputIds) : ProcessNode;
 }

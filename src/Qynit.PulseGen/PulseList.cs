@@ -1,4 +1,4 @@
-﻿using System.Numerics;
+using System.Numerics;
 using System.Runtime.CompilerServices;
 
 namespace Qynit.PulseGen;
@@ -7,6 +7,7 @@ public record PulseList
     public static readonly PulseList Empty = new();
     public double TimeOffset { get; init; }
     public Complex AmplitudeMultiplier { get; init; } = Complex.One;
+    public BiquadChain<double> Filter { get; init; } = BiquadChain<double>.Empty;
 
     internal IReadOnlyDictionary<BinInfo, IReadOnlyList<BinItem>> Items { get; }
 
@@ -37,6 +38,10 @@ public record PulseList
     {
         return this with { TimeOffset = TimeOffset + timeOffset };
     }
+    public PulseList Filtered(BiquadChain<double> filter)
+    {
+        return this with { Filter = BiquadChain<double>.Concat(Filter, filter) };
+    }
 
     public static PulseList Sum(params PulseList[] pulseLists)
     {
@@ -50,17 +55,21 @@ public record PulseList
         {
             foreach (var (key, list) in pulseList.Items)
             {
-                var newKey = key with { Delay = key.Delay + pulseList.TimeOffset };
+                var newKey = key with
+                {
+                    Delay = key.Delay + pulseList.TimeOffset,
+                    Filter = BiquadChain<double>.Concat(key.Filter, pulseList.Filter),
+                };
                 var newList = newItems.TryGetValue(newKey, out var oldList)
-                    ? AddApplyInfo(oldList, list, pulseList.AmplitudeMultiplier)
-                    : ApplyInfo(list, pulseList.AmplitudeMultiplier);
+                    ? AddMultiply(oldList, list, pulseList.AmplitudeMultiplier)
+                    : ApplyMultiplier(list, pulseList.AmplitudeMultiplier);
                 newItems[newKey] = newList;
             }
         }
         return new PulseList(newItems);
     }
 
-    private static IReadOnlyList<BinItem> AddApplyInfo(IReadOnlyList<BinItem> list, IReadOnlyList<BinItem> other, Complex multiplier)
+    private static IReadOnlyList<BinItem> AddMultiply(IReadOnlyList<BinItem> list, IReadOnlyList<BinItem> other, Complex multiplier)
     {
         if (multiplier == Complex.Zero || other.Count == 0)
         {
@@ -107,7 +116,7 @@ public record PulseList
         return newList;
     }
 
-    private static IReadOnlyList<BinItem> ApplyInfo(IReadOnlyList<BinItem> list, Complex multiplier)
+    private static IReadOnlyList<BinItem> ApplyMultiplier(IReadOnlyList<BinItem> list, Complex multiplier)
     {
         return multiplier switch
         {
@@ -117,7 +126,10 @@ public record PulseList
         };
     }
 
-    internal readonly record struct BinInfo(Envelope Envelope, double GlobalFrequency, double LocalFrequency, double Delay);
+    internal readonly record struct BinInfo(Envelope Envelope, double GlobalFrequency, double LocalFrequency, double Delay)
+    {
+        public BiquadChain<double> Filter { get; init; } = BiquadChain<double>.Empty;
+    }
     internal readonly record struct PulseAmplitude(Complex Amplitude, Complex DragAmplitude)
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

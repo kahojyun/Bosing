@@ -1,4 +1,4 @@
-﻿namespace Qynit.PulseGen.Server.Hubs;
+namespace Qynit.PulseGen.Server.Hubs;
 
 public interface IPlotClient
 {

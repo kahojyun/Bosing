@@ -1,4 +1,4 @@
-﻿using MessagePack;
+using MessagePack;
 
 namespace Qynit.PulseGen.Server.Models;
 
@@ -9,4 +9,5 @@ public sealed record ChannelInfo(
     [property: Key(2)] double SampleRate,
     [property: Key(3)] double Delay,
     [property: Key(4)] int Length,
-    [property: Key(5)] int AlignLevel);
+    [property: Key(5)] int AlignLevel,
+    [property: Key(6)] IList<BiquadDto> BiquadChain);

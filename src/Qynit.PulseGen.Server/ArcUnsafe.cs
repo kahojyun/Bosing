@@ -1,4 +1,4 @@
-﻿namespace Qynit.PulseGen.Server;
+namespace Qynit.PulseGen.Server;
 
 public static class ArcUnsafe
 {

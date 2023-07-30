@@ -1,4 +1,4 @@
-﻿namespace Qynit.PulseGen;
+namespace Qynit.PulseGen;
 
 public enum ArrangeOption
 {

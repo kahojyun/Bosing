@@ -10,41 +10,52 @@ public static class WaveformUtils
 {
     public static PooledComplexArray<T> SampleWaveform<T>(PulseList pulseList, double sampleRate, double loFrequency, int length, int alignLevel) where T : unmanaged, IFloatingPointIeee754<T>
     {
-        var waveform = new PooledComplexArray<T>(length, true);
-        SampleWaveformTo<T>(waveform, pulseList, sampleRate, loFrequency, alignLevel);
-        return waveform;
-    }
-
-    public static void SampleWaveformTo<T>(ComplexSpan<T> waveform, PulseList pulseList, double sampleRate, double loFrequency, int alignLevel) where T : unmanaged, IFloatingPointIeee754<T>
-    {
-        foreach (var (binKey, bin) in pulseList.Items)
+        var filterGroup = pulseList.Items.GroupBy(x => x.Key.Filter);
+        PooledComplexArray<T>? waveform = null;
+        foreach (var filter in filterGroup)
         {
-            foreach (var pulse in bin)
+            var tempWaveform = new PooledComplexArray<T>(length, true);
+            foreach (var (binKey, bin) in filter)
             {
-                var delay = pulseList.TimeOffset + binKey.Delay;
-                var time = pulse.Time;
-                var tStart = time + delay;
-                var iFracStart = TimeAxisUtils.NextFracIndex(tStart, sampleRate, alignLevel);
-                var iStart = (int)Math.Ceiling(iFracStart);
-                var envelopeInfo = new EnvelopeInfo(iStart - iFracStart, sampleRate);
-                var envelopeSample = WaveformSampler<T>.GetEnvelopeSample(envelopeInfo, binKey.Envelope);
-                if (envelopeSample is null)
+                foreach (var pulse in bin)
                 {
-                    continue;
-                }
+                    var delay = pulseList.TimeOffset + binKey.Delay;
+                    var time = pulse.Time;
+                    var tStart = time + delay;
+                    var iFracStart = TimeAxisUtils.NextFracIndex(tStart, sampleRate, alignLevel);
+                    var iStart = (int)Math.Ceiling(iFracStart);
+                    var envelopeInfo = new EnvelopeInfo(iStart - iFracStart, sampleRate);
+                    var envelopeSample = WaveformSampler<T>.GetEnvelopeSample(envelopeInfo, binKey.Envelope);
+                    if (envelopeSample is null)
+                    {
+                        continue;
+                    }
 
-                var globalFrequency = binKey.GlobalFrequency - loFrequency;
-                var localFrequency = binKey.LocalFrequency;
-                var totalFrequency = globalFrequency + localFrequency;
-                var dt = 1 / sampleRate;
-                var phaseShift = Math.Tau * globalFrequency * (iStart * dt - delay);
-                var amplitude = pulse.Amplitude * pulseList.AmplitudeMultiplier * Complex.FromPolarCoordinates(1, phaseShift);
-                var complexAmplitude = amplitude.Amplitude;
-                var dragAmplitude = amplitude.DragAmplitude * sampleRate;
-                var dPhase = T.CreateChecked(Math.Tau * totalFrequency * dt);
-                MixAddEnvelope(waveform[iStart..], envelopeSample, (IqPair<T>)complexAmplitude, (IqPair<T>)dragAmplitude, dPhase);
+                    var globalFrequency = binKey.GlobalFrequency - loFrequency;
+                    var localFrequency = binKey.LocalFrequency;
+                    var totalFrequency = globalFrequency + localFrequency;
+                    var dt = 1 / sampleRate;
+                    var phaseShift = Math.Tau * globalFrequency * (iStart * dt - delay);
+                    var amplitude = pulse.Amplitude * pulseList.AmplitudeMultiplier * Complex.FromPolarCoordinates(1, phaseShift);
+                    var complexAmplitude = amplitude.Amplitude;
+                    var dragAmplitude = amplitude.DragAmplitude * sampleRate;
+                    var dPhase = T.CreateChecked(Math.Tau * totalFrequency * dt);
+                    MixAddEnvelope(tempWaveform[iStart..], envelopeSample, (IqPair<T>)complexAmplitude, (IqPair<T>)dragAmplitude, dPhase);
+                }
+            }
+            var finalFilter = BiquadChain<double>.Concat(filter.Key, pulseList.Filter);
+            finalFilter.Filter(tempWaveform.DataI);
+            finalFilter.Filter(tempWaveform.DataQ);
+            if (waveform is null)
+            {
+                waveform = tempWaveform;
+            }
+            else
+            {
+                Add<T>(waveform, tempWaveform);
             }
         }
+        return waveform ?? new PooledComplexArray<T>(length, true);
     }
 
     public static void ConvertDoubleToFloat(ComplexSpan<float> target, ComplexReadOnlySpan<double> source)
@@ -204,6 +215,43 @@ public static class WaveformUtils
             Unsafe.Add(ref targetI, i) += carrier.I;
             Unsafe.Add(ref targetQ, i) += carrier.Q;
             carrier *= phaser;
+        }
+    }
+
+    internal static void Add<T>(ComplexSpan<T> target, ComplexReadOnlySpan<T> source)
+        where T : unmanaged, INumber<T>
+    {
+        var length = source.Length;
+        if (length == 0)
+        {
+            return;
+        }
+        LengthCheck(target, source);
+
+        var i = 0;
+        ref var targetI = ref MemoryMarshal.GetReference(target.DataI);
+        ref var targetQ = ref MemoryMarshal.GetReference(target.DataQ);
+        ref var sourceI = ref MemoryMarshal.GetReference(source.DataI);
+        ref var sourceQ = ref MemoryMarshal.GetReference(source.DataQ);
+        var vSize = Vector<T>.Count;
+
+        if (Vector.IsHardwareAccelerated && length >= 2 * vSize)
+        {
+            for (; i < length - vSize + 1; i += vSize)
+            {
+                var sourceVectorI = Unsafe.As<T, Vector<T>>(ref Unsafe.Add(ref sourceI, i));
+                var sourceVectorQ = Unsafe.As<T, Vector<T>>(ref Unsafe.Add(ref sourceQ, i));
+                ref var targetVectorI = ref Unsafe.As<T, Vector<T>>(ref Unsafe.Add(ref targetI, i));
+                ref var targetVectorQ = ref Unsafe.As<T, Vector<T>>(ref Unsafe.Add(ref targetQ, i));
+                targetVectorI += sourceVectorI;
+                targetVectorQ += sourceVectorQ;
+            }
+        }
+
+        for (; i < length; i++)
+        {
+            Unsafe.Add(ref targetI, i) += Unsafe.Add(ref sourceI, i);
+            Unsafe.Add(ref targetQ, i) += Unsafe.Add(ref sourceQ, i);
         }
     }
 
@@ -536,7 +584,7 @@ public static class WaveformUtils
         }
     }
 
-    private static void LengthCheck<T>(ComplexSpan<T> target, ComplexReadOnlySpan<T> source) where T : unmanaged, IFloatingPointIeee754<T>
+    private static void LengthCheck<T>(ComplexSpan<T> target, ComplexReadOnlySpan<T> source) where T : unmanaged
     {
         Debug.Assert(target.Length >= source.Length);
         if (target.Length < source.Length)

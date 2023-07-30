@@ -1,4 +1,4 @@
-﻿namespace Qynit.PulseGen;
+namespace Qynit.PulseGen;
 public sealed class SetPhaseElement : ScheduleElement
 {
     private HashSet<int>? _channels;

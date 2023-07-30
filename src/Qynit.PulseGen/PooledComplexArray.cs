@@ -5,6 +5,7 @@ using CommunityToolkit.Diagnostics;
 
 namespace Qynit.PulseGen;
 
+[MessagePack.MessagePackObject]
 public abstract class PooledComplexArray { }
 
 public sealed class PooledComplexArray<T> : PooledComplexArray, IDisposable
