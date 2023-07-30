@@ -25,6 +25,9 @@ tab_width = 4
 end_of_line = crlf
 insert_final_newline = true
 
+# Visual studio spell checker
+spelling_exclusion_path = ./exclusion.dic 
+
 #### .NET Coding Conventions ####
 [*.{cs,vb}]
 

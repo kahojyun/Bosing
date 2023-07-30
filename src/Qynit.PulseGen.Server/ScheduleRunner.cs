@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 
 using CommunityToolkit.Diagnostics;
 
@@ -43,9 +43,11 @@ public sealed class ScheduleRunner
         {
             var channel = channels[i];
             var sourceId = postProcessTransform.AddSourceNode(pulseLists[i]);
+            var filterId = postProcessTransform.AddFilter(new(channel.BiquadChain.Select(x => x.GetBiquad())));
             var delayId = postProcessTransform.AddDelay(channel.Delay);
             var terminalId = postProcessTransform.AddTerminalNode(out _);
-            postProcessTransform.AddEdge(sourceId, delayId);
+            postProcessTransform.AddEdge(sourceId, filterId);
+            postProcessTransform.AddEdge(filterId, delayId);
             postProcessTransform.AddEdge(delayId, terminalId);
         }
         var pulseLists2 = postProcessTransform.Finish();

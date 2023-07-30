@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 
 namespace Qynit.PulseGen;
 public sealed class EnvelopeSample<T>

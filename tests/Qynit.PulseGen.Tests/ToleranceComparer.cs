@@ -1,4 +1,4 @@
-﻿using System.Diagnostics.CodeAnalysis;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Qynit.PulseGen.Tests;
 internal record ToleranceComparer(double Tolerance) : IEqualityComparer<double>

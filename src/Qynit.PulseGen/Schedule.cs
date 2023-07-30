@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 
 namespace Qynit.PulseGen;
 public abstract class Schedule : ScheduleElement, IEnumerable<ScheduleElement>

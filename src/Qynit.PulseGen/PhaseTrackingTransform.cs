@@ -1,4 +1,4 @@
-﻿namespace Qynit.PulseGen;
+namespace Qynit.PulseGen;
 public class PhaseTrackingTransform
 {
     private readonly List<ChannelStatus> _channels = new();

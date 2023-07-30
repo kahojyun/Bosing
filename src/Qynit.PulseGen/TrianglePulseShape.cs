@@ -1,4 +1,4 @@
-﻿using System.Numerics;
+using System.Numerics;
 
 namespace Qynit.PulseGen;
 public sealed record TrianglePulseShape : IPulseShape

@@ -10,6 +10,7 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{7BEC5D1A-5E54-40A4-B7F6-067F81829321}"
 	ProjectSection(SolutionItems) = preProject
 		.editorconfig = .editorconfig
+		exclusion.dic = exclusion.dic
 	EndProjectSection
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Qynit.PulseGen.Tests", "tests\Qynit.PulseGen.Tests\Qynit.PulseGen.Tests.csproj", "{33659EDC-29F9-45DB-A9FA-E01E648BE4B9}"

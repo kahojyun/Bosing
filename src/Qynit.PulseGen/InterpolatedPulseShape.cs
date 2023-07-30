@@ -1,4 +1,4 @@
-﻿using System.Numerics;
+using System.Numerics;
 
 using BitFaster.Caching.Lru;
 
@@ -33,27 +33,6 @@ public sealed record InterpolatedPulseShape(IInterpolation Interpolation) : IPul
         });
     }
 
-    private readonly record struct ValueArray<T>
-    {
-        public T[] Data { get; init; }
-        public ValueArray(IEnumerable<T> values)
-        {
-            Data = values.ToArray();
-        }
-        public bool Equals(ValueArray<T> other)
-        {
-            return Data.SequenceEqual(other.Data);
-        }
-        public override int GetHashCode()
-        {
-            var hash = new HashCode();
-            foreach (var item in Data)
-            {
-                hash.Add(item);
-            }
-            return hash.ToHashCode();
-        }
-    }
 
     private static readonly FastConcurrentLru<(ValueArray<double>, ValueArray<double>), InterpolatedPulseShape> Cache = new(666);
 }
