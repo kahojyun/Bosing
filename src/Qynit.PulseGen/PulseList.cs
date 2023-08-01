@@ -7,7 +7,7 @@ public record PulseList
     public static readonly PulseList Empty = new();
     public double TimeOffset { get; init; }
     public Complex AmplitudeMultiplier { get; init; } = Complex.One;
-    public BiquadChain<double> Filter { get; init; } = BiquadChain<double>.Empty;
+    public SignalFilter<double> Filter { get; init; } = SignalFilter<double>.Empty;
 
     internal IReadOnlyDictionary<BinInfo, IReadOnlyList<BinItem>> Items { get; }
 
@@ -38,9 +38,9 @@ public record PulseList
     {
         return this with { TimeOffset = TimeOffset + timeOffset };
     }
-    public PulseList Filtered(BiquadChain<double> filter)
+    public PulseList Filtered(SignalFilter<double> filter)
     {
-        return this with { Filter = BiquadChain<double>.Concat(Filter, filter) };
+        return this with { Filter = SignalFilter<double>.Concat(Filter, filter) };
     }
 
     public static PulseList Sum(params PulseList[] pulseLists)
@@ -58,7 +58,7 @@ public record PulseList
                 var newKey = key with
                 {
                     Delay = key.Delay + pulseList.TimeOffset,
-                    Filter = BiquadChain<double>.Concat(key.Filter, pulseList.Filter),
+                    Filter = SignalFilter<double>.Concat(key.Filter, pulseList.Filter),
                 };
                 var newList = newItems.TryGetValue(newKey, out var oldList)
                     ? AddMultiply(oldList, list, pulseList.AmplitudeMultiplier)
@@ -128,7 +128,7 @@ public record PulseList
 
     internal readonly record struct BinInfo(Envelope Envelope, double GlobalFrequency, double LocalFrequency, double Delay)
     {
-        public BiquadChain<double> Filter { get; init; } = BiquadChain<double>.Empty;
+        public SignalFilter<double> Filter { get; init; } = SignalFilter<double>.Empty;
     }
     internal readonly record struct PulseAmplitude(Complex Amplitude, Complex DragAmplitude)
     {

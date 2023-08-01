@@ -38,7 +38,7 @@ public class PostProcessTransform
         return AddNode(new MultiplyNode(multiplier));
     }
 
-    public int AddFilter(BiquadChain<double> filter)
+    public int AddFilter(SignalFilter<double> filter)
     {
         return AddNode(new FilterNode(filter));
     }
@@ -109,7 +109,7 @@ public class PostProcessTransform
 
     private void RunFilter(int id, FilterNode node)
     {
-        var pulseList = node.GetInboxPulseList().Filtered(node.BiquadChain);
+        var pulseList = node.GetInboxPulseList().Filtered(node.Filter);
         SendPulseListToTargets(id, pulseList);
     }
 
@@ -178,7 +178,7 @@ public class PostProcessTransform
 
     private record MultiplyNode(Complex Multiplier) : ProcessNode;
 
-    private record FilterNode(BiquadChain<double> BiquadChain) : ProcessNode;
+    private record FilterNode(SignalFilter<double> Filter) : ProcessNode;
 
     private record MatrixNode(Complex[,] Matrix, int[] InputIds, int[] OutputIds) : ProcessNode;
 }

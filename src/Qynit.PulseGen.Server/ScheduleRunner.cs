@@ -43,7 +43,7 @@ public sealed class ScheduleRunner
         {
             var channel = channels[i];
             var sourceId = postProcessTransform.AddSourceNode(pulseLists[i]);
-            var filterId = postProcessTransform.AddFilter(new(channel.BiquadChain.Select(x => x.GetBiquad())));
+            var filterId = postProcessTransform.AddFilter(new(channel.BiquadChain.Select(x => x.GetBiquad()), channel.FirCoefficients));
             var delayId = postProcessTransform.AddDelay(channel.Delay);
             var terminalId = postProcessTransform.AddTerminalNode(out _);
             postProcessTransform.AddEdge(sourceId, filterId);

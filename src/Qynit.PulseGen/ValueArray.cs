@@ -1,8 +1,15 @@
+using System.Collections;
+
 namespace Qynit.PulseGen;
 
-internal readonly record struct ValueArray<T>
+internal readonly record struct ValueArray<T> : IReadOnlyList<T>
 {
     public T[] Data { get; init; }
+
+    public int Count => Data.Length;
+
+    public T this[int index] => Data[index];
+
     public ValueArray(IEnumerable<T> values)
     {
         Data = values.ToArray();
@@ -19,5 +26,15 @@ internal readonly record struct ValueArray<T>
             hash.Add(item);
         }
         return hash.ToHashCode();
+    }
+
+    public IEnumerator<T> GetEnumerator()
+    {
+        return ((IReadOnlyList<T>)Data).GetEnumerator();
+    }
+
+    IEnumerator IEnumerable.GetEnumerator()
+    {
+        return Data.GetEnumerator();
     }
 }
