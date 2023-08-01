@@ -1,5 +1,8 @@
 using System.Collections;
+using System.Diagnostics;
 using System.Numerics;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 namespace Qynit.PulseGen;
 public readonly record struct FirCoefficients<T> : IReadOnlyList<T> where T : INumber<T>
@@ -59,19 +62,51 @@ public readonly record struct FirCoefficients<T> : IReadOnlyList<T> where T : IN
         {
             return;
         }
-        var coefficients = Cast<TData>().Coefficients;
-        var hBuffer = coefficients.Data.Reverse().Concat(coefficients.Data.Reverse()).ToArray();
-        var xBuffer = new TData[Count];
+        var bufferLength = Vector.IsHardwareAccelerated ? MCeil(Count, Vector<TData>.Count) : Count;
+        var coefficients = Cast<TData>().Coefficients.Data;
+        var hBuffer = new TData[bufferLength * 2];
+        for (var i = 0; i < coefficients.Length; i++)
+        {
+            hBuffer[bufferLength - 1 - i] = coefficients[i];
+            hBuffer[2 * bufferLength - 1 - i] = coefficients[i];
+        }
+        var xBuffer = new TData[bufferLength];
         for (var i = 0; i < signal.Length; i++)
         {
-            var bufIndex = i % Count;
-            xBuffer[bufIndex] = signal[i];
-            signal[i] = default;
-            var hIndex = Count - 1 - bufIndex;
-            for (var j = 0; j < Count; j++)
+            var xIndex = i % bufferLength;
+            xBuffer[xIndex] = signal[i];
+            var hIndex = bufferLength - 1 - xIndex;
+            Debug.Assert(hIndex >= 0);
+            Debug.Assert(hIndex + bufferLength <= hBuffer.Length);
+            ref var x = ref MemoryMarshal.GetArrayDataReference(xBuffer);
+            ref var h = ref MemoryMarshal.GetArrayDataReference(hBuffer);
+            if (Vector.IsHardwareAccelerated)
             {
-                signal[i] += hBuffer[hIndex + j] * xBuffer[j];
+                Debug.Assert(bufferLength % Vector<TData>.Count == 0);
+                var acc = Vector<TData>.Zero;
+                for (var j = 0; j < bufferLength; j += Vector<TData>.Count)
+                {
+                    var xv = Unsafe.As<TData, Vector<TData>>(ref Unsafe.Add(ref x, j));
+                    var hv = Unsafe.As<TData, Vector<TData>>(ref Unsafe.Add(ref h, hIndex + j));
+                    acc += xv * hv;
+                }
+                signal[i] = Vector.Sum(acc);
             }
+            else
+            {
+                signal[i] = default;
+                for (var j = 0; j < bufferLength; j++)
+                {
+                    signal[i] += Unsafe.Add(ref x, j) * Unsafe.Add(ref h, hIndex + j);
+                }
+            }
+
         }
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static int MCeil(int value, int multiple)
+    {
+        return (value + multiple - 1) / multiple * multiple;
     }
 }
