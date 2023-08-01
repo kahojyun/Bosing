@@ -18,14 +18,14 @@ public readonly record struct BiquadChain<T> where T : INumber<T>
     }
     public void Filter<TData>(Span<TData> signal) where TData : unmanaged, INumber<TData>
     {
-        if (Coefficients.Data.Length == 0)
+        if (Coefficients.Count == 0)
         {
             return;
         }
-        Span<BiquadFilter<TData>> filters = stackalloc BiquadFilter<TData>[Coefficients.Data.Length];
+        Span<BiquadFilter<TData>> filters = stackalloc BiquadFilter<TData>[Coefficients.Count];
         for (var i = 0; i < filters.Length; i++)
         {
-            filters[i] = new(Coefficients.Data[i].Cast<TData>());
+            filters[i] = new(Coefficients[i].Cast<TData>());
         }
         for (var i = 0; i < signal.Length; i++)
         {

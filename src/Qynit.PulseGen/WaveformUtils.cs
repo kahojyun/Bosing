@@ -43,7 +43,7 @@ public static class WaveformUtils
                     MixAddEnvelope(tempWaveform[iStart..], envelopeSample, (IqPair<T>)complexAmplitude, (IqPair<T>)dragAmplitude, dPhase);
                 }
             }
-            var finalFilter = BiquadChain<double>.Concat(filter.Key, pulseList.Filter);
+            var finalFilter = SignalFilter<double>.Concat(filter.Key, pulseList.Filter);
             finalFilter.Filter(tempWaveform.DataI);
             finalFilter.Filter(tempWaveform.DataQ);
             if (waveform is null)
@@ -53,6 +53,7 @@ public static class WaveformUtils
             else
             {
                 Add<T>(waveform, tempWaveform);
+                tempWaveform.Dispose();
             }
         }
         return waveform ?? new PooledComplexArray<T>(length, true);
