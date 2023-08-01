@@ -10,5 +10,6 @@ public sealed record ChannelInfo(
     [property: Key(3)] double Delay,
     [property: Key(4)] int Length,
     [property: Key(5)] int AlignLevel,
-    [property: Key(6)] IList<BiquadDto> BiquadChain,
-    [property: Key(7)] IList<double> FirCoefficients);
+    [property: Key(6)] IqCalibration? IqCalibration,
+    [property: Key(7)] IList<BiquadDto> BiquadChain,
+    [property: Key(8)] IList<double> FirCoefficients);

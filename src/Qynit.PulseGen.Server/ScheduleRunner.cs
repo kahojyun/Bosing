@@ -51,7 +51,15 @@ public sealed class ScheduleRunner
             postProcessTransform.AddEdge(delayId, terminalId);
         }
         var pulseLists2 = postProcessTransform.Finish();
-        var result = pulseLists2.Zip(channels).Select(x => WaveformUtils.SampleWaveform<double>(x.First, x.Second.SampleRate, 0, x.Second.Length, x.Second.AlignLevel));
+        var result = pulseLists2.Zip(channels).Select(x =>
+        {
+            var waveform = WaveformUtils.SampleWaveform<double>(x.First, x.Second.SampleRate, 0, x.Second.Length, x.Second.AlignLevel);
+            if (x.Second.IqCalibration is { A: var a, B: var b, C: var c, D: var d, IOffset: var iOffset, QOffset: var qOffset })
+            {
+                WaveformUtils.IqTransform(waveform, a, b, c, d, iOffset, qOffset);
+            }
+            return waveform;
+        });
         return result.ToList();
     }
 }
