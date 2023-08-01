@@ -77,6 +77,40 @@ public static class WaveformUtils
         }
     }
 
+    public static void IqTransform<T>(ComplexSpan<T> target, T a, T b, T c, T d, T iOffset, T qOffset) where T : unmanaged, INumber<T>
+    {
+        var i = 0;
+        ref var targetI = ref MemoryMarshal.GetReference(target.DataI);
+        ref var targetQ = ref MemoryMarshal.GetReference(target.DataQ);
+        var vSize = Vector<T>.Count;
+        if (Vector.IsHardwareAccelerated)
+        {
+            var vA = new Vector<T>(a);
+            var vB = new Vector<T>(b);
+            var vC = new Vector<T>(c);
+            var vD = new Vector<T>(d);
+            var vIOffset = new Vector<T>(iOffset);
+            var vQOffset = new Vector<T>(qOffset);
+
+            for (; i < target.Length - vSize + 1; i += vSize)
+            {
+                var iVector = Unsafe.As<T, Vector<T>>(ref Unsafe.Add(ref targetI, i));
+                var qVector = Unsafe.As<T, Vector<T>>(ref Unsafe.Add(ref targetQ, i));
+                var iResult = vA * iVector + vB * qVector + vIOffset;
+                var qResult = vC * iVector + vD * qVector + vQOffset;
+                Unsafe.As<T, Vector<T>>(ref Unsafe.Add(ref targetI, i)) = iResult;
+                Unsafe.As<T, Vector<T>>(ref Unsafe.Add(ref targetQ, i)) = qResult;
+            }
+        }
+        for (; i < target.Length; i++)
+        {
+            var iResult = a * Unsafe.Add(ref targetI, i) + b * Unsafe.Add(ref targetQ, i) + iOffset;
+            var qResult = c * Unsafe.Add(ref targetI, i) + d * Unsafe.Add(ref targetQ, i) + qOffset;
+            Unsafe.Add(ref targetI, i) = iResult;
+            Unsafe.Add(ref targetQ, i) = qResult;
+        }
+    }
+
     private static void MixAddEnvelope<T>(ComplexSpan<T> target, EnvelopeSample<T> envelopeSample, IqPair<T> complexAmplitude, IqPair<T> dragAmplitude, T dPhase) where T : unmanaged, IFloatingPointIeee754<T>
     {
         var currentIndex = 0;
