@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Numerics;
 
 using Qynit.PulseGen;
+using Qynit.PulseGen.Schedules;
 
 using ScottPlot;
 
@@ -57,8 +58,8 @@ static void Run<T>() where T : unmanaged, IFloatingPointIeee754<T>
     grid.AddColumn(GridLength.Absolute(90e-9));
     grid.AddColumn(GridLength.Star(1));
     grid.AddColumn(GridLength.Absolute(90e-9));
-    grid.Add(new PlayElement(ch1, new(shape, 30e-9, 200e-9), 0, 0, 0.5, 2e-9) { Alignment = Qynit.PulseGen.Alignment.Center }, 1, 1);
-    grid.Add(new PlayElement(ch2, new(shape, 30e-9, 50e-9), -250e6, 0, 0.6, 2e-9) { Alignment = Qynit.PulseGen.Alignment.Stretch, FlexiblePlateau = true }, 0, 3);
+    grid.Add(new PlayElement(ch1, new(shape, 30e-9, 200e-9), 0, 0, 0.5, 2e-9) { Alignment = Qynit.PulseGen.Schedules.Alignment.Center }, 1, 1);
+    grid.Add(new PlayElement(ch2, new(shape, 30e-9, 50e-9), -250e6, 0, 0.6, 2e-9) { Alignment = Qynit.PulseGen.Schedules.Alignment.Stretch, FlexiblePlateau = true }, 0, 3);
     stack.Add(grid);
 
     stack.Add(new ShiftFrequencyElement(ch1, -100e6));

@@ -1,6 +1,6 @@
 using System.Diagnostics;
 
-namespace Qynit.PulseGen;
+namespace Qynit.PulseGen.Schedules;
 public sealed class PlayElement : ScheduleElement
 {
     private HashSet<int>? _channels;
@@ -30,12 +30,12 @@ public sealed class PlayElement : ScheduleElement
 
     protected override double ArrangeOverride(double time, double finalDuration)
     {
-        return FlexiblePlateau ? finalDuration : (Plateau + Width);
+        return FlexiblePlateau ? finalDuration : Plateau + Width;
     }
 
     protected override double MeasureOverride(double maxDuration)
     {
-        return FlexiblePlateau ? Width : (Plateau + Width);
+        return FlexiblePlateau ? Width : Plateau + Width;
     }
 
     protected override void RenderOverride(double time, PhaseTrackingTransform phaseTrackingTransform)

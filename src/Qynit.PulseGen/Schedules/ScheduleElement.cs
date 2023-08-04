@@ -2,7 +2,7 @@ using System.Diagnostics;
 
 using CommunityToolkit.Diagnostics;
 
-namespace Qynit.PulseGen;
+namespace Qynit.PulseGen.Schedules;
 public abstract class ScheduleElement
 {
     private double _maxDuration = double.PositiveInfinity;

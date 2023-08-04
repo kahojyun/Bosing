@@ -4,6 +4,8 @@ using CommunityToolkit.Diagnostics;
 
 using MessagePack;
 
+using Qynit.PulseGen.Schedules;
+
 namespace Qynit.PulseGen.Server.Models;
 
 

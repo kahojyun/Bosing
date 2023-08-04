@@ -2,7 +2,7 @@ using System.Diagnostics;
 
 using CommunityToolkit.Diagnostics;
 
-namespace Qynit.PulseGen;
+namespace Qynit.PulseGen.Schedules;
 public class GridSchedule : Schedule
 {
     private readonly List<(int Column, int Span)> _elementColumns = new();
@@ -56,7 +56,7 @@ public class GridSchedule : Schedule
             var actualColumn = Math.Min(column, numColumns - 1);
             var actualSpan = Math.Min(span, numColumns - actualColumn);
             var spanDuration = Enumerable.Range(actualColumn, actualSpan).Sum(i => columnSizes[i]);
-            var elementDuration = (element.Alignment == Alignment.Stretch) ? spanDuration : element.DesiredDuration.Value;
+            var elementDuration = element.Alignment == Alignment.Stretch ? spanDuration : element.DesiredDuration.Value;
             var actualDuration = Math.Min(spanDuration, elementDuration);
             var elementTime = element.Alignment switch
             {
@@ -83,7 +83,7 @@ public class GridSchedule : Schedule
         {
             element.Measure(maxDuration);
         }
-        var columnSizes = _columns.Select(l => (l.IsAbsolute) ? l.Value : 0).ToList();
+        var columnSizes = _columns.Select(l => l.IsAbsolute ? l.Value : 0).ToList();
         foreach (var (element, (column, span)) in Children.Zip(_elementColumns))
         {
             var actualColumn = Math.Min(column, numColumns - 1);
@@ -151,7 +151,7 @@ public class GridSchedule : Schedule
         var cumulativeStar = 0.0;
         for (var i = 0; i < indexOrderByStarRatio.Count; i++)
         {
-            var nextRatio = (i + 1 < indexOrderByStarRatio.Count) ? indexOrderByStarRatio[i + 1].Ratio : double.PositiveInfinity;
+            var nextRatio = i + 1 < indexOrderByStarRatio.Count ? indexOrderByStarRatio[i + 1].Ratio : double.PositiveInfinity;
             var index = indexOrderByStarRatio[i].Index;
             cumulativeStar += _columns[index].Value;
             remainingDuration += columnSizes[index];
