@@ -1,4 +1,6 @@
-namespace Qynit.PulseGen.Tests;
+using Qynit.PulseGen.Schedules;
+
+namespace Qynit.PulseGen.Tests.Schedules;
 
 public class FakeScheduleElement : ScheduleElement
 {

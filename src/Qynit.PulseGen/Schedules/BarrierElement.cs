@@ -1,4 +1,4 @@
-namespace Qynit.PulseGen;
+namespace Qynit.PulseGen.Schedules;
 public class BarrierElement : ScheduleElement
 {
     public override IReadOnlySet<int> Channels { get; }

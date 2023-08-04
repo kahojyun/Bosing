@@ -1,6 +1,6 @@
 using CommunityToolkit.Diagnostics;
 
-namespace Qynit.PulseGen;
+namespace Qynit.PulseGen.Schedules;
 public readonly record struct GridLength(double Value, GridLengthUnit Unit)
 {
     public static GridLength Auto => new(double.NaN, GridLengthUnit.Auto);
@@ -20,7 +20,7 @@ public readonly record struct GridLength(double Value, GridLengthUnit Unit)
     public bool IsAuto => Unit == GridLengthUnit.Auto;
     public bool IsStar => Unit == GridLengthUnit.Star;
     public bool IsAbsolute => Unit == GridLengthUnit.Second;
-    public bool IsValid => IsAuto || (IsStar && Value > 0) || (IsAbsolute && Value >= 0);
+    public bool IsValid => IsAuto || IsStar && Value > 0 || IsAbsolute && Value >= 0;
 
     public override string ToString()
     {

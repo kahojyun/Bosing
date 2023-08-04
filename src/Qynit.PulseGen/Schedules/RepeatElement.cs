@@ -2,7 +2,7 @@ using System.Diagnostics;
 
 using CommunityToolkit.Diagnostics;
 
-namespace Qynit.PulseGen;
+namespace Qynit.PulseGen.Schedules;
 public class RepeatElement : ScheduleElement
 {
     public override IReadOnlySet<int> Channels => ScheduleElement.Channels;

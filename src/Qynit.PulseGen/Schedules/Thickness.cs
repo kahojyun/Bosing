@@ -1,4 +1,4 @@
-namespace Qynit.PulseGen;
+namespace Qynit.PulseGen.Schedules;
 public readonly record struct Thickness(double Start, double End)
 {
     public Thickness(double value) : this(value, value) { }

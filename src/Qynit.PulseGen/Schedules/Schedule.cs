@@ -1,6 +1,6 @@
 using System.Collections;
 
-namespace Qynit.PulseGen;
+namespace Qynit.PulseGen.Schedules;
 public abstract class Schedule : ScheduleElement, IEnumerable<ScheduleElement>
 {
     public override IReadOnlySet<int> Channels => _channels ??= Children.SelectMany(e => e.Channels).ToHashSet();
