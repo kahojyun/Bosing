@@ -9,6 +9,7 @@ namespace Qynit.PulseGen.Server;
 public sealed class ScheduleRunner
 {
     private readonly ScheduleRequest _scheduleRequest;
+    private readonly PulseGenOptions _options = new();
 
     public ScheduleRunner(ScheduleRequest scheduleRequest)
     {
@@ -33,12 +34,12 @@ public sealed class ScheduleRunner
         Debug.Assert(channels is not null);
         foreach (var channel in channels)
         {
-            _ = phaseTrackingTransform.AddChannel(channel.BaseFrequency);
+            _ = phaseTrackingTransform.AddChannel(channel.BaseFrequency, _options.TimeTolerance);
         }
         schedule.Render(0, phaseTrackingTransform);
 
         var pulseLists = phaseTrackingTransform.Finish();
-        var postProcessTransform = new PostProcessTransform();
+        var postProcessTransform = new PostProcessTransform(_options);
         for (var i = 0; i < pulseLists.Count; i++)
         {
             var channel = channels[i];

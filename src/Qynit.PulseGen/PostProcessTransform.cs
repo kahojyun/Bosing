@@ -9,10 +9,16 @@ public class PostProcessTransform
     private readonly List<ProcessNode> _processNodes = new();
     private readonly List<int> _terminalIds = new();
     private readonly AdjacencyGraph<int, Edge<int>> _adjacencyGraph = new();
+    private readonly PulseGenOptions _options;
+
+    public PostProcessTransform(PulseGenOptions options)
+    {
+        _options = options;
+    }
 
     public int AddSourceNode(PulseList pulseList)
     {
-        return AddNode(new SourceNode(pulseList));
+        return AddNode(new SourceNode(pulseList) { Options = _options });
     }
 
     public int AddTerminalNode(out int resultId)
@@ -25,22 +31,22 @@ public class PostProcessTransform
 
     public int AddSimpleNode()
     {
-        return AddNode(new ProcessNode());
+        return AddNode(new ProcessNode() { Options = _options });
     }
 
     public int AddDelay(double delay)
     {
-        return AddNode(new DelayNode(delay));
+        return AddNode(new DelayNode(delay) { Options = _options });
     }
 
     public int AddMultiply(Complex multiplier)
     {
-        return AddNode(new MultiplyNode(multiplier));
+        return AddNode(new MultiplyNode(multiplier) { Options = _options });
     }
 
     public int AddFilter(SignalFilter<double> filter)
     {
-        return AddNode(new FilterNode(filter));
+        return AddNode(new FilterNode(filter) { Options = _options });
     }
 
     public void AddMatrix(Complex[,] matrix, out int[] inputIds, out int[] outputIds)
@@ -49,7 +55,7 @@ public class PostProcessTransform
         var outputLength = matrix.GetLength(0);
         inputIds = Enumerable.Range(0, inputLength).Select(_ => AddSimpleNode()).ToArray();
         outputIds = Enumerable.Range(0, outputLength).Select(_ => AddSimpleNode()).ToArray();
-        var id = AddNode(new MatrixNode(matrix, inputIds, outputIds));
+        var id = AddNode(new MatrixNode(matrix, inputIds, outputIds) { Options = _options });
         foreach (var inputId in inputIds)
         {
             AddEdge(inputId, id);
@@ -120,7 +126,7 @@ public class PostProcessTransform
                               select inboxItem.pulseList;
         for (var i = 0; i < node.Matrix.GetLength(0); i++)
         {
-            var outputPulseList = PulseList.Sum(inputPulseLists.Select((x, j) => x * node.Matrix[i, j]));
+            var outputPulseList = PulseList.Sum(inputPulseLists.Select((x, j) => x * node.Matrix[i, j]), _options.TimeTolerance, _options.AmpTolerance);
             SendPulseListToTarget(id, node.OutputIds[i], outputPulseList);
         }
     }
@@ -161,13 +167,14 @@ public class PostProcessTransform
     private record class ProcessNode
     {
         public List<(int id, PulseList pulseList)> Inbox { get; } = new();
+        public required PulseGenOptions Options { get; init; }
         public PulseList GetInboxPulseList()
         {
             return Inbox.Count switch
             {
                 0 => PulseList.Empty,
                 1 => Inbox[0].pulseList,
-                _ => PulseList.Sum(Inbox.Select(x => x.pulseList)),
+                _ => PulseList.Sum(Inbox.Select(x => x.pulseList), Options.TimeTolerance, Options.AmpTolerance),
             };
         }
     }

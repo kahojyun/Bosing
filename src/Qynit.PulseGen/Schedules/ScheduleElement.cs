@@ -9,6 +9,7 @@ public abstract class ScheduleElement
     private double _minDuration;
     private double? _duration;
 
+    public PulseGenOptions? PulseGenOptions { get; set; }
     public ScheduleElement? Parent { get; internal set; }
     public Thickness Margin { get; set; }
     public Alignment Alignment { get; set; }
@@ -78,7 +79,8 @@ public abstract class ScheduleElement
         {
             ThrowHelper.ThrowInvalidOperationException("Not measured");
         }
-        if (finalDuration < UnclippedDesiredDuration - 1e-10)
+        var options = PulseGenOptions ?? PulseGenOptions.Default;
+        if (finalDuration < UnclippedDesiredDuration - options.TimeTolerance && !options.AllowOversize)
         {
             ThrowHelper.ThrowInvalidOperationException("Final duration is less than unclipped desired duration");
         }
@@ -89,7 +91,7 @@ public abstract class ScheduleElement
         var margin = Margin.Total;
         var innerDuration = Math.Max(finalDuration - margin, 0);
         var clampedDuration = MathUtils.Clamp(innerDuration, minDuration, maxDuration);
-        if (clampedDuration + margin < UnclippedDesiredDuration - 1e-10)
+        if (clampedDuration + margin < UnclippedDesiredDuration - options.TimeTolerance && !options.AllowOversize)
         {
             ThrowHelper.ThrowInvalidOperationException("User specified duration is less than unclipped desired duration");
         }
