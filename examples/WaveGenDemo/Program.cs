@@ -36,8 +36,8 @@ static void Run<T>() where T : unmanaged, IFloatingPointIeee754<T>
     var sw = Stopwatch.StartNew();
 
     var phaseTrackingTransform = new PhaseTrackingTransform();
-    var ch1 = phaseTrackingTransform.AddChannel(100e6);
-    var ch2 = phaseTrackingTransform.AddChannel(250e6);
+    var ch1 = phaseTrackingTransform.AddChannel(100e6, 0);
+    var ch2 = phaseTrackingTransform.AddChannel(250e6, 0);
     var shape = new HannPulseShape();
     var stack = new StackSchedule();
     stack.Add(new PlayElement(ch1, new(shape, 30e-9, 100e-9), 0, 0, 0.5, 2e-9));

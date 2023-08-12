@@ -79,6 +79,7 @@ public sealed class PlayElementDto : ScheduleElementDto
             Duration = Duration,
             MaxDuration = MaxDuration,
             MinDuration = MinDuration,
+            PulseGenOptions = request.Options?.GetOptions(),
         };
     }
 }
@@ -102,6 +103,7 @@ public sealed class ShiftPhaseElementDto : ScheduleElementDto
             Duration = Duration,
             MaxDuration = MaxDuration,
             MinDuration = MinDuration,
+            PulseGenOptions = request.Options?.GetOptions(),
         };
     }
 }
@@ -125,6 +127,7 @@ public sealed class SetPhaseElementDto : ScheduleElementDto
             Duration = Duration,
             MaxDuration = MaxDuration,
             MinDuration = MinDuration,
+            PulseGenOptions = request.Options?.GetOptions(),
         };
     }
 }
@@ -148,6 +151,7 @@ public sealed class ShiftFrequencyElementDto : ScheduleElementDto
             Duration = Duration,
             MaxDuration = MaxDuration,
             MinDuration = MinDuration,
+            PulseGenOptions = request.Options?.GetOptions(),
         };
     }
 }
@@ -171,6 +175,7 @@ public sealed class SetFrequencyElementDto : ScheduleElementDto
             Duration = Duration,
             MaxDuration = MaxDuration,
             MinDuration = MinDuration,
+            PulseGenOptions = request.Options?.GetOptions(),
         };
     }
 }
@@ -194,6 +199,7 @@ public sealed class SwapPhaseElementDto : ScheduleElementDto
             Duration = Duration,
             MaxDuration = MaxDuration,
             MinDuration = MinDuration,
+            PulseGenOptions = request.Options?.GetOptions(),
         };
     }
 }
@@ -216,6 +222,7 @@ public sealed class BarrierElementDto : ScheduleElementDto
             Duration = Duration,
             MaxDuration = MaxDuration,
             MinDuration = MinDuration,
+            PulseGenOptions = request.Options?.GetOptions(),
         };
     }
 }
@@ -244,6 +251,7 @@ public sealed class RepeatElementDto : ScheduleElementDto
             Duration = Duration,
             MaxDuration = MaxDuration,
             MinDuration = MinDuration,
+            PulseGenOptions = request.Options?.GetOptions(),
         };
     }
 }
@@ -269,6 +277,7 @@ public sealed class StackScheduleDto : ScheduleElementDto
             Duration = Duration,
             MaxDuration = MaxDuration,
             MinDuration = MinDuration,
+            PulseGenOptions = request.Options?.GetOptions(),
         };
         foreach (var element in Elements)
         {
@@ -296,6 +305,7 @@ public sealed class AbsoluteScheduleDto : ScheduleElementDto
             Duration = Duration,
             MaxDuration = MaxDuration,
             MinDuration = MinDuration,
+            PulseGenOptions = request.Options?.GetOptions(),
         };
         foreach (var (time, element) in Elements)
         {
@@ -326,6 +336,7 @@ public sealed class GridScheduleDto : ScheduleElementDto
             Duration = Duration,
             MaxDuration = MaxDuration,
             MinDuration = MinDuration,
+            PulseGenOptions = request.Options?.GetOptions(),
         };
         foreach (var (column, span, element) in Elements)
         {

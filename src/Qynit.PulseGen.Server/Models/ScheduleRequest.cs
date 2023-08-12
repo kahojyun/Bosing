@@ -11,4 +11,6 @@ public sealed class ScheduleRequest
     public IList<ShapeInfo>? ShapeTable { get; init; }
     [Key(2)]
     public ScheduleElementDto? Schedule { get; init; }
+    [Key(3)]
+    public OptionsDto? Options { get; init; }
 }

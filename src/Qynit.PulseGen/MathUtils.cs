@@ -14,4 +14,24 @@ internal class MathUtils
     {
         return Math.Max(Math.Min(value, max), min);
     }
+
+    public static bool IsApproximatelyEqual(double a, double b, double tolerance)
+    {
+        return Math.Abs(a - b) <= tolerance;
+    }
+
+    public static bool IsApproximatelyZero(double a, double tolerance)
+    {
+        return Math.Abs(a) <= tolerance;
+    }
+
+    public static bool IsApproximatelyEqualModulo(double a, double b, double modulo, double tolerance)
+    {
+        return IsApproximatelyZero(Math.IEEERemainder(a - b, modulo), tolerance);
+    }
+
+    public static bool IsApproximatelyZeroModulo(double a, double modulo, double tolerance)
+    {
+        return IsApproximatelyZero(Math.IEEERemainder(a, modulo), tolerance);
+    }
 }

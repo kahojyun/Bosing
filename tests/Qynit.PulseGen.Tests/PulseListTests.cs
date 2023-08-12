@@ -4,11 +4,13 @@ namespace Qynit.PulseGen.Tests;
 
 public class PulseListTests
 {
+    private const double TimeTolerance = 1e-9 / 1e6;
+
     [Fact]
     public void Builder_Compressed()
     {
         // Arrange
-        var builder = new PulseList.Builder();
+        var builder = new PulseList.Builder(TimeTolerance);
         const double frequency1 = 120e6;
         const double frequency2 = 150e6;
         var envelope1 = Envelope.Rectangle(100e-9);
@@ -41,7 +43,7 @@ public class PulseListTests
     public void Builder_Compressed_Equal()
     {
         // Arrange
-        var builder = new PulseList.Builder();
+        var builder = new PulseList.Builder(TimeTolerance);
         var envelope = Envelope.Rectangle(100e-9);
         const double frequency = 120e6;
         var bin = new PulseList.BinInfo(envelope, frequency, frequency, 0.1e-9);
@@ -73,7 +75,7 @@ public class PulseListTests
     public void Builder_Sorted()
     {
         // Arrange
-        var builder = new PulseList.Builder();
+        var builder = new PulseList.Builder(TimeTolerance);
         var envelope = Envelope.Rectangle(100e-9);
         const double frequency = 120e6;
         var bin = new PulseList.BinInfo(envelope, frequency, -frequency, 0.1e-9);
@@ -103,7 +105,7 @@ public class PulseListTests
     public void Builder_SecondBuild_Cleared()
     {
         // Arrange
-        var builder = new PulseList.Builder();
+        var builder = new PulseList.Builder(TimeTolerance);
         var envelope = Envelope.Rectangle(100e-9);
         const double frequency = 120e6;
         var bin = new PulseList.BinInfo(envelope, frequency, -frequency, 0.1e-9);
@@ -129,8 +131,8 @@ public class PulseListTests
     public void Merge()
     {
         // Arrange
-        var builder1 = new PulseList.Builder();
-        var builder2 = new PulseList.Builder();
+        var builder1 = new PulseList.Builder(TimeTolerance);
+        var builder2 = new PulseList.Builder(TimeTolerance);
         var envelope1 = Envelope.Rectangle(100e-9);
         var envelope2 = Envelope.Rectangle(150e-9);
         const double frequency = 120e6;
@@ -158,7 +160,7 @@ public class PulseListTests
         // Act
         var pulses1 = builder1.Build().TimeShifted(1e-9) * amp1;
         var pulses2 = builder2.Build().TimeShifted(-1e-9) * amp2;
-        var pulses = pulses1 + pulses2;
+        var pulses = PulseList.Sum(0, 0, pulses1, pulses2);
 
         // Assert
         Assert.Equal(4, pulses.Items.Count);

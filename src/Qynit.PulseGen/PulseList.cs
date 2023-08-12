@@ -21,11 +21,6 @@ public record PulseList
         Items = items;
     }
 
-    public static PulseList operator +(PulseList left, PulseList right)
-    {
-        return Sum(left, right);
-    }
-
     public static PulseList operator *(PulseList left, Complex right)
     {
         return left with { AmplitudeMultiplier = left.AmplitudeMultiplier * right };
@@ -43,12 +38,12 @@ public record PulseList
         return this with { Filter = SignalFilter<double>.Concat(Filter, filter) };
     }
 
-    public static PulseList Sum(params PulseList[] pulseLists)
+    public static PulseList Sum(double timeTolerance, double ampTolerance, params PulseList[] pulseLists)
     {
-        return Sum((IEnumerable<PulseList>)pulseLists);
+        return Sum(pulseLists, timeTolerance, ampTolerance);
     }
 
-    public static PulseList Sum(IEnumerable<PulseList> pulseLists)
+    public static PulseList Sum(IEnumerable<PulseList> pulseLists, double timeTolerance, double ampTolerance)
     {
         var newItems = new Dictionary<BinInfo, IReadOnlyList<BinItem>>();
         foreach (var pulseList in pulseLists)
@@ -61,15 +56,15 @@ public record PulseList
                     Filter = SignalFilter<double>.Concat(key.Filter, pulseList.Filter),
                 };
                 var newList = newItems.TryGetValue(newKey, out var oldList)
-                    ? AddMultiply(oldList, list, pulseList.AmplitudeMultiplier)
-                    : ApplyMultiplier(list, pulseList.AmplitudeMultiplier);
+                    ? AddMultiply(oldList, list, pulseList.AmplitudeMultiplier, timeTolerance)
+                    : ApplyMultiplier(list, pulseList.AmplitudeMultiplier, ampTolerance);
                 newItems[newKey] = newList;
             }
         }
         return new PulseList(newItems);
     }
 
-    private static IReadOnlyList<BinItem> AddMultiply(IReadOnlyList<BinItem> list, IReadOnlyList<BinItem> other, Complex multiplier)
+    private static IReadOnlyList<BinItem> AddMultiply(IReadOnlyList<BinItem> list, IReadOnlyList<BinItem> other, Complex multiplier, double timeTolerance)
     {
         if (multiplier == Complex.Zero || other.Count == 0)
         {
@@ -82,12 +77,12 @@ public record PulseList
         {
             var item1 = list[i];
             var item2 = other[j];
-            if (item1.Time < item2.Time)
+            if (item1.Time + timeTolerance < item2.Time)
             {
                 newList.Add(item1);
                 i++;
             }
-            else if (item1.Time > item2.Time)
+            else if (item1.Time > item2.Time + timeTolerance)
             {
                 var newItem = item2 with { Amplitude = item2.Amplitude * multiplier };
                 newList.Add(newItem);
@@ -116,14 +111,20 @@ public record PulseList
         return newList;
     }
 
-    private static IReadOnlyList<BinItem> ApplyMultiplier(IReadOnlyList<BinItem> list, Complex multiplier)
+    private static IReadOnlyList<BinItem> ApplyMultiplier(IReadOnlyList<BinItem> list, Complex multiplier, double ampTolerance)
     {
-        return multiplier switch
+        if (MathUtils.IsApproximatelyZero(multiplier.Imaginary, ampTolerance))
         {
-            { Real: 0, Imaginary: 0 } => Array.Empty<BinItem>(),
-            { Real: 1, Imaginary: 0 } => list,
-            _ => list.Select(item => new BinItem(item.Time, item.Amplitude * multiplier)).ToArray()
-        };
+            if (MathUtils.IsApproximatelyZero(multiplier.Real, ampTolerance))
+            {
+                return Array.Empty<BinItem>();
+            }
+            if (MathUtils.IsApproximatelyEqual(multiplier.Real, 1, ampTolerance))
+            {
+                return list;
+            }
+        }
+        return list.Select(item => new BinItem(item.Time, item.Amplitude * multiplier)).ToArray();
     }
 
     internal readonly record struct BinInfo(Envelope Envelope, double GlobalFrequency, double LocalFrequency, double Delay)
@@ -151,6 +152,13 @@ public record PulseList
     internal readonly record struct BinItem(double Time, PulseAmplitude Amplitude);
     internal class Builder
     {
+        public double TimeTolerance { get; init; }
+
+        public Builder(double timeTolerance)
+        {
+            TimeTolerance = timeTolerance;
+        }
+
         private readonly Dictionary<BinInfo, List<BinItem>> _items = new();
         public void Add(Envelope envelope, double globalFrequency, double localFrequency, double time, double amplitude, double phase, double dragCoefficient)
         {
@@ -181,13 +189,13 @@ public record PulseList
         {
             foreach (var item in _items.Values)
             {
-                SortAndCompress(item);
+                SortAndCompress(item, TimeTolerance);
             }
             var result = new PulseList(_items.ToDictionary(x => x.Key, x => (IReadOnlyList<BinItem>)x.Value));
             _items.Clear();
             return result;
         }
-        private static void SortAndCompress(List<BinItem> item)
+        private static void SortAndCompress(List<BinItem> item, double tolerance)
         {
             item.Sort((a, b) => a.Time.CompareTo(b.Time));
             var i = 0;
@@ -196,7 +204,7 @@ public record PulseList
             {
                 var item1 = item[i];
                 var item2 = item[j];
-                if (item1.Time == item2.Time)
+                if (MathUtils.IsApproximatelyEqual(item1.Time, item2.Time, tolerance))
                 {
                     item[i] = new BinItem(item1.Time, item1.Amplitude + item2.Amplitude);
                     j++;
