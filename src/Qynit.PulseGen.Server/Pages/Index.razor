@@ -4,6 +4,7 @@
 @using Qynit.PulseGen.Server.Hubs
 @using Qynit.PulseGen.Server.Models;
 @using Qynit.PulseGen.Server.Services
+@using Qynit.PulseGen.Server.Shared
 @using System.IO.Pipelines;
 @using System.Buffers;
 @using System.Collections.Concurrent;
@@ -15,7 +16,24 @@
 @implements IPlotClient
 
 <div class="box">
-    <div @ref="_chart" class="row content" />
+    <div class="aside">
+        <FluentDataGrid RowsData="@FilteredPeople">
+            <PropertyColumn Property="@(p => p.Name)" Sortable="true">
+                <ColumnOptions>
+                    <FluentSearch @bind-Value="_nameFilter" />
+                </ColumnOptions>
+            </PropertyColumn>
+            <TemplateColumn>
+                <HeaderCellItemTemplate>
+                    <TriCheckbox @bind-Value="AnyVisible" Indeterminate="IsIndeterminate">Show</TriCheckbox>
+                </HeaderCellItemTemplate>
+                <ChildContent>
+                    <FluentCheckbox @bind-Value="@context.Visible" />
+                </ChildContent>
+            </TemplateColumn>
+        </FluentDataGrid>
+    </div>
+    <div @ref="_chart" class="plot" />
 </div>
 
 @code
@@ -29,6 +47,34 @@
     private ConcurrentDictionary<string, bool> _channelNewValue = new();
     private ConcurrentDictionary<string, bool> _channelVisible = new();
     private Channel<string> _renderQueue = Channel.CreateUnbounded<string>();
+
+    class Trace
+    {
+        public string Name { get; set; } = string.Empty;
+        public bool Visible { get; set; }
+        public bool NeedUpdate { get; set; }
+    }
+
+    IQueryable<Trace> people = new[]
+    {
+        new Trace { Name = "A", Visible = true, NeedUpdate = false },
+        new Trace { Name = "B", Visible = true, NeedUpdate = false },
+        new Trace { Name = "C", Visible = true, NeedUpdate = false },
+    }.AsQueryable();
+    private string _nameFilter = string.Empty;
+    IQueryable<Trace> FilteredPeople => people.Where(p => p.Name.Contains(_nameFilter));
+    private bool AnyVisible
+    {
+        get => FilteredPeople.Any(p => p.Visible);
+        set
+        {
+            foreach (var p in FilteredPeople)
+            {
+                p.Visible = value;
+            }
+        }
+    }
+    private bool IsIndeterminate => FilteredPeople.Any(p => p.Visible) && FilteredPeople.Any(p => !p.Visible);
 
     protected override async Task OnInitializedAsync()
     {

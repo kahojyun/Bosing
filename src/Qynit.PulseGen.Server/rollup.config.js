@@ -1,4 +1,4 @@
-import { globbySync } from "globby";
+import { glob } from "glob";
 import terser from "@rollup/plugin-terser";
 import typescript from "@rollup/plugin-typescript";
 import resolve from "@rollup/plugin-node-resolve";
@@ -9,19 +9,18 @@ import path from "path";
 const production = !process.env.ROLLUP_WATCH;
 
 export default {
-  input: globbySync(["Shared/**/*.ts", "Pages/**/*.ts"]),
+  input: Object.fromEntries(
+    glob
+      .sync("**/*.razor.ts")
+      .map((file) => [
+        file.slice(0, file.length - path.extname(file).length),
+        file,
+      ]),
+  ),
   output: {
-    sourcemap: !production,
+    sourcemap: production ? false : "inline",
     format: "es",
     dir: "./",
-    entryFileNames: ({ facadeModuleId }) => {
-      let root = path.resolve(".");
-      let filePath = path.parse(
-        facadeModuleId.substr(-(facadeModuleId.length - root.length) + 1),
-      );
-
-      return `${filePath.dir}/[name].js`;
-    },
   },
   plugins: [
     resolve({ browser: true }),

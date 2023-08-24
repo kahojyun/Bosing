@@ -2,6 +2,8 @@ using MessagePack;
 using MessagePack.Formatters;
 using MessagePack.Resolvers;
 
+using Microsoft.Fast.Components.FluentUI;
+
 using Qynit.PulseGen;
 using Qynit.PulseGen.Server;
 using Qynit.PulseGen.Server.Hubs;
@@ -11,6 +13,7 @@ using Qynit.PulseGen.Server.Services;
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddRazorPages();
 builder.Services.AddServerSideBlazor();
+builder.Services.AddFluentUIComponents();
 builder.Services.AddSingleton<IPlotService, PlotService>();
 var app = builder.Build();
 

@@ -3,7 +3,6 @@
   "compilerOptions": {
     "strict": true,
     "lib": ["ES2015", "DOM"],
-    "sourceMap": true,
     "esModuleInterop": true
   }
 }

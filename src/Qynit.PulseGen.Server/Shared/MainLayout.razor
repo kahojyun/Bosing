@@ -1,0 +1,20 @@
+@inherits LayoutComponentBase
+
+<PageTitle>PulseGen Viewer</PageTitle>
+
+<div class="page">
+    <div class="siteheader">
+        <FluentAnchor Href="/" Appearance="Appearance.Neutral">Waveform Viewer</FluentAnchor>
+        <FluentAnchor Href="/Hello" Appearance="Appearance.Neutral">Schedule Viewer</FluentAnchor>
+    </div>
+    <main>
+        <ErrorBoundary>
+            <ChildContent>
+                @Body
+            </ChildContent>
+            <ErrorContent Context="ex">
+                <p class="error">@ex.Message</p>
+            </ErrorContent>
+        </ErrorBoundary>
+    </main>
+</div>

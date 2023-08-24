@@ -4,5 +4,5 @@ module.exports = {
   parser: "@typescript-eslint/parser",
   plugins: ["@typescript-eslint"],
   root: true,
-  ignorePatterns: ["**/wwwroot/**/*", "Pages/**/*.js"],
+  ignorePatterns: ["**/wwwroot/**/*", "**/*.razor.js"],
 };

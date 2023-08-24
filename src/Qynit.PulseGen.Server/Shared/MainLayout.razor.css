@@ -1,0 +1,25 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.siteheader {
+  flex: 0 1 auto;
+  background-color: var(--neutral-layer-4);
+  border-bottom: calc(var(--stroke-width) * 3px) solid var(--accent-fill-rest);
+  justify-content: flex-start;
+  height: 3.5rem;
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+  padding-left: 1.5rem;
+  gap: 10px;
+}
+
+main {
+  height: 100%;
+  flex: 1 1 auto;
+  /*    background-color: var(--neutral-layer-1);
+    color: var(--neutral-foreground-rest);*/
+}
