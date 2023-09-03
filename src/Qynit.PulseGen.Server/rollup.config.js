@@ -1,29 +1,26 @@
-import { globbySync } from "globby";
+import { glob } from "glob";
 import terser from "@rollup/plugin-terser";
 import typescript from "@rollup/plugin-typescript";
 import resolve from "@rollup/plugin-node-resolve";
 import commonjs from "@rollup/plugin-commonjs";
-import path from "path";
+import del from "rollup-plugin-delete";
 
 // eslint-disable-next-line no-undef
 const production = !process.env.ROLLUP_WATCH;
 
 export default {
-  input: globbySync(["Shared/**/*.ts", "Pages/**/*.ts"]),
+  input: Object.fromEntries(
+    glob
+      .sync("**/*.razor.ts")
+      .map((file) => [file.slice(0, file.length - ".razor.ts".length), file]),
+  ),
   output: {
     sourcemap: !production,
     format: "es",
-    dir: "./",
-    entryFileNames: ({ facadeModuleId }) => {
-      let root = path.resolve(".");
-      let filePath = path.parse(
-        facadeModuleId.substr(-(facadeModuleId.length - root.length) + 1),
-      );
-
-      return `${filePath.dir}/[name].js`;
-    },
+    dir: "./wwwroot/dist/",
   },
   plugins: [
+    del({ targets: "./wwwroot/dist/*", runOnce: true }),
     resolve({ browser: true }),
     commonjs(),
     typescript({
