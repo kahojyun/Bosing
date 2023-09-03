@@ -17,7 +17,7 @@
 
 <div class="box">
     <div class="aside">
-        <FluentDataGrid RowsData="@FilteredPeople">
+        <FluentDataGrid RowsData="@FilteredTraces">
             <PropertyColumn Property="@(p => p.Name)" Sortable="true">
                 <ColumnOptions>
                     <FluentSearch @bind-Value="_nameFilter" />
@@ -33,48 +33,44 @@
             </TemplateColumn>
         </FluentDataGrid>
     </div>
-    <div @ref="_chart" class="plot" />
+    <div class="plot">
+        <WaveformViewer Names="VisibleTraceNames" PlotService="PlotService"/>
+    </div>
 </div>
 
 @code
 {
     private HubConnection? _hubConnection;
-    private ElementReference _chart;
-    private IJSObjectReference? _module;
-    private DotNetObjectReference<Index>? _objRef;
-    private Task? _renderTask;
-    private CancellationTokenSource? _renderCts;
-    private ConcurrentDictionary<string, bool> _channelNewValue = new();
-    private ConcurrentDictionary<string, bool> _channelVisible = new();
-    private Channel<string> _renderQueue = Channel.CreateUnbounded<string>();
+    private string _nameFilter = string.Empty;
 
-    class Trace
+    private class Trace
     {
         public string Name { get; set; } = string.Empty;
         public bool Visible { get; set; }
         public bool NeedUpdate { get; set; }
     }
 
-    IQueryable<Trace> people = new[]
-    {
-        new Trace { Name = "A", Visible = true, NeedUpdate = false },
-        new Trace { Name = "B", Visible = true, NeedUpdate = false },
-        new Trace { Name = "C", Visible = true, NeedUpdate = false },
-    }.AsQueryable();
-    private string _nameFilter = string.Empty;
-    IQueryable<Trace> FilteredPeople => people.Where(p => p.Name.Contains(_nameFilter));
+    private List<Trace> Traces { get; set; } = new();
+    private IEnumerable<string>? VisibleTraceNames => Traces.Where(p => p.Visible).Select(p => p.Name).ToList();
+    IQueryable<Trace> FilteredTraces => Traces.AsQueryable().Where(p => p.Name.Contains(_nameFilter));
     private bool AnyVisible
     {
-        get => FilteredPeople.Any(p => p.Visible);
+        get => FilteredTraces.Any(p => p.Visible);
         set
         {
-            foreach (var p in FilteredPeople)
+            foreach (var p in FilteredTraces)
             {
                 p.Visible = value;
             }
         }
     }
-    private bool IsIndeterminate => FilteredPeople.Any(p => p.Visible) && FilteredPeople.Any(p => !p.Visible);
+    private bool IsIndeterminate => FilteredTraces.Any(p => p.Visible) && FilteredTraces.Any(p => !p.Visible);
+
+    protected override void OnInitialized()
+    {
+        var names = PlotService.GetNames();
+        Traces = names.Select(x => new Trace { Name = x, Visible = true, NeedUpdate = true }).ToList();
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -87,114 +83,28 @@
         await _hubConnection.StartAsync();
     }
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (firstRender)
-        {
-            _module = await JS.InvokeAsync<IJSObjectReference>("import", "./Pages/Index.razor.js");
-            _objRef = DotNetObjectReference.Create(this);
-            await _module.InvokeVoidAsync("init", _chart, _objRef);
-            _renderCts = new();
-            _renderTask = RenderInBackground(_renderCts.Token);
-        }
-    }
-
-    [JSInvokable]
-    public async ValueTask VisibilityChanged(string name, bool visible)
-    {
-        var flag = false;
-        _channelVisible.AddOrUpdate(name, visible, (k, v) =>
-        {
-            flag = visible && !v;
-            return visible;
-        });
-        if (flag)
-        {
-            await EnqueueRender(name);
-        }
-    }
-
     public async Task ReceiveNames(IEnumerable<string> names)
     {
+        var tracesLookUp = Traces.ToDictionary(x => x.Name);
         foreach (var name in names)
         {
-            _channelNewValue[name] = true;
-            await EnqueueRender(name);
-        }
-    }
-
-    private async ValueTask EnqueueRender(string name)
-    {
-        await _renderQueue.Writer.WriteAsync(name);
-    }
-
-    private async Task RenderInBackground(CancellationToken token)
-    {
-        while (!token.IsCancellationRequested)
-        {
-            var name = await _renderQueue.Reader.ReadAsync(token);
-            if (ChannelNeedUpdate(name) && ChannelShouldRender(name))
+            if (tracesLookUp.TryGetValue(name, out var trace))
             {
-                await RenderWaveform(name, token);
-                _channelNewValue[name] = false;
+                trace.NeedUpdate = true;
+            }
+            else
+            {
+                Traces.Add(new Trace { Name = name, Visible = true, NeedUpdate = true });
             }
         }
-    }
-
-    private bool ChannelNeedUpdate(string name)
-    {
-        return _channelNewValue.TryGetValue(name, out var needUpdate) && needUpdate;
-    }
-
-    private bool ChannelShouldRender(string name)
-    {
-        var hasValue = _channelVisible.TryGetValue(name, out var visible);
-        return !hasValue || visible;
-    }
-
-    private async ValueTask RenderWaveform(string name, CancellationToken token)
-    {
-        if (PlotService.TryGetPlot(name, out var arc))
-        {
-            using (arc)
-            {
-                var pipe = new Pipe();
-                var writer = pipe.Writer;
-                writer.Write(MemoryMarshal.AsBytes(arc.Target.DataI));
-                writer.Write(MemoryMarshal.AsBytes(arc.Target.DataQ));
-                await writer.CompleteAsync();
-                using var streamRef = new DotNetStreamReference(pipe.Reader.AsStream());
-                var dataType = DataType.Float32;
-                var isReal = arc.Target.IsReal;
-                await _module!.InvokeVoidAsync("renderWaveform", token, name, dataType, isReal, streamRef);
-            }
-        }
+        await InvokeAsync(StateHasChanged);
     }
 
     public async ValueTask DisposeAsync()
     {
-        _renderCts?.Cancel();
-        if (_renderTask is not null)
-        {
-            try
-            {
-                await _renderTask;
-            }
-            catch (OperationCanceledException) { }
-        }
-        _renderCts?.Dispose();
-        _objRef?.Dispose();
         if (_hubConnection is not null)
         {
             await _hubConnection.DisposeAsync();
-        }
-        if (_module is not null)
-        {
-            try
-            {
-                await _module.DisposeAsync();
-            }
-            catch (JSDisconnectedException) { }
         }
     }
 }

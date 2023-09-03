@@ -3,7 +3,7 @@ import terser from "@rollup/plugin-terser";
 import typescript from "@rollup/plugin-typescript";
 import resolve from "@rollup/plugin-node-resolve";
 import commonjs from "@rollup/plugin-commonjs";
-import path from "path";
+import del from "rollup-plugin-delete";
 
 // eslint-disable-next-line no-undef
 const production = !process.env.ROLLUP_WATCH;
@@ -12,17 +12,15 @@ export default {
   input: Object.fromEntries(
     glob
       .sync("**/*.razor.ts")
-      .map((file) => [
-        file.slice(0, file.length - path.extname(file).length),
-        file,
-      ]),
+      .map((file) => [file.slice(0, file.length - ".razor.ts".length), file]),
   ),
   output: {
-    sourcemap: production ? false : "inline",
+    sourcemap: !production,
     format: "es",
-    dir: "./",
+    dir: "./wwwroot/dist/",
   },
   plugins: [
+    del({ targets: "./wwwroot/dist/*", runOnce: true }),
     resolve({ browser: true }),
     commonjs(),
     typescript({
