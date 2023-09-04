@@ -1,8 +1,6 @@
 using System.Buffers;
-using System.Collections.Concurrent;
 using System.IO.Pipelines;
 using System.Runtime.InteropServices;
-using System.Threading.Channels;
 
 using Microsoft.AspNetCore.Components;
 
@@ -28,9 +26,10 @@ public sealed partial class WaveformViewer : IAsyncDisposable
     private IJSObjectReference? _viewer;
     private DotNetObjectReference<WaveformViewer>? _objRef;
     private Task? _renderTask;
-    private CancellationTokenSource? _renderCts;
-    private readonly Channel<string> _renderQueue = Channel.CreateUnbounded<string>();
-    private readonly ConcurrentDictionary<string, bool> _channelNeedUpdate = new();
+    private readonly CancellationTokenSource _renderCts = new();
+    // Blazor use a "single-threaded" synchronization context, so it's safe to use a normal queue
+    private readonly Queue<string> _renderQueue = new();
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
@@ -38,30 +37,34 @@ public sealed partial class WaveformViewer : IAsyncDisposable
             await using var module = await JS.ImportComponentModule<WaveformViewer>();
             _objRef = DotNetObjectReference.Create(this);
             _viewer = await module.InvokeAsync<IJSObjectReference>("Viewer.create", _chart, _objRef);
-            _renderCts = new();
-            _renderTask = RenderInBackground(_renderCts.Token);
         }
-
-        if (_viewer is not null)
+        if (_viewer is not null && Names is not null)
         {
-            await SetAllSeries(Names ?? Enumerable.Empty<string>());
-            foreach (var name in Names ?? Enumerable.Empty<string>())
+            await SetAllSeries(Names);
+            AddToRenderQueue(Names);
+        }
+    }
+
+    private void AddToRenderQueue(IEnumerable<string> names)
+    {
+        foreach (var name in names)
+        {
+            if (!_renderQueue.Contains(name))
             {
-                _channelNeedUpdate[name] = true;
-                await _renderQueue.Writer.WriteAsync(name);
+                _renderQueue.Enqueue(name);
             }
+        }
+        if (_renderTask is null || _renderTask.IsCompleted)
+        {
+            _renderTask = RenderInBackground(_renderCts.Token);
         }
     }
 
     private async Task RenderInBackground(CancellationToken token)
     {
-        while (!token.IsCancellationRequested)
+        while (!token.IsCancellationRequested && _renderQueue.TryDequeue(out var name))
         {
-            var name = await _renderQueue.Reader.ReadAsync(token);
-            if (_channelNeedUpdate.TryUpdate(name, false, true))
-            {
-                await SetSeriesData(name, token);
-            }
+            await SetSeriesData(name);
         }
     }
 
@@ -70,7 +73,7 @@ public sealed partial class WaveformViewer : IAsyncDisposable
         await _viewer!.InvokeVoidAsync("setAllSeries", names);
     }
 
-    private async ValueTask SetSeriesData(string name, CancellationToken token)
+    private async ValueTask SetSeriesData(string name)
     {
         if (PlotService.TryGetPlot(name, out var arc))
         {
@@ -88,26 +91,15 @@ public sealed partial class WaveformViewer : IAsyncDisposable
                 writer.Complete();
                 using var streamRef = new DotNetStreamReference(pipe.Reader.AsStream());
                 var dataType = DataType.Float32;
-                await _viewer!.InvokeVoidAsync("setSeriesData", token, name, dataType, isReal, streamRef);
+                await _viewer!.InvokeVoidAsync("setSeriesData", name, dataType, isReal, streamRef);
             }
         }
     }
 
     public async ValueTask DisposeAsync()
     {
-        _renderCts?.Cancel();
-        if (_renderTask is not null)
-        {
-            try
-            {
-                await _renderTask;
-            }
-            catch (OperationCanceledException)
-            {
-            }
-        }
-
-        _renderCts?.Dispose();
+        _renderCts.Cancel();
+        _renderCts.Dispose();
         _objRef?.Dispose();
         if (_viewer is not null)
         {
