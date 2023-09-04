@@ -27,7 +27,7 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="7.0.10" />
-    <PackageReference Include="Microsoft.Fast.Components.FluentUI" Version="2.4.1" />
+    <PackageReference Include="Microsoft.Fast.Components.FluentUI" Version="3.0.0" />
   </ItemGroup>
 
   <ItemGroup>
