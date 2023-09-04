@@ -1,5 +1,3 @@
-@inject IJSRuntime JS
-
 <FluentDesignSystemProvider BaseLayerLuminance="@BaseLayerLuminance">
     <Router AppAssembly="@typeof(App).Assembly">
         <Found Context="routeData">
@@ -14,28 +12,3 @@
         </NotFound>
     </Router>
 </FluentDesignSystemProvider>
-
-@code
-{
-    private bool _isDarkMode = false;
-    private float BaseLayerLuminance => _isDarkMode ? 0.23f : 1f;
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (firstRender)
-        {
-            await using var module = await JS.ImportComponentModule<App>();
-            var objRef = DotNetObjectReference.Create(this);
-            await module.InvokeVoidAsync("init", objRef);
-            _isDarkMode = await module.InvokeAsync<bool>("isSystemDarkMode");
-            StateHasChanged();
-        }
-    }
-
-    [JSInvokable]
-    public async ValueTask OnDarkModeChanged(bool isDarkMode)
-    {
-        _isDarkMode = isDarkMode;
-        await InvokeAsync(StateHasChanged);
-    }
-}
