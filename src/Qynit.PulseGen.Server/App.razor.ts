@@ -8,6 +8,6 @@ export function isSystemDarkMode() {
 
 export function init(objRef: DotNet.DotNetObject) {
   darkModePreference.addEventListener("change", (e) => {
-    objRef.invokeMethodAsync("OnDarkModeChanged", e.matches);
+    void objRef.invokeMethodAsync("OnDarkModeChanged", e.matches);
   });
 }

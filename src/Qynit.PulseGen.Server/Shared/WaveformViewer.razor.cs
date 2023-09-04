@@ -24,7 +24,6 @@ public sealed partial class WaveformViewer : IAsyncDisposable
 
     private ElementReference? _chart;
     private IJSObjectReference? _viewer;
-    private DotNetObjectReference<WaveformViewer>? _objRef;
     private Task? _renderTask;
     private readonly CancellationTokenSource _renderCts = new();
     // Blazor use a "single-threaded" synchronization context, so it's safe to use a normal queue
@@ -35,8 +34,7 @@ public sealed partial class WaveformViewer : IAsyncDisposable
         if (firstRender)
         {
             await using var module = await JS.ImportComponentModule<WaveformViewer>();
-            _objRef = DotNetObjectReference.Create(this);
-            _viewer = await module.InvokeAsync<IJSObjectReference>("Viewer.create", _chart, _objRef);
+            _viewer = await module.InvokeAsync<IJSObjectReference>("Viewer.create", _chart);
         }
         if (_viewer is not null && Names is not null)
         {
@@ -100,7 +98,6 @@ public sealed partial class WaveformViewer : IAsyncDisposable
     {
         _renderCts.Cancel();
         _renderCts.Dispose();
-        _objRef?.Dispose();
         if (_viewer is not null)
         {
             try
