@@ -45,19 +45,22 @@ public sealed partial class Index : IDisposable
 
     private void OnPlotUpdate(object? sender, PlotUpdateEventArgs e)
     {
-        var tracesLookUp = Traces.ToDictionary(x => x.Name);
-        foreach (var name in e.TraceNames)
+        _ = InvokeAsync(() =>
         {
-            if (tracesLookUp.TryGetValue(name, out var trace))
+            var tracesLookUp = Traces.ToDictionary(x => x.Name);
+            foreach (var name in e.TraceNames)
             {
-                trace.NeedUpdate = true;
+                if (tracesLookUp.TryGetValue(name, out var trace))
+                {
+                    trace.NeedUpdate = true;
+                }
+                else
+                {
+                    Traces.Add(new Trace { Name = name, Visible = true, NeedUpdate = true });
+                }
             }
-            else
-            {
-                Traces.Add(new Trace { Name = name, Visible = true, NeedUpdate = true });
-            }
-        }
-        _ = InvokeAsync(StateHasChanged);
+            StateHasChanged();
+        });
     }
 
     public void Dispose()
