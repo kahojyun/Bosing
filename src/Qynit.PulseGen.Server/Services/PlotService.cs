@@ -1,20 +1,16 @@
-using Microsoft.AspNetCore.SignalR;
-
-using Qynit.PulseGen.Server.Hubs;
-
 namespace Qynit.PulseGen.Server.Services;
 
 public class PlotService : IPlotService
 {
     private readonly ILogger<PlotService> _logger;
-    private readonly IHubContext<PlotHub, IPlotClient> _hubContext;
     private readonly Dictionary<string, ArcUnsafe<PooledComplexArray<float>>> _waveforms = new();
 
-    public PlotService(ILogger<PlotService> logger, IHubContext<PlotHub, IPlotClient> hubContext)
+    public PlotService(ILogger<PlotService> logger)
     {
         _logger = logger;
-        _hubContext = hubContext;
     }
+
+    public event EventHandler<PlotUpdateEventArgs>? PlotUpdate;
 
     public void ClearPlots()
     {
@@ -62,7 +58,7 @@ public class PlotService : IPlotService
                 }
                 _waveforms[name] = newArc;
             }
+            PlotUpdate?.Invoke(this, new(_waveforms.Keys));
         }
-        _hubContext.Clients.All.ReceiveNames(waveforms.Keys);
     }
 }

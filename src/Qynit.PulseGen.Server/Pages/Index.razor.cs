@@ -1,24 +1,14 @@
 using Microsoft.AspNetCore.Components;
-using Microsoft.AspNetCore.SignalR.Client;
-using Microsoft.JSInterop;
 
-using Qynit.PulseGen.Server.Hubs;
 using Qynit.PulseGen.Server.Services;
 
 namespace Qynit.PulseGen.Server.Pages;
 
-public sealed partial class Index : IAsyncDisposable, IPlotClient
+public sealed partial class Index : IDisposable
 {
-    [Inject]
-    private NavigationManager Navigation { get; set; } = default!;
-
-    [Inject]
-    private IJSRuntime JS { get; set; } = default!;
-
     [Inject]
     private IPlotService PlotService { get; set; } = default!;
 
-    private HubConnection? _hubConnection;
     private string _nameFilter = string.Empty;
     private class Trace
     {
@@ -50,19 +40,13 @@ public sealed partial class Index : IAsyncDisposable, IPlotClient
     {
         var names = PlotService.GetNames();
         Traces = names.Select(x => new Trace { Name = x, Visible = true, NeedUpdate = true }).ToList();
+        PlotService.PlotUpdate += OnPlotUpdate;
     }
 
-    protected override async Task OnInitializedAsync()
-    {
-        _hubConnection = new HubConnectionBuilder().WithUrl(Navigation.ToAbsoluteUri(PlotHub.Uri)).Build();
-        _hubConnection.On<IEnumerable<string>>(nameof(ReceiveNames), ReceiveNames);
-        await _hubConnection.StartAsync();
-    }
-
-    public async Task ReceiveNames(IEnumerable<string> names)
+    private void OnPlotUpdate(object? sender, PlotUpdateEventArgs e)
     {
         var tracesLookUp = Traces.ToDictionary(x => x.Name);
-        foreach (var name in names)
+        foreach (var name in e.TraceNames)
         {
             if (tracesLookUp.TryGetValue(name, out var trace))
             {
@@ -73,15 +57,11 @@ public sealed partial class Index : IAsyncDisposable, IPlotClient
                 Traces.Add(new Trace { Name = name, Visible = true, NeedUpdate = true });
             }
         }
-
-        await InvokeAsync(StateHasChanged);
+        _ = InvokeAsync(StateHasChanged);
     }
 
-    public async ValueTask DisposeAsync()
+    public void Dispose()
     {
-        if (_hubConnection is not null)
-        {
-            await _hubConnection.DisposeAsync();
-        }
+        PlotService.PlotUpdate -= OnPlotUpdate;
     }
 }

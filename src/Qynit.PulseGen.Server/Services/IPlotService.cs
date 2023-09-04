@@ -6,4 +6,5 @@ public interface IPlotService
     bool TryGetPlot(string name, out ArcUnsafe<PooledComplexArray<float>> waveform);
     IEnumerable<string> GetNames();
     void ClearPlots();
+    event EventHandler<PlotUpdateEventArgs>? PlotUpdate;
 }
