@@ -6,7 +6,6 @@ using Microsoft.Fast.Components.FluentUI;
 
 using Qynit.PulseGen;
 using Qynit.PulseGen.Server;
-using Qynit.PulseGen.Server.Hubs;
 using Qynit.PulseGen.Server.Models;
 using Qynit.PulseGen.Server.Services;
 
@@ -21,7 +20,6 @@ app.UseStaticFiles();
 app.UseRouting();
 
 app.MapBlazorHub();
-app.MapHub<PlotHub>(PlotHub.Uri);
 app.MapFallbackToPage("/_Host");
 
 var resolver = CompositeResolver.Create(

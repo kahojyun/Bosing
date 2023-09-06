@@ -5,7 +5,6 @@ import {
   LineSeriesOptions,
   lightningChart,
 } from "@arction/lcjs";
-import { DotNet } from "@microsoft/dotnet-js-interop";
 
 class WaveformSeries {
   readonly name: string;
@@ -55,27 +54,26 @@ class WaveformSeries {
   }
 }
 
-type WaveformData = {
+interface WaveformData {
   i: Float32Array | Float64Array;
   q?: Float32Array | Float64Array;
-};
+}
 
 enum DataType {
   Float32,
   Float64,
 }
 
-type StreamRef = {
-  arrayBuffer: () => Promise<ArrayBuffer>;
-};
+interface StreamRef {
+  arrayBuffer(): Promise<ArrayBuffer>;
+}
 
 export class Viewer {
   chart: ChartXY;
   legend: LegendBox;
-  dotnetRef: DotNet.DotNetObject;
   series: Map<string, WaveformSeries>;
 
-  constructor(targetElem: HTMLDivElement, objRef: DotNet.DotNetObject) {
+  constructor(targetElem: HTMLDivElement) {
     this.chart = lightningChart()
       .ChartXY({
         container: targetElem,
@@ -86,12 +84,11 @@ export class Viewer {
       type: "max-width",
       maxWidth: 0.2,
     });
-    this.dotnetRef = objRef;
     this.series = new Map<string, WaveformSeries>();
   }
 
-  static create(targetElem: HTMLDivElement, objRef: DotNet.DotNetObject) {
-    return new Viewer(targetElem, objRef);
+  static create(targetElem: HTMLDivElement) {
+    return new Viewer(targetElem);
   }
 
   async setSeriesData(

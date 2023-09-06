@@ -9,7 +9,7 @@ charset = utf-8
 [*.xml]
 indent_size = 2
 
-[*.{js,ts}]
+[*.{js,ts,cjs,mjs,jsx,tsx}]
 indent_size = 2
 
 # C# files
