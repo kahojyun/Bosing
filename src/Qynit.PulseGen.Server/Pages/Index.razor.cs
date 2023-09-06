@@ -14,7 +14,6 @@ public sealed partial class Index : IDisposable
     {
         public string Name { get; set; } = string.Empty;
         public bool Visible { get; set; }
-        public bool NeedUpdate { get; set; }
     }
 
     private List<Trace> Traces { get; set; } = new();
@@ -39,7 +38,7 @@ public sealed partial class Index : IDisposable
     protected override void OnInitialized()
     {
         var names = PlotService.GetNames();
-        Traces = names.Select(x => new Trace { Name = x, Visible = true, NeedUpdate = true }).ToList();
+        Traces = names.Select(x => new Trace { Name = x, Visible = true }).ToList();
         PlotService.PlotUpdate += OnPlotUpdate;
     }
 
@@ -47,18 +46,9 @@ public sealed partial class Index : IDisposable
     {
         _ = InvokeAsync(() =>
         {
-            var tracesLookUp = Traces.ToDictionary(x => x.Name);
-            foreach (var name in e.TraceNames)
-            {
-                if (tracesLookUp.TryGetValue(name, out var trace))
-                {
-                    trace.NeedUpdate = true;
-                }
-                else
-                {
-                    Traces.Add(new Trace { Name = name, Visible = true, NeedUpdate = true });
-                }
-            }
+            var newNames = e.UpdatedSeries.Except(Traces.Select(p => p.Name));
+            var newTraces = newNames.Select(x => new Trace { Name = x, Visible = true });
+            Traces.AddRange(newTraces);
             StateHasChanged();
         });
     }

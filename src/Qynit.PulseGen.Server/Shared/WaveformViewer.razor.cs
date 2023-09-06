@@ -1,4 +1,5 @@
 using System.Buffers;
+using System.Diagnostics;
 using System.IO.Pipelines;
 using System.Runtime.InteropServices;
 
@@ -23,87 +24,125 @@ public sealed partial class WaveformViewer : IAsyncDisposable
     private IJSRuntime JS { get; set; } = default!;
 
     private ElementReference? _chart;
-    private IJSObjectReference? _viewer;
-    private Task? _renderTask;
-    private readonly CancellationTokenSource _renderCts = new();
-    // Blazor use a "single-threaded" synchronization context, so it's safe to use a normal queue
-    private readonly Queue<string> _renderQueue = new();
+    private JsViewer? _jsViewer;
+
+    protected override void OnInitialized()
+    {
+        PlotService.PlotUpdate += OnPlotUpdate;
+    }
+
+    private void OnPlotUpdate(object? sender, PlotUpdateEventArgs e)
+    {
+        _ = InvokeAsync(() => _jsViewer?.UpdateSeriesData(e.UpdatedSeries));
+    }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
         {
-            await using var module = await JS.ImportComponentModule<WaveformViewer>();
-            _viewer = await module.InvokeAsync<IJSObjectReference>("Viewer.create", _chart);
+            Debug.Assert(_jsViewer is null);
+            Debug.Assert(_chart is not null);
+            _jsViewer = await JsViewer.CreateAsync(PlotService, JS, _chart.Value);
         }
-        if (_viewer is not null && Names is not null)
+        if (_jsViewer is not null)
         {
-            await SetAllSeries(Names);
-            AddToRenderQueue(Names);
-        }
-    }
-
-    private void AddToRenderQueue(IEnumerable<string> names)
-    {
-        foreach (var name in names)
-        {
-            if (!_renderQueue.Contains(name))
-            {
-                _renderQueue.Enqueue(name);
-            }
-        }
-        if (_renderTask is null || _renderTask.IsCompleted)
-        {
-            _renderTask = RenderInBackground(_renderCts.Token);
-        }
-    }
-
-    private async Task RenderInBackground(CancellationToken token)
-    {
-        while (!token.IsCancellationRequested && _renderQueue.TryDequeue(out var name))
-        {
-            await SetSeriesData(name);
-        }
-    }
-
-    private async ValueTask SetAllSeries(IEnumerable<string> names)
-    {
-        await _viewer!.InvokeVoidAsync("setAllSeries", names);
-    }
-
-    private async ValueTask SetSeriesData(string name)
-    {
-        if (PlotService.TryGetPlot(name, out var arc))
-        {
-            using (arc)
-            {
-                var pipe = new Pipe();
-                var writer = pipe.Writer;
-                writer.Write(MemoryMarshal.AsBytes(arc.Target.DataI));
-                var isReal = arc.Target.IsReal;
-                if (!isReal)
-                {
-                    writer.Write(MemoryMarshal.AsBytes(arc.Target.DataQ));
-                }
-
-                writer.Complete();
-                using var streamRef = new DotNetStreamReference(pipe.Reader.AsStream());
-                var dataType = DataType.Float32;
-                await _viewer!.InvokeVoidAsync("setSeriesData", name, dataType, isReal, streamRef);
-            }
+            await _jsViewer.SetAllSeriesAsync(Names ?? Enumerable.Empty<string>());
         }
     }
 
     public async ValueTask DisposeAsync()
     {
-        _renderCts.Cancel();
-        _renderCts.Dispose();
-        if (_viewer is not null)
+        PlotService.PlotUpdate -= OnPlotUpdate;
+        if (_jsViewer is not null)
         {
+            await _jsViewer.DisposeAsync();
+        }
+    }
+
+    private class JsViewer : IAsyncDisposable
+    {
+        private IPlotService PlotService { get; }
+        private IJSObjectReference ObjectReference { get; }
+        private Task? UpdateTask { get; set; }
+        private CancellationTokenSource Cts { get; } = new();
+        private Queue<string> UpdateQueue { get; } = new();
+        private List<string> CurrentSeries { get; set; } = new();
+
+        private JsViewer(IPlotService plotService, IJSObjectReference objectReference)
+        {
+            PlotService = plotService;
+            ObjectReference = objectReference;
+        }
+
+        public static async Task<JsViewer> CreateAsync(IPlotService plotService, IJSRuntime js, ElementReference element)
+        {
+            await using var module = await js.ImportComponentModule<WaveformViewer>();
+            var objectReference = await module.InvokeAsync<IJSObjectReference>("Viewer.create", element);
+            return new JsViewer(plotService, objectReference);
+        }
+
+        public async ValueTask SetAllSeriesAsync(IEnumerable<string> allSeries)
+        {
+            if (CurrentSeries.SequenceEqual(allSeries))
+            {
+                return;
+            }
+            await ObjectReference.InvokeVoidAsync("setAllSeries", allSeries);
+            var newSeries = allSeries.Except(CurrentSeries);
+            UpdateSeriesData(newSeries);
+            CurrentSeries = allSeries.ToList();
+        }
+
+        public void UpdateSeriesData(IEnumerable<string> updatedSeries)
+        {
+            foreach (var series in updatedSeries.Except(UpdateQueue))
+            {
+                UpdateQueue.Enqueue(series);
+            }
+            if (UpdateTask is null || UpdateTask.IsCompleted)
+            {
+                UpdateTask = UpdateInBackground(Cts.Token);
+            }
+        }
+
+        private async Task UpdateInBackground(CancellationToken token)
+        {
+            while (!token.IsCancellationRequested && UpdateQueue.TryDequeue(out var name))
+            {
+                await SetSeriesDataAsync(name);
+            }
+        }
+
+        private async ValueTask SetSeriesDataAsync(string name)
+        {
+            if (PlotService.TryGetPlot(name, out var arc))
+            {
+                using (arc)
+                {
+                    var pipe = new Pipe();
+                    var writer = pipe.Writer;
+                    writer.Write(MemoryMarshal.AsBytes(arc.Target.DataI));
+                    var isReal = arc.Target.IsReal;
+                    if (!isReal)
+                    {
+                        writer.Write(MemoryMarshal.AsBytes(arc.Target.DataQ));
+                    }
+                    writer.Complete();
+                    using var streamRef = new DotNetStreamReference(pipe.Reader.AsStream());
+                    var dataType = DataType.Float32;
+                    await ObjectReference.InvokeVoidAsync("setSeriesData", name, dataType, isReal, streamRef);
+                }
+            }
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            Cts.Cancel();
+            Cts.Dispose();
             try
             {
-                await _viewer.InvokeVoidAsync("dispose");
-                await _viewer.DisposeAsync();
+                await ObjectReference.InvokeVoidAsync("dispose");
+                await ObjectReference.DisposeAsync();
             }
             catch (JSDisconnectedException)
             {
