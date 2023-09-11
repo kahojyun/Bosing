@@ -1,10 +1,12 @@
 import {
+  AxisTickStrategies,
   ChartXY,
   LegendBox,
   LineSeries,
   LineSeriesOptions,
   lightningChart,
 } from "@arction/lcjs";
+import { format } from "d3-format";
 
 class WaveformSeries {
   readonly name: string;
@@ -15,13 +17,13 @@ class WaveformSeries {
     this.name = name;
   }
 
-  setData(chart: ChartXY, legend: LegendBox, data: WaveformData) {
+  setData(chart: ChartXY, legend: LegendBox, data: WaveformData, dt: number) {
     this.setReal(chart, legend, !data.q);
     this.i!.clear();
-    this.i!.addArrayY(data.i);
+    this.i!.addArrayY(data.i, dt);
     if (data.q) {
       this.q!.clear();
-      this.q!.addArrayY(data.q);
+      this.q!.addArrayY(data.q, dt);
     }
   }
 
@@ -80,6 +82,11 @@ export class Viewer {
       })
       .setTitle("Waveform Viewer")
       .setAnimationsEnabled(false);
+    this.chart
+      .getDefaultAxisX()
+      .setTickStrategy(AxisTickStrategies.Numeric, (strategy) =>
+        strategy.setFormattingFunction(format("~s")),
+      );
     this.legend = this.chart.addLegendBox().setAutoDispose({
       type: "max-width",
       maxWidth: 0.2,
@@ -95,6 +102,7 @@ export class Viewer {
     name: string,
     type: DataType,
     isReal: boolean,
+    dt: number,
     iqBytesStream: StreamRef,
   ) {
     const iqBytesArray = await iqBytesStream.arrayBuffer();
@@ -103,7 +111,7 @@ export class Viewer {
       return;
     }
     const data = this.decodeWaveform(type, isReal, iqBytesArray);
-    s.setData(this.chart, this.legend, data);
+    s.setData(this.chart, this.legend, data, dt);
   }
 
   setAllSeries(names: string[]) {

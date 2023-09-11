@@ -2,6 +2,8 @@
 
 <div class="box">
     <div class="aside">
+        <FluentButton @onclick="ClearPlots">Clear</FluentButton>
+        <FluentSwitch @bind-Value="DefaultShow">Default Show</FluentSwitch>
         <FluentDataGrid RowsData="@FilteredTraces">
             <PropertyColumn Property="@(p => p.Name)" Sortable="true">
                 <ColumnOptions>
@@ -19,6 +21,6 @@
         </FluentDataGrid>
     </div>
     <div class="plot">
-        <WaveformViewer Names="VisibleTraceNames" PlotService="PlotService"/>
+        <WaveformViewer Names="VisibleTraceNames" PlotService="PlotService" />
     </div>
 </div>

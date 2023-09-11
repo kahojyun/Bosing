@@ -87,7 +87,7 @@ public sealed partial class WaveformViewer : IAsyncDisposable
             {
                 return;
             }
-            await ObjectReference.InvokeVoidAsync("setAllSeries", allSeries);
+            await JsSetAllSeries(allSeries);
             var newSeries = allSeries.Except(CurrentSeries);
             UpdateSeriesData(newSeries);
             CurrentSeries = allSeries.ToList();
@@ -115,24 +115,36 @@ public sealed partial class WaveformViewer : IAsyncDisposable
 
         private async ValueTask SetSeriesDataAsync(string name)
         {
-            if (PlotService.TryGetPlot(name, out var arc))
+            if (PlotService.TryGetPlot(name, out var plotData))
             {
-                using (arc)
+                using (plotData)
                 {
+                    var pooledArray = plotData.Waveform.Target;
+                    var dt = plotData.Dt;
                     var pipe = new Pipe();
                     var writer = pipe.Writer;
-                    writer.Write(MemoryMarshal.AsBytes(arc.Target.DataI));
-                    var isReal = arc.Target.IsReal;
+                    writer.Write(MemoryMarshal.AsBytes(pooledArray.DataI));
+                    var isReal = pooledArray.IsReal;
                     if (!isReal)
                     {
-                        writer.Write(MemoryMarshal.AsBytes(arc.Target.DataQ));
+                        writer.Write(MemoryMarshal.AsBytes(pooledArray.DataQ));
                     }
                     writer.Complete();
                     using var streamRef = new DotNetStreamReference(pipe.Reader.AsStream());
                     var dataType = DataType.Float32;
-                    await ObjectReference.InvokeVoidAsync("setSeriesData", name, dataType, isReal, streamRef);
+                    await JsSetSeriesData(name, dataType, isReal, dt, streamRef);
                 }
             }
+        }
+
+        private ValueTask JsSetAllSeries(IEnumerable<string> allSeries)
+        {
+            return ObjectReference.InvokeVoidAsync("setAllSeries", allSeries);
+        }
+
+        private ValueTask JsSetSeriesData(string name, DataType dataType, bool isReal, double dt, DotNetStreamReference streamRef)
+        {
+            return ObjectReference.InvokeVoidAsync("setSeriesData", name, dataType, isReal, dt, streamRef);
         }
 
         public async ValueTask DisposeAsync()

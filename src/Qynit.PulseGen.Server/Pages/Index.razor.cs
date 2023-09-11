@@ -9,6 +9,8 @@ public sealed partial class Index : IDisposable
     [Inject]
     private IPlotService PlotService { get; set; } = default!;
 
+    private bool DefaultShow { get; set; }
+
     private string _nameFilter = string.Empty;
     private class Trace
     {
@@ -42,12 +44,18 @@ public sealed partial class Index : IDisposable
         PlotService.PlotUpdate += OnPlotUpdate;
     }
 
+    private void ClearPlots()
+    {
+        PlotService.ClearPlots();
+        Traces.Clear();
+    }
+
     private void OnPlotUpdate(object? sender, PlotUpdateEventArgs e)
     {
         _ = InvokeAsync(() =>
         {
             var newNames = e.UpdatedSeries.Except(Traces.Select(p => p.Name));
-            var newTraces = newNames.Select(x => new Trace { Name = x, Visible = true });
+            var newTraces = newNames.Select(x => new Trace { Name = x, Visible = DefaultShow });
             Traces.AddRange(newTraces);
             StateHasChanged();
         });
