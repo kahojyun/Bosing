@@ -2,13 +2,7 @@ namespace Qynit.PulseGen.Server.Services;
 
 public class PlotService : IPlotService
 {
-    private readonly ILogger<PlotService> _logger;
-    private readonly Dictionary<string, ArcUnsafe<PooledComplexArray<float>>> _waveforms = new();
-
-    public PlotService(ILogger<PlotService> logger)
-    {
-        _logger = logger;
-    }
+    private readonly Dictionary<string, PlotData> _waveforms = new();
 
     public event EventHandler<PlotUpdateEventArgs>? PlotUpdate;
 
@@ -32,13 +26,13 @@ public class PlotService : IPlotService
         }
     }
 
-    public bool TryGetPlot(string name, out ArcUnsafe<PooledComplexArray<float>> waveform)
+    public bool TryGetPlot(string name, out PlotData waveform)
     {
         lock (_waveforms)
         {
-            if (_waveforms.TryGetValue(name, out var arc))
+            if (_waveforms.TryGetValue(name, out var plotData))
             {
-                waveform = arc.Clone();
+                waveform = plotData.Clone();
                 return true;
             }
             waveform = default;
@@ -46,17 +40,17 @@ public class PlotService : IPlotService
         }
     }
 
-    public void UpdatePlots(IReadOnlyDictionary<string, ArcUnsafe<PooledComplexArray<float>>> waveforms)
+    public void UpdatePlots(IReadOnlyDictionary<string, PlotData> waveforms)
     {
         lock (_waveforms)
         {
-            foreach (var (name, newArc) in waveforms)
+            foreach (var (name, newData) in waveforms)
             {
-                if (_waveforms.TryGetValue(name, out var oldArc))
+                if (_waveforms.TryGetValue(name, out var oldData))
                 {
-                    oldArc.Dispose();
+                    oldData.Dispose();
                 }
-                _waveforms[name] = newArc;
+                _waveforms[name] = newData;
             }
             PlotUpdate?.Invoke(this, new(_waveforms.Keys));
         }

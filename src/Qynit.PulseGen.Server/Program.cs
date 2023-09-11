@@ -47,7 +47,7 @@ app.MapPost("/api/schedule", async (HttpRequest request, HttpResponse response, 
     }).ToList();
     waveforms.ForEach(x => x.Dispose());
     var arcWaveforms = floatWaveforms.Select(ArcUnsafe.Wrap).ToList();
-    plotService.UpdatePlots(pgRequest.ChannelTable!.Zip(arcWaveforms).ToDictionary(x => x.First.Name, x => x.Second.Clone()));
+    plotService.UpdatePlots(pgRequest.ChannelTable!.Zip(arcWaveforms).ToDictionary(x => x.First.Name, x => new PlotData(x.First.Name, x.Second.Clone(), 1.0 / x.First.SampleRate)));
     var pgResponse = new PulseGenResponse(arcWaveforms);
     response.RegisterForDispose(pgResponse);
     return Results.Extensions.MessagePack(pgResponse, options);

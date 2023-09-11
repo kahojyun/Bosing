@@ -6,6 +6,9 @@
 
 .aside {
   flex: 0 1 auto;
+  display: flex;
+  flex-flow: column;
+  align-items: flex-start;
 }
 
 .plot {
