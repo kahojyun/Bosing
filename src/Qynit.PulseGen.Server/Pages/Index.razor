@@ -4,7 +4,7 @@
     <div class="aside">
         <FluentButton @onclick="ClearPlots">Clear</FluentButton>
         <FluentSwitch @bind-Value="DefaultShow">Default Show</FluentSwitch>
-        <FluentDataGrid RowsData="@FilteredTraces">
+        <FluentDataGrid Items="@FilteredTraces">
             <PropertyColumn Property="@(p => p.Name)" Sortable="true">
                 <ColumnOptions>
                     <FluentSearch @bind-Value="_nameFilter" />
