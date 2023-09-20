@@ -40,7 +40,7 @@ public sealed partial class Index : IDisposable
     protected override void OnInitialized()
     {
         var names = PlotService.GetNames();
-        Traces = names.Select(x => new Trace { Name = x, Visible = true }).ToList();
+        Traces = names.Select(x => new Trace { Name = x, Visible = DefaultShow }).ToList();
         PlotService.PlotUpdate += OnPlotUpdate;
     }
 
