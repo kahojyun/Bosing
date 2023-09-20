@@ -17,7 +17,7 @@
                     <TriCheckbox @bind-Value="AnyVisible" Indeterminate="IsIndeterminate">Show</TriCheckbox>
                 </HeaderCellItemTemplate>
                 <ChildContent>
-                    <Microsoft.AspNetCore.Components.Forms.InputCheckbox @bind-Value="@context.Visible" />
+                    <input type="checkbox" @bind="context.Visible" />
                 </ChildContent>
             </TemplateColumn>
         </FluentDataGrid>
