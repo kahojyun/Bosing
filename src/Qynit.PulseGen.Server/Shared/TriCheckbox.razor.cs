@@ -1,6 +1,4 @@
 using Microsoft.AspNetCore.Components;
-
-using Microsoft.Fast.Components.FluentUI;
 using Microsoft.JSInterop;
 
 namespace Qynit.PulseGen.Server.Shared;
@@ -22,8 +20,21 @@ public sealed partial class TriCheckbox : IAsyncDisposable
     [Inject]
     private IJSRuntime JS { get; set; } = default!;
 
+    private bool CurrentValue
+    {
+        get => Value;
+        set
+        {
+            if (value != Value)
+            {
+                Value = value;
+                _ = ValueChanged.InvokeAsync(value);
+            }
+        }
+    }
+
     private IJSObjectReference? _module;
-    private FluentCheckbox? _checkbox;
+    private ElementReference? _checkbox;
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
@@ -31,7 +42,7 @@ public sealed partial class TriCheckbox : IAsyncDisposable
             _module = await JS.ImportComponentModule<TriCheckbox>();
         }
 
-        var checkbox = _checkbox?.Element;
+        var checkbox = _checkbox;
         if (_module is not null && checkbox is not null)
         {
             await _module.InvokeVoidAsync("setIndeterminate", checkbox, Indeterminate);

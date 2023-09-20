@@ -1,10 +1,12 @@
 @page "/"
 
-<div class="box">
-    <div class="aside">
+<div class="container">
+    <div class="settings">
         <FluentButton @onclick="ClearPlots">Clear</FluentButton>
         <FluentSwitch @bind-Value="DefaultShow">Default Show</FluentSwitch>
-        <FluentDataGrid Items="@FilteredTraces">
+    </div>
+    <div class="list">
+        <FluentDataGrid Items="@FilteredTraces" GenerateHeader="GenerateHeaderOption.Sticky" Virtualize>
             <PropertyColumn Property="@(p => p.Name)" Sortable="true">
                 <ColumnOptions>
                     <FluentSearch @bind-Value="_nameFilter" />
@@ -15,12 +17,12 @@
                     <TriCheckbox @bind-Value="AnyVisible" Indeterminate="IsIndeterminate">Show</TriCheckbox>
                 </HeaderCellItemTemplate>
                 <ChildContent>
-                    <FluentCheckbox @bind-Value="@context.Visible" />
+                    <input type="checkbox" @bind="context.Visible" />
                 </ChildContent>
             </TemplateColumn>
         </FluentDataGrid>
     </div>
-    <div class="plot">
+    <div class="viewer">
         <WaveformViewer Names="VisibleTraceNames" PlotService="PlotService" />
     </div>
 </div>

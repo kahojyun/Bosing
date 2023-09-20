@@ -1,1 +1,4 @@
-<FluentCheckbox @bind-Value:get="Value" @bind-Value:set="ValueChanged" @ref="_checkbox">@ChildContent</FluentCheckbox>
+<label>
+    <input type="checkbox" @bind="CurrentValue" @ref="_checkbox" />
+    @ChildContent
+</label>

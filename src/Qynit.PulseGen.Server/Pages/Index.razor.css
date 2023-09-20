@@ -1,16 +1,40 @@
-.box {
-  display: flex;
-  flex-flow: row;
+/* From designer */
+
+.container {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto 1fr;
+  gap: 0px 0px;
+  grid-auto-flow: row;
+  grid-template-areas:
+    "settings viewer"
+    "list viewer";
+}
+
+.list {
+  grid-area: list;
+}
+
+.viewer {
+  grid-area: viewer;
+}
+
+.settings {
+  grid-area: settings;
+}
+
+/* Additional */
+
+.container {
   height: 100%;
 }
 
-.aside {
-  flex: 0 1 auto;
+.settings {
   display: flex;
   flex-flow: column;
   align-items: flex-start;
 }
 
-.plot {
-  flex: 1 1 auto;
+.list {
+  overflow: auto;
 }

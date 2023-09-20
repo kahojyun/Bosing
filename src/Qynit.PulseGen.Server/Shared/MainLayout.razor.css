@@ -1,15 +1,20 @@
 .page {
-  display: flex;
-  flex-direction: column;
   height: 100vh;
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-template-rows: 3.5rem calc(100vh - 3.5rem);
+  gap: 0px 0px;
+  grid-auto-flow: row;
+  grid-template-areas:
+    "siteheader"
+    "contents";
 }
 
 .siteheader {
-  flex: 0 1 auto;
+  grid-area: siteheader;
   background-color: var(--neutral-layer-4);
   border-bottom: calc(var(--stroke-width) * 3px) solid var(--accent-fill-rest);
   justify-content: flex-start;
-  height: 3.5rem;
   display: flex;
   align-items: center;
   white-space: nowrap;
@@ -17,9 +22,7 @@
   gap: 10px;
 }
 
-main {
-  height: 100%;
-  flex: 1 1 auto;
-  /*    background-color: var(--neutral-layer-1);
-    color: var(--neutral-foreground-rest);*/
+.contents {
+  grid-area: contents;
+  overflow: auto;
 }
