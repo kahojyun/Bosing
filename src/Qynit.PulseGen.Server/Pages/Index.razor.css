@@ -29,6 +29,10 @@
   height: 100%;
 }
 
+/*.viewer {
+  overflow: hidden;
+}*/
+
 .settings {
   display: flex;
   flex-flow: column;

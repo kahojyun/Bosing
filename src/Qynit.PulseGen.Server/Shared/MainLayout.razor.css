@@ -2,7 +2,7 @@
   height: 100vh;
   display: grid;
   grid-template-columns: 1fr;
-  grid-template-rows: 3.5rem calc(100vh - 3.5rem);
+  grid-template-rows: auto 1fr;
   gap: 0px 0px;
   grid-auto-flow: row;
   grid-template-areas:
@@ -15,6 +15,7 @@
   background-color: var(--neutral-layer-4);
   border-bottom: calc(var(--stroke-width) * 3px) solid var(--accent-fill-rest);
   justify-content: flex-start;
+  height: 3.5rem;
   display: flex;
   align-items: center;
   white-space: nowrap;
