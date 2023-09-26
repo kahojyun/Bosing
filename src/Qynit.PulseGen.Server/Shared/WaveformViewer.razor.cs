@@ -33,7 +33,7 @@ public sealed partial class WaveformViewer : IAsyncDisposable
 
     private void OnPlotUpdate(object? sender, PlotUpdateEventArgs e)
     {
-        _ = InvokeAsync(() => _jsViewer?.UpdateSeriesData(e.UpdatedSeries));
+        _ = InvokeAsync(() => _jsViewer?.UpdateExistingSeries(e.UpdatedSeries));
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -83,17 +83,23 @@ public sealed partial class WaveformViewer : IAsyncDisposable
 
         public async ValueTask SetAllSeriesAsync(IEnumerable<string> allSeries)
         {
-            if (CurrentSeries.SequenceEqual(allSeries))
+            var allSeriesList = allSeries.ToList();
+            if (CurrentSeries.SequenceEqual(allSeriesList))
             {
                 return;
             }
-            await JsSetAllSeries(allSeries);
-            var newSeries = allSeries.Except(CurrentSeries);
-            UpdateSeriesData(newSeries);
-            CurrentSeries = allSeries.ToList();
+            await JsSetAllSeries(allSeriesList);
+            var newSeries = allSeriesList.Except(CurrentSeries);
+            CurrentSeries = allSeriesList;
+            EnqueueUpdates(newSeries);
         }
 
-        public void UpdateSeriesData(IEnumerable<string> updatedSeries)
+        public void UpdateExistingSeries(IEnumerable<string> updatedSeries)
+        {
+            EnqueueUpdates(updatedSeries.Intersect(CurrentSeries));
+        }
+
+        private void EnqueueUpdates(IEnumerable<string> updatedSeries)
         {
             foreach (var series in updatedSeries.Except(UpdateQueue))
             {
@@ -109,6 +115,10 @@ public sealed partial class WaveformViewer : IAsyncDisposable
         {
             while (!token.IsCancellationRequested && UpdateQueue.TryDequeue(out var name))
             {
+                if (!CurrentSeries.Contains(name))
+                {
+                    continue;
+                }
                 await SetSeriesDataAsync(name);
             }
         }
