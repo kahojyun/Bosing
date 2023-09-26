@@ -29,9 +29,9 @@
   height: 100%;
 }
 
-/*.viewer {
+.viewer {
   overflow: hidden;
-}*/
+}
 
 .settings {
   display: flex;
