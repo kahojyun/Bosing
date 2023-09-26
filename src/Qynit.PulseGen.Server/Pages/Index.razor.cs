@@ -55,9 +55,12 @@ public sealed partial class Index : IDisposable
         _ = InvokeAsync(() =>
         {
             var newNames = e.UpdatedSeries.Except(Traces.Select(p => p.Name));
-            var newTraces = newNames.Select(x => new Trace { Name = x, Visible = DefaultShow });
-            Traces.AddRange(newTraces);
-            StateHasChanged();
+            var newTraces = newNames.Select(x => new Trace { Name = x, Visible = DefaultShow }).ToList();
+            if (newTraces.Count > 0)
+            {
+                Traces.AddRange(newTraces);
+                StateHasChanged();
+            }
         });
     }
 
