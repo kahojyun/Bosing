@@ -1,60 +1,57 @@
-import {
-  AxisTickStrategies,
-  ChartXY,
-  LegendBox,
-  LineSeries,
-  LineSeriesOptions,
-  lightningChart,
-} from "@arction/lcjs";
-import { format } from "d3-format";
+import { NumericAxis, SciChartSurface, TWebAssemblyChart } from "scichart";
 
-class WaveformSeries {
-  readonly name: string;
-  i?: LineSeries;
-  q?: LineSeries;
+SciChartSurface.UseCommunityLicense();
+SciChartSurface.useWasmFromCDN();
 
-  constructor(name: string) {
-    this.name = name;
-  }
+// import { format } from "d3-format";
 
-  setData(chart: ChartXY, legend: LegendBox, data: WaveformData, dt: number) {
-    this.setReal(chart, legend, !data.q);
-    this.i!.clear();
-    this.i!.addArrayY(data.i, dt);
-    if (data.q) {
-      this.q!.clear();
-      this.q!.addArrayY(data.q, dt);
-    }
-  }
+//class WaveformSeries {
+//  readonly name: string;
+//  i?: LineSeries;
+//  q?: LineSeries;
 
-  private setReal(chart: ChartXY, legend: LegendBox, isReal: boolean) {
-    const opts: LineSeriesOptions = {
-      dataPattern: {
-        pattern: "ProgressiveX",
-        regularProgressiveStep: true,
-      },
-    };
-    if (this.i === undefined) {
-      const label = isReal ? this.name : `${this.name}_I`;
-      this.i = chart.addLineSeries(opts).setName(label);
-      legend.add(this.i);
-    }
-    if (isReal) {
-      this.q?.dispose();
-      delete this.q;
-    } else {
-      if (this.q === undefined) {
-        this.q = chart.addLineSeries(opts).setName(`${this.name}_Q`);
-        legend.add(this.q);
-      }
-    }
-  }
+//  constructor(name: string) {
+//    this.name = name;
+//  }
 
-  dispose() {
-    this.i?.dispose();
-    this.q?.dispose();
-  }
-}
+//  setData(chart: ChartXY, legend: LegendBox, data: WaveformData, dt: number) {
+//    this.setReal(chart, legend, !data.q);
+//    this.i!.clear();
+//    this.i!.addArrayY(data.i, dt);
+//    if (data.q) {
+//      this.q!.clear();
+//      this.q!.addArrayY(data.q, dt);
+//    }
+//  }
+
+//  private setReal(chart: ChartXY, legend: LegendBox, isReal: boolean) {
+//    const opts: LineSeriesOptions = {
+//      dataPattern: {
+//        pattern: "ProgressiveX",
+//        regularProgressiveStep: true,
+//      },
+//    };
+//    if (this.i === undefined) {
+//      const label = isReal ? this.name : `${this.name}_I`;
+//      this.i = chart.addLineSeries(opts).setName(label);
+//      legend.add(this.i);
+//    }
+//    if (isReal) {
+//      this.q?.dispose();
+//      delete this.q;
+//    } else {
+//      if (this.q === undefined) {
+//        this.q = chart.addLineSeries(opts).setName(`${this.name}_Q`);
+//        legend.add(this.q);
+//      }
+//    }
+//  }
+
+//  dispose() {
+//    this.i?.dispose();
+//    this.q?.dispose();
+//  }
+//}
 
 interface WaveformData {
   i: Float32Array | Float64Array;
@@ -71,31 +68,23 @@ interface StreamRef {
 }
 
 export class Viewer {
-  chart: ChartXY;
-  legend: LegendBox;
-  series: Map<string, WaveformSeries>;
+  chart: TWebAssemblyChart;
+  //legend: LegendBox;
+  //series: Map<string, WaveformSeries>;
 
-  constructor(targetElem: HTMLDivElement) {
-    this.chart = lightningChart()
-      .ChartXY({
-        container: targetElem,
-      })
-      .setTitle("Waveform Viewer")
-      .setAnimationsEnabled(false);
-    this.chart
-      .getDefaultAxisX()
-      .setTickStrategy(AxisTickStrategies.Numeric, (strategy) =>
-        strategy.setFormattingFunction(format("~s")),
-      );
-    this.legend = this.chart.addLegendBox().setAutoDispose({
-      type: "max-width",
-      maxWidth: 0.2,
-    });
-    this.series = new Map<string, WaveformSeries>();
+  constructor(chart: TWebAssemblyChart) {
+    const { wasmContext, sciChartSurface } = chart;
+    const xAxis = new NumericAxis(wasmContext);
+    const yAxis = new NumericAxis(wasmContext);
+    sciChartSurface.xAxes.add(xAxis);
+    sciChartSurface.yAxes.add(yAxis);
+    this.chart = chart;
+    //this.series = new Map<string, WaveformSeries>();
   }
 
-  static create(targetElem: HTMLDivElement) {
-    return new Viewer(targetElem);
+  static async create(targetElem: HTMLDivElement) {
+    const chart = await SciChartSurface.create(targetElem);
+    return new Viewer(chart);
   }
 
   async setSeriesData(
@@ -106,28 +95,28 @@ export class Viewer {
     iqBytesStream: StreamRef,
   ) {
     const iqBytesArray = await iqBytesStream.arrayBuffer();
-    const s = this.series.get(name);
-    if (s === undefined) {
-      return;
-    }
-    const data = this.decodeWaveform(type, isReal, iqBytesArray);
-    s.setData(this.chart, this.legend, data, dt);
+    //const s = this.series.get(name);
+    //if (s === undefined) {
+    //  return;
+    //}
+    //const data = this.decodeWaveform(type, isReal, iqBytesArray);
+    //s.setData(this.chart, this.legend, data, dt);
   }
 
   setAllSeries(names: string[]) {
-    const oldNames = Array.from(this.series.keys());
-    for (const name of oldNames) {
-      if (!names.includes(name)) {
-        this.removeSingleSeries(name);
-      }
-    }
-    for (const name of names) {
-      this.addSingleSeries(name);
-    }
+    //const oldNames = Array.from(this.series.keys());
+    //for (const name of oldNames) {
+    //  if (!names.includes(name)) {
+    //    this.removeSingleSeries(name);
+    //  }
+    //}
+    //for (const name of names) {
+    //  this.addSingleSeries(name);
+    //}
   }
 
   dispose() {
-    this.chart.dispose();
+    this.chart.sciChartSurface.delete();
   }
 
   private decodeWaveform(
@@ -151,12 +140,12 @@ export class Viewer {
     return { i: iArray, q: qArray };
   }
 
-  private addSingleSeries(name: string) {
-    this.series.has(name) || this.series.set(name, new WaveformSeries(name));
-  }
+  //private addSingleSeries(name: string) {
+  //  this.series.has(name) || this.series.set(name, new WaveformSeries(name));
+  //}
 
-  private removeSingleSeries(name: string) {
-    this.series.get(name)?.dispose();
-    this.series.delete(name);
-  }
+  //private removeSingleSeries(name: string) {
+  //  this.series.get(name)?.dispose();
+  //  this.series.delete(name);
+  //}
 }
