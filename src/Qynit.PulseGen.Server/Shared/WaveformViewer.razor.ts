@@ -1,7 +1,7 @@
 import { NumericAxis, SciChartSurface, TWebAssemblyChart } from "scichart";
 
 SciChartSurface.UseCommunityLicense();
-SciChartSurface.useWasmFromCDN();
+SciChartSurface.useWasmLocal();
 
 // import { format } from "d3-format";
 

@@ -1,5 +1,7 @@
 ## Ignore bundled JS files
 wwwroot/dist/
+wwwroot/scichart2d.data
+wwwroot/scichart2d.wasm
 
 # Build results
 [Dd]ebug/

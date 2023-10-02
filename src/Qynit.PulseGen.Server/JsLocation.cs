@@ -19,7 +19,7 @@ internal class JsLocation
             var type = typeof(T);
             var rootNamespace = typeof(JsLocation).Namespace!;
             var path = type.FullName!.Replace(rootNamespace, "").Replace(".", "/").TrimStart('/');
-            return $"{Root}/{path}.js";
+            return $"{Root}/{path}.razor.dist.js";
         }
     }
 }
