@@ -1,4 +1,24 @@
-import { NumericAxis, SciChartSurface, TWebAssemblyChart } from "scichart";
+import {
+  CursorModifier,
+  EAutoRange,
+  ECoordinateMode,
+  EHorizontalAnchorPoint,
+  EVerticalAnchorPoint,
+  FastLineRenderableSeries,
+  MouseWheelZoomModifier,
+  NumberRange,
+  NumericAxis,
+  SciChartOverview,
+  SciChartSurface,
+  TWebAssemblyChart,
+  TextAnnotation,
+  XAxisDragModifier,
+  XyDataSeries,
+  YAxisDragModifier,
+  ZoomExtentsModifier,
+  ZoomPanModifier,
+  generateGuid,
+} from "scichart";
 
 SciChartSurface.UseCommunityLicense();
 SciChartSurface.useWasmLocal();
@@ -69,22 +89,94 @@ interface StreamRef {
 
 export class Viewer {
   chart: TWebAssemblyChart;
+  overview: SciChartOverview;
   //legend: LegendBox;
   //series: Map<string, WaveformSeries>;
 
-  constructor(chart: TWebAssemblyChart) {
+  constructor(chart: TWebAssemblyChart, overview: SciChartOverview) {
     const { wasmContext, sciChartSurface } = chart;
-    const xAxis = new NumericAxis(wasmContext);
-    const yAxis = new NumericAxis(wasmContext);
-    sciChartSurface.xAxes.add(xAxis);
-    sciChartSurface.yAxes.add(yAxis);
+
+    // Create 100 dataseries, each with 10k points
+    for (let seriesCount = 0; seriesCount < 2; seriesCount++) {
+      const xyDataSeries = new XyDataSeries(wasmContext);
+      const opacity = (1 - seriesCount / 120).toFixed(2);
+      // Populate with some data
+      for (let i = 0; i < 10000; i++) {
+        xyDataSeries.append(
+          i,
+          Math.sin(i * 0.01) * Math.exp(i * (0.00001 * (seriesCount + 1))),
+        );
+      }
+      // Add and create a line series with this data to the chart
+      // Create a line series
+      const lineSeries = new FastLineRenderableSeries(wasmContext, {
+        dataSeries: xyDataSeries,
+      });
+      const lineSeries2 = new FastLineRenderableSeries(wasmContext, {
+        dataSeries: xyDataSeries,
+      });
+      sciChartSurface.renderableSeries.add(lineSeries);
+      overview.overviewSciChartSurface.renderableSeries.add(lineSeries2);
+    }
+
+    sciChartSurface.annotations.add(
+      new TextAnnotation({
+        x1: 0,
+        y1: 0,
+        yCoordShift: 20,
+        xCoordShift: 20,
+        xCoordinateMode: ECoordinateMode.Relative,
+        yCoordinateMode: ECoordinateMode.Relative,
+        horizontalAnchorPoint: EHorizontalAnchorPoint.Left,
+        verticalAnchorPoint: EVerticalAnchorPoint.Top,
+        fontSize: 18,
+        opacity: 0.55,
+        text: "SciChart.js supports an Overview scrollbar. Zoom the main chart or drag the overview to see it update",
+      }),
+    );
+
     this.chart = chart;
+    this.overview = overview;
     //this.series = new Map<string, WaveformSeries>();
   }
 
-  static async create(targetElem: HTMLDivElement) {
-    const chart = await SciChartSurface.create(targetElem);
-    return new Viewer(chart);
+  static async create(
+    chartElement: HTMLDivElement,
+    overviewElement: HTMLDivElement,
+  ) {
+    const chartId = `elem-${generateGuid()}`;
+    const overviewId = `elem-${generateGuid()}`;
+    chartElement.id = chartId;
+    overviewElement.id = overviewId;
+    const chart = await SciChartSurface.create(chartId);
+    const { wasmContext, sciChartSurface } = chart;
+    sciChartSurface.xAxes.add(
+      new NumericAxis(wasmContext, { visibleRange: new NumberRange(500, 600) }),
+    );
+    sciChartSurface.yAxes.add(
+      new NumericAxis(wasmContext, {
+        autoRange: EAutoRange.Always,
+        growBy: new NumberRange(0.1, 0.1),
+      }),
+    );
+
+    const mouseWheelZoomModifier = new MouseWheelZoomModifier();
+    sciChartSurface.chartModifiers.add(mouseWheelZoomModifier);
+    const xAxisDragModifier = new XAxisDragModifier();
+    sciChartSurface.chartModifiers.add(xAxisDragModifier);
+    const yAxisDragModifier = new YAxisDragModifier();
+    sciChartSurface.chartModifiers.add(yAxisDragModifier);
+    //const rubberBandZoomModifier = new RubberBandXyZoomModifier();
+    //sciChartSurface.chartModifiers.add(rubberBandZoomModifier);
+    const cursorModifier = new CursorModifier();
+    sciChartSurface.chartModifiers.add(cursorModifier);
+    const zoomExtentsModifier = new ZoomExtentsModifier();
+    sciChartSurface.chartModifiers.add(zoomExtentsModifier);
+    const zoomPanModifier = new ZoomPanModifier();
+    sciChartSurface.chartModifiers.add(zoomPanModifier);
+
+    const overview = await SciChartOverview.create(sciChartSurface, overviewId);
+    return new Viewer(chart, overview);
   }
 
   async setSeriesData(
@@ -117,6 +209,7 @@ export class Viewer {
 
   dispose() {
     this.chart.sciChartSurface.delete();
+    this.overview.delete();
   }
 
   private decodeWaveform(

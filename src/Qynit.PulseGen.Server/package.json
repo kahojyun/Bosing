@@ -21,7 +21,7 @@
     "typescript": "^5.2.2"
   },
   "dependencies": {
-    "@microsoft/dotnet-js-interop": "7.0.10",
+    "@microsoft/dotnet-js-interop": "^7.0.10",
     "d3-format": "^3.1.0",
     "scichart": "^3.2.470"
   }

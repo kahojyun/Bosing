@@ -24,6 +24,7 @@ public sealed partial class WaveformViewer : IAsyncDisposable
     private IJSRuntime JS { get; set; } = default!;
 
     private ElementReference? _chart;
+    private ElementReference? _overview;
     private JsViewer? _jsViewer;
 
     protected override void OnInitialized()
@@ -42,7 +43,8 @@ public sealed partial class WaveformViewer : IAsyncDisposable
         {
             Debug.Assert(_jsViewer is null);
             Debug.Assert(_chart is not null);
-            _jsViewer = await JsViewer.CreateAsync(PlotService, JS, _chart.Value);
+            Debug.Assert(_overview is not null);
+            _jsViewer = await JsViewer.CreateAsync(PlotService, JS, _chart.Value, _overview.Value);
         }
         if (_jsViewer is not null)
         {
@@ -74,10 +76,10 @@ public sealed partial class WaveformViewer : IAsyncDisposable
             ObjectReference = objectReference;
         }
 
-        public static async Task<JsViewer> CreateAsync(IPlotService plotService, IJSRuntime js, ElementReference element)
+        public static async Task<JsViewer> CreateAsync(IPlotService plotService, IJSRuntime js, ElementReference chartElement, ElementReference overviewElement)
         {
             await using var module = await js.ImportComponentModule<WaveformViewer>();
-            var objectReference = await module.InvokeAsync<IJSObjectReference>("Viewer.create", element);
+            var objectReference = await module.InvokeAsync<IJSObjectReference>("Viewer.create", chartElement, overviewElement);
             return new JsViewer(plotService, objectReference);
         }
 
