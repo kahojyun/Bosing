@@ -35,6 +35,22 @@ You can specify the url and port number to listen to:
 dotnet run --project src/Qynit.PulseGen.Server --urls http://localhost:5200
 ```
 
+## Waveform Viewer
+
+The server provides a simple waveform viewer. To use the viewer, first install Node.js and npm from [here](https://nodejs.org/en/download/).
+
+Then, install the dependencies:
+
+```bash
+cd src/Qynit.PulseGen.Server
+npm install
+npm build
+``` 
+
+When the server is running, open the viewer in your browser with the url `http://localhost:5200`.
+
+The viewer uses [SciChart.js](https://www.scichart.com/) for plotting. The community edition of SciChart.js is free for **non-commercial** use.
+
 ## Development
 
 Use Visual Studio or Visual Studio Code with the [C# extension](https://marketplace.visualstudio.com/items?itemName=ms-dotnettools.csharp).

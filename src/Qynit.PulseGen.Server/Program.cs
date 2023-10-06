@@ -2,6 +2,7 @@ using MessagePack;
 using MessagePack.Formatters;
 using MessagePack.Resolvers;
 
+using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Fast.Components.FluentUI;
 
 using Qynit.PulseGen;
@@ -16,7 +17,14 @@ builder.Services.AddFluentUIComponents();
 builder.Services.AddSingleton<IPlotService, PlotService>();
 var app = builder.Build();
 
+var fileExtensionContentTypeProvider = new FileExtensionContentTypeProvider();
+fileExtensionContentTypeProvider.Mappings[".data"] = "application/octet-stream";
+
 app.UseStaticFiles();
+app.UseStaticFiles(new StaticFileOptions
+{
+    ContentTypeProvider = fileExtensionContentTypeProvider
+});
 app.UseRouting();
 
 app.MapBlazorHub();

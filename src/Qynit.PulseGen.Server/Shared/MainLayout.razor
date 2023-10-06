@@ -8,13 +8,14 @@
         <FluentAnchor Href="/license" Appearance="Appearance.Hypertext">License</FluentAnchor>
     </div>
     <main class="contents">
-        <ErrorBoundary>
+        @* <ErrorBoundary>
             <ChildContent>
                 @Body
             </ChildContent>
             <ErrorContent Context="ex">
                 <p class="error">@ex.Message</p>
             </ErrorContent>
-        </ErrorBoundary>
+        </ErrorBoundary> *@
+        @Body
     </main>
 </div>
