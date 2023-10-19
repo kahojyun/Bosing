@@ -5,7 +5,6 @@ using MessagePack.Resolvers;
 using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Fast.Components.FluentUI;
 
-using Qynit.PulseGen;
 using Qynit.PulseGen.Server;
 using Qynit.PulseGen.Server.Models;
 using Qynit.PulseGen.Server.Services;
@@ -47,14 +46,7 @@ app.MapPost("/api/schedule", async (HttpRequest request, HttpResponse response, 
     var pgRequest = await MessagePackSerializer.DeserializeAsync<ScheduleRequest>(request.Body, options, token);
     var runner = new ScheduleRunner(pgRequest);
     var waveforms = runner.Run();
-    var floatWaveforms = waveforms.Select(x =>
-    {
-        var floatArray = new PooledComplexArray<float>(x.Length, false);
-        WaveformUtils.ConvertDoubleToFloat(floatArray, x);
-        return floatArray;
-    }).ToList();
-    waveforms.ForEach(x => x.Dispose());
-    var arcWaveforms = floatWaveforms.Select(ArcUnsafe.Wrap).ToList();
+    var arcWaveforms = waveforms.Select(ArcUnsafe.Wrap).ToList();
     plotService.UpdatePlots(pgRequest.ChannelTable!.Zip(arcWaveforms).ToDictionary(x => x.First.Name, x => new PlotData(x.First.Name, x.Second.Clone(), 1.0 / x.First.SampleRate)));
     var pgResponse = new PulseGenResponse(arcWaveforms);
     response.RegisterForDispose(pgResponse);
