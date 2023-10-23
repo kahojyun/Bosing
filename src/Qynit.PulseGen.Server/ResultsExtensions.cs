@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Reflection;
 
 using MessagePack;
@@ -32,11 +33,17 @@ internal class MessagePackResult<T> : IResult, IEndpointMetadataProvider
         builder.Metadata.Add(new ProducesResponseTypeAttribute(typeof(T), StatusCodes.Status200OK, "application/msgpack"));
     }
 
-    public async Task ExecuteAsync(HttpContext httpContext)
+    public Task ExecuteAsync(HttpContext httpContext)
     {
         httpContext.Response.ContentType = "application/msgpack";
-        var body = httpContext.Response.Body;
-        var requestAborted = httpContext.RequestAborted;
-        await MessagePackSerializer.SerializeAsync(body, _obj, _options, requestAborted);
+        SerializeToWriter(httpContext.Response.BodyWriter);
+        return Task.CompletedTask;
+    }
+
+    private void SerializeToWriter(IBufferWriter<byte> writer)
+    {
+        var msgWriter = new MessagePackWriter(writer);
+        MessagePackSerializer.Serialize(ref msgWriter, _obj, _options);
+        msgWriter.Flush();
     }
 }

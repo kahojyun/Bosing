@@ -13,6 +13,7 @@ public sealed class PooledComplexArray<T> : PooledComplexArray, IDisposable
     public int Length { get; }
     public bool IsEmpty => Length == 0;
     public bool IsReal { get; set; }
+    private static readonly ArrayPool<T> ArrayPool = ArrayPool<T>.Create(1000000, 1000);
     public Span<T> DataI
     {
         get
@@ -42,8 +43,8 @@ public sealed class PooledComplexArray<T> : PooledComplexArray, IDisposable
     public PooledComplexArray(int length, bool clear)
     {
         Length = length;
-        _dataI = ArrayPool<T>.Shared.Rent(length);
-        _dataQ = ArrayPool<T>.Shared.Rent(length);
+        _dataI = ArrayPool.Rent(length);
+        _dataQ = ArrayPool.Rent(length);
         if (clear)
         {
             Clear();
@@ -85,7 +86,7 @@ public sealed class PooledComplexArray<T> : PooledComplexArray, IDisposable
             return;
         }
         _disposed = true;
-        ArrayPool<T>.Shared.Return(_dataI, false);
-        ArrayPool<T>.Shared.Return(_dataQ, false);
+        ArrayPool.Return(_dataI, false);
+        ArrayPool.Return(_dataQ, false);
     }
 }

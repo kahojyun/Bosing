@@ -19,7 +19,7 @@ public sealed class ScheduleRunner
         _scheduleRequest = scheduleRequest;
     }
 
-    public List<PooledComplexArray<double>> Run()
+    public List<PooledComplexArray<float>> Run()
     {
         var scheduleDto = _scheduleRequest.Schedule;
         Debug.Assert(scheduleDto is not null);
@@ -54,12 +54,14 @@ public sealed class ScheduleRunner
         var pulseLists2 = postProcessTransform.Finish();
         var result = pulseLists2.Zip(channels).Select(x =>
         {
-            var waveform = WaveformUtils.SampleWaveform<double>(x.First, x.Second.SampleRate, 0, x.Second.Length, x.Second.AlignLevel);
+            using var waveform = WaveformUtils.SampleWaveform<double>(x.First, x.Second.SampleRate, 0, x.Second.Length, x.Second.AlignLevel);
             if (x.Second.IqCalibration is { A: var a, B: var b, C: var c, D: var d, IOffset: var iOffset, QOffset: var qOffset })
             {
                 WaveformUtils.IqTransform(waveform, a, b, c, d, iOffset, qOffset);
             }
-            return waveform;
+            var floatArray = new PooledComplexArray<float>(waveform.Length, false);
+            WaveformUtils.ConvertDoubleToFloat(floatArray, waveform);
+            return floatArray;
         });
         return result.ToList();
     }
