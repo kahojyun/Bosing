@@ -4,17 +4,12 @@ using QuikGraph;
 using QuikGraph.Algorithms;
 
 namespace Qynit.PulseGen;
-public class PostProcessTransform
+public class PostProcessTransform(PulseGenOptions options)
 {
-    private readonly List<ProcessNode> _processNodes = new();
-    private readonly List<int> _terminalIds = new();
+    private readonly List<ProcessNode> _processNodes = [];
+    private readonly List<int> _terminalIds = [];
     private readonly AdjacencyGraph<int, Edge<int>> _adjacencyGraph = new();
-    private readonly PulseGenOptions _options;
-
-    public PostProcessTransform(PulseGenOptions options)
-    {
-        _options = options;
-    }
+    private readonly PulseGenOptions _options = options;
 
     public int AddSourceNode(PulseList pulseList)
     {
@@ -166,7 +161,7 @@ public class PostProcessTransform
 
     private record class ProcessNode
     {
-        public List<(int id, PulseList pulseList)> Inbox { get; } = new();
+        public List<(int id, PulseList pulseList)> Inbox { get; } = [];
         public required PulseGenOptions Options { get; init; }
         public PulseList GetInboxPulseList()
         {

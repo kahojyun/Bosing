@@ -21,13 +21,13 @@ public class GridScheduleTests
 
     public static TheoryData<double, double, GridLength[]> Measure_Data => new()
     {
-        { 1, 1, new[] { GridLength.Auto, GridLength.Auto } },
-        { 1, 1, new[] { GridLength.Auto, GridLength.Star(1) } },
-        { 1, 1, new[] { GridLength.Star(1), GridLength.Star(2) } },
-        { 2, 2, new[] { GridLength.Absolute(1), GridLength.Auto } },
-        { 2, 2, new[] { GridLength.Absolute(1), GridLength.Star(1) } },
-        { 2, 3, new[] { GridLength.Absolute(1), GridLength.Absolute(2) } },
-        { 4, 3, new[] { GridLength.Absolute(1), GridLength.Absolute(2) } },
+        { 1, 1, [ GridLength.Auto, GridLength.Auto ] },
+        { 1, 1, [ GridLength.Auto, GridLength.Star(1) ] },
+        { 1, 1, [ GridLength.Star(1), GridLength.Star(2) ] },
+        { 2, 2, [ GridLength.Absolute(1), GridLength.Auto ] },
+        { 2, 2, [ GridLength.Absolute(1), GridLength.Star(1) ] },
+        { 2, 3, [ GridLength.Absolute(1), GridLength.Absolute(2) ] },
+        { 4, 3, [ GridLength.Absolute(1), GridLength.Absolute(2) ] },
     };
 
     [Theory]
@@ -123,10 +123,10 @@ public class GridScheduleTests
 
     public static TheoryData<Alignment, double[]> Arrange_Align_Data => new()
     {
-        { Alignment.Start, new[] { 0.0, 2.0, 0.0 } },
-        { Alignment.Center, new[] { 0.5, 2.5, 1.5 } },
-        { Alignment.End, new[] { 1.0, 3.0, 3.0 } },
-        { Alignment.Stretch, new[] { 0.0, 2.0, 0.0 } },
+        { Alignment.Start, [ 0.0, 2.0, 0.0 ] },
+        { Alignment.Center, [ 0.5, 2.5, 1.5 ] },
+        { Alignment.End, [ 1.0, 3.0, 3.0 ] },
+        { Alignment.Stretch, [ 0.0, 2.0, 0.0 ] },
     };
 
     [Theory]
@@ -169,6 +169,6 @@ public class GridScheduleTests
         }
         schedule.Measure(double.PositiveInfinity);
         schedule.Arrange(0, 3);
-        Assert.Equal(new[] { 0.0, 1.0, 2.0, 0.0 }, children.Select(x => x.ActualTime!.Value));
+        Assert.Equal([0.0, 1.0, 2.0, 0.0], children.Select(x => x.ActualTime!.Value));
     }
 }

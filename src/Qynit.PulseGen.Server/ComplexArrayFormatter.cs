@@ -25,17 +25,17 @@ public sealed class ComplexArrayFormatter : IMessagePackFormatter<PooledComplexA
         switch (value)
         {
             case PooledComplexArray<float> floatArray:
-                WriteArray(ref writer, floatArray, options);
+                WriteArray(ref writer, floatArray);
                 break;
             case PooledComplexArray<double> doubleArray:
-                WriteArray(ref writer, doubleArray, options);
+                WriteArray(ref writer, doubleArray);
                 break;
             default:
                 break;
         }
     }
 
-    private static void WriteArray<T>(ref MessagePackWriter writer, PooledComplexArray<T> value, MessagePackSerializerOptions options) where T : unmanaged
+    private static void WriteArray<T>(ref MessagePackWriter writer, PooledComplexArray<T> value) where T : unmanaged
     {
         writer.WriteArrayHeader(3);
         if (typeof(T) == typeof(float))

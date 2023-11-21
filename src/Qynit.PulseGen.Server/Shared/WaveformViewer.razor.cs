@@ -68,7 +68,7 @@ public sealed partial class WaveformViewer : IAsyncDisposable
         private Task? UpdateTask { get; set; }
         private CancellationTokenSource Cts { get; } = new();
         private Queue<string> UpdateQueue { get; } = new();
-        private List<string> CurrentSeries { get; set; } = new();
+        private List<string> CurrentSeries { get; set; } = [];
 
         private JsViewer(IPlotService plotService, IJSObjectReference objectReference)
         {

@@ -36,10 +36,10 @@ public class StackScheduleTests
     {
         var schedule = new StackSchedule
         {
-            new FakeScheduleElement(1, 1, new[]{ 0 }),
-            new FakeScheduleElement(3, 3, new[]{ 1 }),
-            new FakeScheduleElement(1, 1, new[]{ 1 }),
-            new FakeScheduleElement(3, 3, new[]{ 0 }),
+            new FakeScheduleElement(1, 1, [ 0 ]),
+            new FakeScheduleElement(3, 3, [ 1 ]),
+            new FakeScheduleElement(1, 1, [ 1 ]),
+            new FakeScheduleElement(3, 3, [ 0 ]),
         };
         schedule.Measure(double.PositiveInfinity);
         Assert.Equal(4, schedule.DesiredDuration);
@@ -50,11 +50,11 @@ public class StackScheduleTests
     {
         var schedule = new StackSchedule
         {
-            new FakeScheduleElement(1, 1, new[]{ 0 }),
-            new FakeScheduleElement(3, 3, new[]{ 1 }),
-            new FakeScheduleElement(new[]{ 0, 1 }),
-            new FakeScheduleElement(1, 1, new[]{ 1 }),
-            new FakeScheduleElement(3, 3, new[]{ 0 }),
+            new FakeScheduleElement(1, 1, [ 0 ]),
+            new FakeScheduleElement(3, 3, [ 1 ]),
+            new FakeScheduleElement([ 0, 1 ]),
+            new FakeScheduleElement(1, 1, [ 1 ]),
+            new FakeScheduleElement(3, 3, [ 0 ]),
         };
         schedule.Measure(double.PositiveInfinity);
         Assert.Equal(6, schedule.DesiredDuration);
@@ -129,10 +129,10 @@ public class StackScheduleTests
     {
         var children = new[]
         {
-            new FakeScheduleElement(1, 1, new[]{ 0 }),
-            new FakeScheduleElement(3, 3, new[]{ 1 }),
-            new FakeScheduleElement(1, 1, new[]{ 1 }),
-            new FakeScheduleElement(3, 3, new[]{ 0 }),
+            new FakeScheduleElement(1, 1, [0]),
+            new FakeScheduleElement(3, 3, [1]),
+            new FakeScheduleElement(1, 1, [1]),
+            new FakeScheduleElement(3, 3, [0]),
         };
         var schedule = new StackSchedule
         {
@@ -157,10 +157,10 @@ public class StackScheduleTests
     {
         var children = new[]
         {
-            new FakeScheduleElement(1, 1, new[]{ 0 }),
-            new FakeScheduleElement(3, 3, new[]{ 1 }),
-            new FakeScheduleElement(1, 1, new[]{ 1 }),
-            new FakeScheduleElement(3, 3, new[]{ 0 }),
+            new FakeScheduleElement(1, 1, [0]),
+            new FakeScheduleElement(3, 3, [1]),
+            new FakeScheduleElement(1, 1, [1]),
+            new FakeScheduleElement(3, 3, [0]),
         };
         var schedule = new StackSchedule
         {
@@ -185,11 +185,11 @@ public class StackScheduleTests
     {
         var children = new[]
         {
-            new FakeScheduleElement(1, 1, new[]{ 0 }),
-            new FakeScheduleElement(3, 3, new[]{ 1 }),
-            new FakeScheduleElement(new[]{ 0, 1 }),
-            new FakeScheduleElement(1, 1, new[]{ 1 }),
-            new FakeScheduleElement(3, 3, new[]{ 0 }),
+            new FakeScheduleElement(1, 1, [0]),
+            new FakeScheduleElement(3, 3, [1]),
+            new FakeScheduleElement([0, 1]),
+            new FakeScheduleElement(1, 1, [1]),
+            new FakeScheduleElement(3, 3, [0]),
         };
         var schedule = new StackSchedule
         {
@@ -216,11 +216,11 @@ public class StackScheduleTests
     {
         var children = new[]
         {
-            new FakeScheduleElement(1, 1, new[]{ 0 }),
-            new FakeScheduleElement(3, 3, new[]{ 1 }),
-            new FakeScheduleElement(new[]{ 0, 1 }),
-            new FakeScheduleElement(1, 1, new[]{ 1 }),
-            new FakeScheduleElement(3, 3, new[]{ 0 }),
+            new FakeScheduleElement(1, 1, [0]),
+            new FakeScheduleElement(3, 3, [1]),
+            new FakeScheduleElement([0, 1]),
+            new FakeScheduleElement(1, 1, [1]),
+            new FakeScheduleElement(3, 3, [0]),
         };
         var schedule = new StackSchedule
         {
@@ -247,11 +247,11 @@ public class StackScheduleTests
     {
         var children = new[]
         {
-            new FakeScheduleElement(1, 1, new[]{ 0 }) { Alignment = Alignment.Center },
-            new FakeScheduleElement(3, 3, new[]{ 1 }) { Alignment = Alignment.Stretch },
-            new FakeScheduleElement(new[]{ 0, 1 }) { Alignment = Alignment.Start },
-            new FakeScheduleElement(1, 1, new[]{ 1 }) { Alignment = Alignment.End },
-            new FakeScheduleElement(3, 3, new[]{ 0 }),
+            new FakeScheduleElement(1, 1, [0]) { Alignment = Alignment.Center },
+            new FakeScheduleElement(3, 3, [1]) { Alignment = Alignment.Stretch },
+            new FakeScheduleElement([0, 1]) { Alignment = Alignment.Start },
+            new FakeScheduleElement(1, 1, [1]) { Alignment = Alignment.End },
+            new FakeScheduleElement(3, 3, [0]),
         };
         var schedule = new StackSchedule
         {

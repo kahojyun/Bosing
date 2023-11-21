@@ -5,7 +5,7 @@ namespace Qynit.PulseGen;
 public readonly ref struct ComplexSpan<T>
     where T : unmanaged
 {
-    public static ComplexSpan<T> Empty => new(Span<T>.Empty, Span<T>.Empty);
+    public static ComplexSpan<T> Empty => new([], []);
     public Span<T> DataI { get; }
     public Span<T> DataQ { get; }
     public int Length => DataI.Length;

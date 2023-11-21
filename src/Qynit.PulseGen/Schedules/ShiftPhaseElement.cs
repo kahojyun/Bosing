@@ -1,17 +1,11 @@
 namespace Qynit.PulseGen.Schedules;
-public sealed class ShiftPhaseElement : ScheduleElement
+public sealed class ShiftPhaseElement(int channelId, double deltaPhase) : ScheduleElement
 {
     private HashSet<int>? _channels;
-    public override IReadOnlySet<int> Channels => _channels ??= new HashSet<int> { ChannelId };
+    public override IReadOnlySet<int> Channels => _channels ??= [ChannelId];
 
-    public int ChannelId { get; }
-    public double DeltaPhase { get; }
-
-    public ShiftPhaseElement(int channelId, double deltaPhase)
-    {
-        ChannelId = channelId;
-        DeltaPhase = deltaPhase;
-    }
+    public int ChannelId { get; } = channelId;
+    public double DeltaPhase { get; } = deltaPhase;
 
     protected override double ArrangeOverride(double time, double finalDuration)
     {

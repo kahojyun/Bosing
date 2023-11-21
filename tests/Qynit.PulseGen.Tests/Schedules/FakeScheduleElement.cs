@@ -2,20 +2,18 @@ using Qynit.PulseGen.Schedules;
 
 namespace Qynit.PulseGen.Tests.Schedules;
 
-public class FakeScheduleElement : ScheduleElement
+public class FakeScheduleElement(double measureResult, double arrangeResult, IEnumerable<int> channels) : ScheduleElement
 {
-    public override IReadOnlySet<int> Channels { get; }
+    public override IReadOnlySet<int> Channels { get; } = channels.ToHashSet();
 
     public bool Flexible { get; init; }
     public Action<double>? RenderCallback { get; init; }
-    public double MeasureResult { get; }
-    public double ArrangeResult { get; }
 
     public FakeScheduleElement() : this(0, 0)
     {
     }
 
-    public FakeScheduleElement(double measureResult, double arrangeResult) : this(measureResult, arrangeResult, Enumerable.Empty<int>())
+    public FakeScheduleElement(double measureResult, double arrangeResult) : this(measureResult, arrangeResult, [])
     {
     }
 
@@ -23,21 +21,14 @@ public class FakeScheduleElement : ScheduleElement
     {
     }
 
-    public FakeScheduleElement(double measureResult, double arrangeResult, IEnumerable<int> channels)
-    {
-        MeasureResult = measureResult;
-        ArrangeResult = arrangeResult;
-        Channels = channels.ToHashSet();
-    }
-
     protected override double ArrangeOverride(double time, double finalDuration)
     {
-        return Flexible ? finalDuration : ArrangeResult;
+        return Flexible ? finalDuration : arrangeResult;
     }
 
     protected override double MeasureOverride(double maxDuration)
     {
-        return MeasureResult;
+        return measureResult;
     }
 
     protected override void RenderOverride(double time, PhaseTrackingTransform phaseTrackingTransform)

@@ -5,8 +5,8 @@ using CommunityToolkit.Diagnostics;
 namespace Qynit.PulseGen.Schedules;
 public class GridSchedule : Schedule
 {
-    private readonly List<(int Column, int Span)> _elementColumns = new();
-    private readonly List<GridLength> _columns = new();
+    private readonly List<(int Column, int Span)> _elementColumns = [];
+    private readonly List<GridLength> _columns = [];
     private List<double>? _minimumColumnSizes;
 
     public GridSchedule()

@@ -1,14 +1,9 @@
 namespace Qynit.PulseGen.Schedules;
-public class BarrierElement : ScheduleElement
+public class BarrierElement(IEnumerable<int> channelIds) : ScheduleElement
 {
-    public override IReadOnlySet<int> Channels { get; }
+    public override IReadOnlySet<int> Channels { get; } = new HashSet<int>(channelIds);
 
     public BarrierElement(params int[] channelIds) : this((IEnumerable<int>)channelIds) { }
-
-    public BarrierElement(IEnumerable<int> channelIds)
-    {
-        Channels = new HashSet<int>(channelIds);
-    }
 
     protected override double ArrangeOverride(double time, double finalDuration)
     {

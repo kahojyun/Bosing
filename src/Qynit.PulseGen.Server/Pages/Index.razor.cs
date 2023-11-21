@@ -18,7 +18,7 @@ public sealed partial class Index : IDisposable
         public bool Visible { get; set; }
     }
 
-    private List<Trace> Traces { get; set; } = new();
+    private List<Trace> Traces { get; set; } = [];
     private IEnumerable<string>? VisibleTraceNames => Traces.Where(p => p.Visible).Select(p => p.Name).ToList();
 
     IQueryable<Trace> FilteredTraces => Traces.AsQueryable().Where(p => p.Name.Contains(_nameFilter));

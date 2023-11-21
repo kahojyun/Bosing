@@ -24,13 +24,6 @@ static void RunDouble()
     Console.WriteLine("------------------------");
 }
 
-static void RunSingle()
-{
-    Console.WriteLine("RunSingle:");
-    Run<float>();
-    Console.WriteLine("------------------------");
-}
-
 static void Run<T>() where T : unmanaged, IFloatingPointIeee754<T>
 {
     var sw = Stopwatch.StartNew();
@@ -39,17 +32,21 @@ static void Run<T>() where T : unmanaged, IFloatingPointIeee754<T>
     var ch1 = phaseTrackingTransform.AddChannel(100e6, 0);
     var ch2 = phaseTrackingTransform.AddChannel(250e6, 0);
     var shape = new HannPulseShape();
-    var stack = new StackSchedule();
-    stack.Add(new PlayElement(ch1, new(shape, 30e-9, 100e-9), 0, 0, 0.5, 2e-9));
-    stack.Add(new PlayElement(ch2, new(shape, 30e-9, 50e-9), 0, 0, 0.6, 2e-9));
-    stack.Add(new ShiftPhaseElement(ch1, 0.25));
-    stack.Add(new ShiftPhaseElement(ch2, -0.25));
-    stack.Add(new BarrierElement(ch1, ch2) { Margin = new(15e-9) });
+    var stack = new StackSchedule
+    {
+        new PlayElement(ch1, new(shape, 30e-9, 100e-9), 0, 0, 0.5, 2e-9),
+        new PlayElement(ch2, new(shape, 30e-9, 50e-9), 0, 0, 0.6, 2e-9),
+        new ShiftPhaseElement(ch1, 0.25),
+        new ShiftPhaseElement(ch2, -0.25),
+        new BarrierElement(ch1, ch2) { Margin = new(15e-9) }
+    };
 
-    var stack2 = new StackSchedule();
-    stack2.Add(new PlayElement(ch1, new(shape, 30e-9, 0), 0, 0, 0.5, 2e-9) { Margin = new(15e-9) });
-    stack2.Add(new PlayElement(ch1, new(shape, 30e-9, 0), 0, 0, 0.5, 2e-9) { Margin = new(15e-9) });
-    stack2.Add(new PlayElement(ch1, new(shape, 30e-9, 0), 0, 0, 0.5, 2e-9) { Margin = new(15e-9) });
+    var stack2 = new StackSchedule
+    {
+        new PlayElement(ch1, new(shape, 30e-9, 0), 0, 0, 0.5, 2e-9) { Margin = new(15e-9) },
+        new PlayElement(ch1, new(shape, 30e-9, 0), 0, 0, 0.5, 2e-9) { Margin = new(15e-9) },
+        new PlayElement(ch1, new(shape, 30e-9, 0), 0, 0, 0.5, 2e-9) { Margin = new(15e-9) }
+    };
     stack.Add(stack2);
 
     stack.Add(new BarrierElement(ch1, ch2) { Margin = new(15e-9) });
@@ -66,9 +63,11 @@ static void Run<T>() where T : unmanaged, IFloatingPointIeee754<T>
     stack.Add(new ShiftFrequencyElement(ch2, -250e6));
     stack.Add(new BarrierElement(ch1, ch2) { Margin = new(15e-9) });
 
-    var abs = new AbsoluteSchedule();
-    abs.Add(new PlayElement(ch1, new(null, 200e-9, 0), 0, 0, 0.5, 2e-9), 10e-9);
-    abs.Add(new RepeatElement(new PlayElement(ch2, new(null, 100e-9, 0), 0, 0, 0.6, 2e-9), 2) { Spacing = 10e-9 }, 210e-9);
+    var abs = new AbsoluteSchedule
+    {
+        { new PlayElement(ch1, new(null, 200e-9, 0), 0, 0, 0.5, 2e-9), 10e-9 },
+        { new RepeatElement(new PlayElement(ch2, new(null, 100e-9, 0), 0, 0, 0.6, 2e-9), 2) { Spacing = 10e-9 }, 210e-9 }
+    };
     stack.Add(abs);
 
     stack.Add(new SetFrequencyElement(ch1, 0));
@@ -76,8 +75,10 @@ static void Run<T>() where T : unmanaged, IFloatingPointIeee754<T>
     stack.Add(new BarrierElement(ch1, ch2) { Margin = new(15e-9) });
     stack.Add(new PlayElement(ch1, new(shape, 200e-9, 0), 0, 0, 0.5, 2e-9));
     stack.Add(new PlayElement(ch2, new(shape, 100e-9, 0), 0, 0, 0.6, 2e-9));
-    var main = new GridSchedule();
-    main.Add(stack);
+    var main = new GridSchedule
+    {
+        stack
+    };
     main.Measure(49.9e-6);
     main.Arrange(0, 49.9e-6);
     main.Render(0, phaseTrackingTransform);
@@ -101,9 +102,9 @@ static void Run<T>() where T : unmanaged, IFloatingPointIeee754<T>
     using var waveform2 = waveforms[ch2];
     var plot = new Plot(1920, 1080);
     plot.AddSignal(waveform1.DataI[^4000..].ToArray(), sampleRate, label: $"wave 1 real");
-    plot.AddSignal(waveform1.DataQ[^4000..].ToArray(), sampleRate, label: $"wave 1 imag");
+    plot.AddSignal(waveform1.DataQ[^4000..].ToArray(), sampleRate, label: $"wave 1 imaginary");
     plot.AddSignal(waveform2.DataI[^4000..].ToArray(), sampleRate, label: $"wave 2 real");
-    plot.AddSignal(waveform2.DataQ[^4000..].ToArray(), sampleRate, label: $"wave 2 imag");
+    plot.AddSignal(waveform2.DataQ[^4000..].ToArray(), sampleRate, label: $"wave 2 imaginary");
     plot.Legend();
     plot.SaveFig("demo2.png");
 }

@@ -4,7 +4,7 @@ namespace Qynit.PulseGen.Schedules;
 public sealed class PlayElement : ScheduleElement
 {
     private HashSet<int>? _channels;
-    public override IReadOnlySet<int> Channels => _channels ??= new HashSet<int> { ChannelId };
+    public override IReadOnlySet<int> Channels => _channels ??= [ChannelId];
     public bool FlexiblePlateau { get; set; }
     public int ChannelId { get; }
     public IPulseShape? PulseShape { get; }

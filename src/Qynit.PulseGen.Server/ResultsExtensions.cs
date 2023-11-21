@@ -17,16 +17,10 @@ internal static class ResultsExtensions
     }
 }
 
-internal class MessagePackResult<T> : IResult, IEndpointMetadataProvider
+internal class MessagePackResult<T>(T obj, MessagePackSerializerOptions? options) : IResult, IEndpointMetadataProvider
 {
-    private readonly T _obj;
-    private readonly MessagePackSerializerOptions? _options;
-
-    public MessagePackResult(T obj, MessagePackSerializerOptions? options)
-    {
-        _obj = obj;
-        _options = options;
-    }
+    private readonly T _obj = obj;
+    private readonly MessagePackSerializerOptions? _options = options;
 
     public static void PopulateMetadata(MethodInfo method, EndpointBuilder builder)
     {
