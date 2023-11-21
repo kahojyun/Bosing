@@ -28,7 +28,7 @@ public static class PythonApi
     {
         if (ServerInstance is null)
         {
-            ServerInstance = Server.CreateApp(Array.Empty<string>(), true);
+            ServerInstance = Server.CreateApp([], true);
             ServerInstance.Start();
         }
     }

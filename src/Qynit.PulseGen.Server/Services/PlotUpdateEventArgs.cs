@@ -1,11 +1,6 @@
 namespace Qynit.PulseGen.Server.Services;
 
-public class PlotUpdateEventArgs : EventArgs
+public class PlotUpdateEventArgs(IEnumerable<string> traceNames) : EventArgs
 {
-    public IEnumerable<string> UpdatedSeries { get; }
-
-    public PlotUpdateEventArgs(IEnumerable<string> traceNames)
-    {
-        UpdatedSeries = traceNames;
-    }
+    public IEnumerable<string> UpdatedSeries { get; } = traceNames;
 }

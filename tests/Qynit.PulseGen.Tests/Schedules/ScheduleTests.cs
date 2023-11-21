@@ -26,10 +26,10 @@ public class ScheduleTests
     {
         var schedule = new FakeSchedule()
         {
-            new FakeScheduleElement(new[] {0, 1}),
-            new FakeScheduleElement(new[] {2, 1}),
+            new FakeScheduleElement([0, 1]),
+            new FakeScheduleElement([2, 1]),
         };
-        Assert.Equal(new[] { 0, 1, 2 }, schedule.Channels.Order());
+        Assert.Equal([0, 1, 2], schedule.Channels.Order());
     }
 
     [Fact]
@@ -49,6 +49,6 @@ public class ScheduleTests
         schedule.Measure(double.PositiveInfinity);
         schedule.Arrange(0, schedule.DesiredDuration!.Value);
         schedule.Render(0, new PhaseTrackingTransform());
-        Assert.Equal(new[] { 1.0, 3.0 }, renderTimes);
+        Assert.Equal([1.0, 3.0], renderTimes);
     }
 }

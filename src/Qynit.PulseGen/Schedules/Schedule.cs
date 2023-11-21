@@ -5,7 +5,7 @@ public abstract class Schedule : ScheduleElement, IEnumerable<ScheduleElement>
 {
     public override IReadOnlySet<int> Channels => _channels ??= Children.SelectMany(e => e.Channels).ToHashSet();
     private HashSet<int>? _channels;
-    protected List<ScheduleElement> Children { get; } = new();
+    protected List<ScheduleElement> Children { get; } = [];
 
 
     protected override void RenderOverride(double time, PhaseTrackingTransform phaseTrackingTransform)

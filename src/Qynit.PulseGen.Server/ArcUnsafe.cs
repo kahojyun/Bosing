@@ -8,16 +8,10 @@ public static class ArcUnsafe
     }
 }
 
-public readonly struct ArcUnsafe<T> : IDisposable where T : IDisposable
+public readonly struct ArcUnsafe<T>(T disposable) : IDisposable where T : IDisposable
 {
-    private readonly RefCountBox _refCountBox;
-    public T Target { get; }
-
-    public ArcUnsafe(T disposable)
-    {
-        _refCountBox = new RefCountBox();
-        Target = disposable;
-    }
+    private readonly RefCountBox _refCountBox = new();
+    public T Target { get; } = disposable;
 
     public ArcUnsafe<T> Clone()
     {

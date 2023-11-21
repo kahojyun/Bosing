@@ -34,6 +34,6 @@ public class RepeatElementTests
         schedule.Measure(double.PositiveInfinity);
         schedule.Arrange(0, schedule.DesiredDuration!.Value);
         schedule.Render(0, new PhaseTrackingTransform());
-        Assert.Equal(new[] { 0.0, 2.0, 4.0 }, renderTimes);
+        Assert.Equal([0.0, 2.0, 4.0], renderTimes);
     }
 }

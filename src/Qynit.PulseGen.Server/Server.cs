@@ -1,7 +1,6 @@
 using System.Reflection;
 
 using MessagePack;
-using MessagePack.Formatters;
 using MessagePack.Resolvers;
 
 using Microsoft.AspNetCore.StaticFiles;
@@ -16,9 +15,7 @@ public sealed class Server : IDisposable
 {
     internal static MessagePackSerializerOptions MessagePackSerializerOptions { get; } =
         MessagePackSerializerOptions.Standard.WithResolver(
-            CompositeResolver.Create(
-                new IMessagePackFormatter[] { new ComplexArrayFormatter() },
-                new[] { StandardResolver.Instance }));
+            CompositeResolver.Create([new ComplexArrayFormatter()], [StandardResolver.Instance]));
 
     private readonly WebApplication _app;
     private Server(WebApplication app)
@@ -51,8 +48,6 @@ public sealed class Server : IDisposable
 
         return new Server(app);
     }
-
-    
 
     private static WebApplicationBuilder CreateBuilderForEmbedded(string[] args)
     {

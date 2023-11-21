@@ -150,16 +150,11 @@ public record PulseList
         }
     }
     internal readonly record struct BinItem(double Time, PulseAmplitude Amplitude);
-    internal class Builder
+    internal class Builder(double timeTolerance)
     {
-        public double TimeTolerance { get; init; }
+        public double TimeTolerance { get; init; } = timeTolerance;
 
-        public Builder(double timeTolerance)
-        {
-            TimeTolerance = timeTolerance;
-        }
-
-        private readonly Dictionary<BinInfo, List<BinItem>> _items = new();
+        private readonly Dictionary<BinInfo, List<BinItem>> _items = [];
         public void Add(Envelope envelope, double globalFrequency, double localFrequency, double time, double amplitude, double phase, double dragCoefficient)
         {
             if (amplitude == 0)
@@ -180,7 +175,7 @@ public record PulseList
         {
             if (!_items.TryGetValue(binInfo, out var list))
             {
-                list = new List<BinItem>();
+                list = [];
                 _items.Add(binInfo, list);
             }
             list.Add(item);

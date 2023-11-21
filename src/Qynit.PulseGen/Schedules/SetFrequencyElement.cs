@@ -1,17 +1,11 @@
 namespace Qynit.PulseGen.Schedules;
-public sealed class SetFrequencyElement : ScheduleElement
+public sealed class SetFrequencyElement(int channelId, double frequency) : ScheduleElement
 {
     private HashSet<int>? _channels;
-    public override IReadOnlySet<int> Channels => _channels ??= new HashSet<int> { ChannelId };
+    public override IReadOnlySet<int> Channels => _channels ??= [ChannelId];
 
-    public int ChannelId { get; }
-    public double Frequency { get; }
-
-    public SetFrequencyElement(int channelId, double frequency)
-    {
-        ChannelId = channelId;
-        Frequency = frequency;
-    }
+    public int ChannelId { get; } = channelId;
+    public double Frequency { get; } = frequency;
 
     protected override double ArrangeOverride(double time, double finalDuration)
     {

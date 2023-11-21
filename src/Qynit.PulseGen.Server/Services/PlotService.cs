@@ -2,7 +2,7 @@ namespace Qynit.PulseGen.Server.Services;
 
 public class PlotService : IPlotService
 {
-    private readonly Dictionary<string, PlotData> _waveforms = new();
+    private readonly Dictionary<string, PlotData> _waveforms = [];
 
     public event EventHandler<PlotUpdateEventArgs>? PlotUpdate;
 

@@ -5,7 +5,7 @@ using CommunityToolkit.Diagnostics;
 namespace Qynit.PulseGen.Schedules;
 public class AbsoluteSchedule : Schedule
 {
-    private readonly List<double> _elementTimes = new();
+    private readonly List<double> _elementTimes = [];
 
     public AbsoluteSchedule()
     {

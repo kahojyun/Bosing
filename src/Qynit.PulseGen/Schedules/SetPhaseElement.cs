@@ -1,16 +1,10 @@
 namespace Qynit.PulseGen.Schedules;
-public sealed class SetPhaseElement : ScheduleElement
+public sealed class SetPhaseElement(int channelId, double phase) : ScheduleElement
 {
     private HashSet<int>? _channels;
-    public override IReadOnlySet<int> Channels => _channels ??= new HashSet<int> { ChannelId };
-    public int ChannelId { get; }
-    public double Phase { get; }
-
-    public SetPhaseElement(int channelId, double phase)
-    {
-        ChannelId = channelId;
-        Phase = phase;
-    }
+    public override IReadOnlySet<int> Channels => _channels ??= [ChannelId];
+    public int ChannelId { get; } = channelId;
+    public double Phase { get; } = phase;
 
     protected override double ArrangeOverride(double time, double finalDuration)
     {
