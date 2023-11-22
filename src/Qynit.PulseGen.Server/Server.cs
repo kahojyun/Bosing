@@ -6,7 +6,6 @@ using MessagePack.Resolvers;
 using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Fast.Components.FluentUI;
 
-using Qynit.PulseGen.Server.Models;
 using Qynit.PulseGen.Server.Services;
 
 namespace Qynit.PulseGen.Server;
@@ -43,8 +42,6 @@ public sealed class Server : IDisposable
 
         app.MapBlazorHub();
         app.MapFallbackToPage("/_Host");
-
-        app.AddScheduleApi();
 
         return new Server(app);
     }
@@ -110,31 +107,6 @@ internal class NopLifeTime : IHostLifetime
 
 internal static class BuilderExtensions
 {
-    internal static void AddScheduleApi(this WebApplication app)
-    {
-        const string contentType = "application/msgpack";
-
-        app.MapPost("/api/schedule", async (HttpRequest request, HttpResponse response, CancellationToken token, IPlotService plotService) =>
-        {
-            if (request.ContentType != contentType)
-            {
-                return Results.BadRequest();
-            }
-
-            var pgRequest = await MessagePackSerializer.DeserializeAsync<ScheduleRequest>(request.Body, Server.MessagePackSerializerOptions, token);
-            var runner = new ScheduleRunner(pgRequest);
-            var waveforms = runner.Run();
-            var arcWaveforms = waveforms.Select(ArcUnsafe.Wrap).ToList();
-            plotService.UpdatePlots(pgRequest.ChannelTable!.Zip(arcWaveforms).ToDictionary(x => x.First.Name, x => new PlotData(x.First.Name, x.Second.Clone(), 1.0 / x.First.SampleRate)));
-            var pgResponse = new PulseGenResponse(arcWaveforms);
-            response.RegisterForDispose(pgResponse);
-            return Results.Extensions.MessagePack(pgResponse, Server.MessagePackSerializerOptions);
-        })
-        .WithName("Schedule")
-        .Accepts<ScheduleRequest>(contentType)
-        .Produces(StatusCodes.Status400BadRequest);
-    }
-
     internal static void ServeSciChartWasm(this WebApplication app)
     {
         var fileExtensionContentTypeProvider = new FileExtensionContentTypeProvider();
