@@ -10,19 +10,19 @@
     "format": "prettier --write ."
   },
   "devDependencies": {
-    "@types/d3-format": "^3.0.1",
-    "@typescript-eslint/eslint-plugin": "^6.1.0",
-    "@typescript-eslint/parser": "^6.1.0",
-    "esbuild": "^0.19.3",
-    "eslint": "^8.45.0",
-    "glob": "^10.3.3",
-    "prettier": "^3.0.0",
-    "tslib": "^2.6.0",
-    "typescript": "^5.2.2"
+    "@types/d3-format": "^3.0.4",
+    "@typescript-eslint/eslint-plugin": "^7.1.1",
+    "@typescript-eslint/parser": "^7.1.1",
+    "esbuild": "^0.20.1",
+    "eslint": "^8.57.0",
+    "glob": "^10.3.10",
+    "prettier": "^3.2.5",
+    "tslib": "^2.6.2",
+    "typescript": "^5.4.2"
   },
   "dependencies": {
-    "@microsoft/dotnet-js-interop": "^7.0.10",
+    "@microsoft/dotnet-js-interop": "^8.0.0",
     "d3-format": "^3.1.0",
-    "scichart": "^3.2.470"
+    "scichart": "^3.3.570"
   }
 }

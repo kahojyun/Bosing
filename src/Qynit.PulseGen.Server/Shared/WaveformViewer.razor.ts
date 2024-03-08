@@ -20,7 +20,6 @@ import {
 } from "scichart";
 
 SciChartSurface.UseCommunityLicense();
-SciChartSurface.useWasmLocal();
 
 import { format } from "d3-format";
 
