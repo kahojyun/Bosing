@@ -5,10 +5,14 @@ import typing as _typing
 import numpy as _np
 import pulsegen_client.models as _models
 from pathlib import Path
+from importlib.metadata import files
 
-DOTNET_LIB_PATH = Path(__file__).parent / "lib"
-RUNTIME_CONFIG_PATH = DOTNET_LIB_PATH / "Qynit.PulseGen.Server.runtimeconfig.json"
-sys.path.append(str(DOTNET_LIB_PATH))
+
+# Find the path to the .NET library
+RUNTIME_CONFIG = [f for f in files("pulsegen_client") if str(f).endswith(".runtimeconfig.json")][0]
+RUNTIME_CONFIG_PATH = RUNTIME_CONFIG.locate()
+LIB_PATH = Path(RUNTIME_CONFIG_PATH).parent
+sys.path.append(str(LIB_PATH))
 
 from pythonnet import load
 

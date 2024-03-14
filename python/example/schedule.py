@@ -9,7 +9,6 @@ import math
 from time import perf_counter
 
 import numpy as np
-import requests
 from matplotlib import pyplot as plt
 from scipy import signal
 
