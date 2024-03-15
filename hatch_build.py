@@ -84,8 +84,10 @@ class CustomBuildHook(BuildHookInterface):
     def _dotnet_publish(self, version: str) -> None:
         if version == "editable":
             configuration = "Debug"
+            ci = "false"
         else:
             configuration = "Release"
+            ci = "true"
         try:
             subprocess.run(
                 [
@@ -94,6 +96,8 @@ class CustomBuildHook(BuildHookInterface):
                     "--configuration",
                     configuration,
                     "--nologo",
+                    "/p:UseAppHost=false",
+                    f"/p:ContinuousIntegrationBuild={ci}",
                 ],
                 check=True,
             )
