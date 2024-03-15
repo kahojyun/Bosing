@@ -1,5 +1,6 @@
 <Project>
   <PropertyGroup>
-    <Version>0.1.0</Version>
+    <Version>$([System.IO.File]::ReadAllText("$(MSBuildThisFileDirectory)VERSION.txt"))</Version>
+    <UseArtifactsOutput>true</UseArtifactsOutput>
   </PropertyGroup>
 </Project>
