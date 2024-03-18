@@ -48,7 +48,7 @@ public sealed class Server : IDisposable
 
     private static WebApplicationBuilder CreateBuilderForEmbedded(string[] args)
     {
-        var assemblyPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!;
+        var assemblyPath = AppContext.BaseDirectory;
         var webRootPath = Path.Combine(assemblyPath, "wwwroot");
         var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? Environments.Production;
 
