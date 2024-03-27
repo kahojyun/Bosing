@@ -1,8 +1,10 @@
 import ctypes
 import math
+import threading
+from contextlib import contextmanager
 from ctypes import cdll
 from itertools import cycle
-from time import perf_counter
+from time import perf_counter, sleep
 from typing import Dict, Tuple
 
 import matplotlib.pyplot as plt
@@ -14,12 +16,16 @@ lib = cdll.LoadLibrary(
     r"E:\Qynit.PulseGen\artifacts\publish\Qynit.PulseGen.Aot\release_win-x64\Qynit.PulseGen.Aot.dll"
 )
 
-# void* Qynit_PulseGen_Run(char* request, int length)
+# int Qynit_PulseGen_Run(char* request, int length, void** out_handle)
 Qynit_PulseGen_Run = lib.Qynit_PulseGen_Run
-Qynit_PulseGen_Run.argtypes = [ctypes.c_char_p, ctypes.c_int]
-Qynit_PulseGen_Run.restype = ctypes.c_void_p
+Qynit_PulseGen_Run.argtypes = [
+    ctypes.c_char_p,
+    ctypes.c_int,
+    ctypes.POINTER(ctypes.c_void_p),
+]
+Qynit_PulseGen_Run.restype = ctypes.c_int
 
-# void Qynit_PulseGen_CopyWaveform(void* handle, char* name, float* i, float* q, int length)
+# int Qynit_PulseGen_CopyWaveform(void* handle, char* name, float* i, float* q, int length)
 Qynit_PulseGen_CopyWaveform = lib.Qynit_PulseGen_CopyWaveform
 Qynit_PulseGen_CopyWaveform.argtypes = [
     ctypes.c_void_p,
@@ -28,19 +34,32 @@ Qynit_PulseGen_CopyWaveform.argtypes = [
     ctypes.POINTER(ctypes.c_float),
     ctypes.c_int,
 ]
-Qynit_PulseGen_CopyWaveform.restype = None
+Qynit_PulseGen_CopyWaveform.restype = ctypes.c_int
 
-# void Qynit_PulseGen_FreeWaveform(void* handle)
+# int Qynit_PulseGen_FreeWaveform(void* handle)
 Qynit_PulseGen_FreeWaveform = lib.Qynit_PulseGen_FreeWaveform
 Qynit_PulseGen_FreeWaveform.argtypes = [ctypes.c_void_p]
-Qynit_PulseGen_FreeWaveform.restype = None
+Qynit_PulseGen_FreeWaveform.restype = ctypes.c_int
+
+
+@contextmanager
+def pulsegen(msg: bytes):
+    handle = ctypes.c_void_p()
+    ret = Qynit_PulseGen_Run(msg, len(msg), ctypes.byref(handle))
+    if ret != 0:
+        raise Exception(f"Failed to run PulseGen, error code: {ret}")
+    try:
+        yield handle
+    finally:
+        ret = Qynit_PulseGen_FreeWaveform(handle)
+        if ret != 0:
+            raise Exception(f"Failed to free waveform, error code: {ret}")
 
 
 def run(request: Request) -> Dict[str, Tuple[np.ndarray, np.ndarray]]:
     msg = request.packb()
-    handle = Qynit_PulseGen_Run(msg, len(msg))
-    try:
-        ret = {}
+    with pulsegen(msg) as handle:
+        waveforms = {}
         for ch in request.channels:
             wave_i = np.empty(ch.length, dtype=np.float32)
             wave_q = np.empty(ch.length, dtype=np.float32)
@@ -48,11 +67,13 @@ def run(request: Request) -> Dict[str, Tuple[np.ndarray, np.ndarray]]:
             ptr_i_float = wave_i.ctypes.data_as(ctypes.POINTER(ctypes.c_float))
             ptr_q_float = wave_q.ctypes.data_as(ctypes.POINTER(ctypes.c_float))
             length = ch.length
-            Qynit_PulseGen_CopyWaveform(handle, pstr, ptr_i_float, ptr_q_float, length)
-            ret[ch.name] = (wave_i, wave_q)
-        return ret
-    finally:
-        Qynit_PulseGen_FreeWaveform(handle)
+            ret = Qynit_PulseGen_CopyWaveform(
+                handle, pstr, ptr_i_float, ptr_q_float, length
+            )
+            if ret != 0:
+                raise Exception(f"Failed to copy waveform, error code: {ret}")
+            waveforms[ch.name] = (wave_i, wave_q)
+        return waveforms
 
 
 def get_biquad(amp, tau, fs):
@@ -71,7 +92,7 @@ def get_iq_calibration(ratio, phase, offset_i, offset_q):
 
 
 def gen_n(n: int):
-    t0 = perf_counter()
+
     nxy = 64
     nu = 2 * nxy
     nm = nxy // 8
@@ -122,14 +143,19 @@ def gen_n(n: int):
 
     _ = run(job)
 
-    t1 = perf_counter()
-    print(f"Time: {t1-t0:.3f}s")
+
+EXITING = False
 
 
 def stress_main():
     for i in cycle(range(1, 100)):
         print(i)
+        t0 = perf_counter()
         gen_n(i)
+        t1 = perf_counter()
+        print(f"Time: {t1-t0:.3f}s")
+        if EXITING:
+            break
 
 
 def demo_main():
@@ -213,5 +239,14 @@ def demo_main():
 
 
 if __name__ == "__main__":
-    stress_main()
+    threads = [threading.Thread(target=stress_main) for _ in range(1)]
+    for t in threads:
+        t.start()
+    try:
+        while True:
+            sleep(1)
+    except KeyboardInterrupt:
+        EXITING = True
+        for t in threads:
+            t.join()
     # demo_main()
