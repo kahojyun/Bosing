@@ -9,7 +9,7 @@ charset = utf-8
 spelling_exclusion_path = exclusion.dic
 
 # Xml files
-[*.xml]
+[*.{xml,csproj,props,targets}]
 indent_size = 2
 
 [*.{js,ts,cjs,mjs,jsx,tsx}]

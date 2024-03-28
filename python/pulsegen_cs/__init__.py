@@ -12,13 +12,18 @@ client.
     This package is still in development and the API may change in the future.
 """
 
+from ._native import generate_waveforms
 from .models import (
-    Biquad, ChannelInfo, IqCalibration, Options,
-    HannShape, InterpolatedShape, TriangleShape,
     Absolute,
     Alignment,
     Barrier,
+    Biquad,
+    ChannelInfo,
     Grid,
+    HannShape,
+    InterpolatedShape,
+    IqCalibration,
+    Options,
     Play,
     Repeat,
     Request,
@@ -28,8 +33,8 @@ from .models import (
     ShiftPhase,
     Stack,
     SwapPhase,
+    TriangleShape,
 )
-from .dotnet import generate_waveforms, start_server
 
 __all__ = [
     "ChannelInfo",
@@ -53,5 +58,4 @@ __all__ = [
     "InterpolatedShape",
     "TriangleShape",
     "generate_waveforms",
-    "start_server",
 ]

@@ -24,6 +24,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "WaveGenBenchmarks", "exampl
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Qynit.PulseGen.Server", "src\Qynit.PulseGen.Server\Qynit.PulseGen.Server.csproj", "{3AF1B594-E5D8-43A1-9E74-A8F9570BD0FA}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Qynit.PulseGen.Aot", "src\Qynit.PulseGen.Aot\Qynit.PulseGen.Aot.csproj", "{50443AA3-B148-4D75-87EE-55AFB5A53D69}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -46,6 +48,10 @@ Global
 		{3AF1B594-E5D8-43A1-9E74-A8F9570BD0FA}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{3AF1B594-E5D8-43A1-9E74-A8F9570BD0FA}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{3AF1B594-E5D8-43A1-9E74-A8F9570BD0FA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{50443AA3-B148-4D75-87EE-55AFB5A53D69}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{50443AA3-B148-4D75-87EE-55AFB5A53D69}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{50443AA3-B148-4D75-87EE-55AFB5A53D69}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{50443AA3-B148-4D75-87EE-55AFB5A53D69}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -55,6 +61,7 @@ Global
 		{33659EDC-29F9-45DB-A9FA-E01E648BE4B9} = {3B8B8B3E-9095-4A7E-9309-661439C30D9A}
 		{ECE2579D-700C-4BB3-9009-F35395177B7A} = {6741804E-962A-4762-B289-CD4899A62AD8}
 		{3AF1B594-E5D8-43A1-9E74-A8F9570BD0FA} = {3EBAD22F-230A-4BCB-B16C-A9063E2A4E9A}
+		{50443AA3-B148-4D75-87EE-55AFB5A53D69} = {3EBAD22F-230A-4BCB-B16C-A9063E2A4E9A}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {1DC52AEE-D9FC-4B2F-9492-0C92B0479A3C}
