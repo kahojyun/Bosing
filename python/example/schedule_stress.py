@@ -5,12 +5,11 @@
     The server must be running for this example to work.
 """
 
-from itertools import cycle
 import time
+from itertools import cycle
 
 import numpy as np
-
-from pulsegen_client import *
+from pulsegen_cs import *
 
 
 def gen_n(n: int):
@@ -76,5 +75,4 @@ def main():
 
 
 if __name__ == "__main__":
-    start_server()
     main()

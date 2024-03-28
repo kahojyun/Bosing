@@ -3,9 +3,9 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "pulsegen-client"
+name = "pulsegen-cs"
 dynamic = ["version"]
-description = "Client for Qynit.PulseGen.Server"
+description = "Bindings for Qynit.PulseGen"
 readme = "README.md"
 requires-python = ">=3.8"
 license = "MIT"
@@ -16,7 +16,7 @@ classifiers = [
     "Programming Language :: Python",
     "Programming Language :: Python :: Implementation :: CPython",
 ]
-dependencies = ["numpy", "msgpack", "attrs", "pythonnet>=3.0.0"]
+dependencies = ["numpy", "msgpack", "attrs"]
 
 [project.urls]
 Documentation = "https://github.com/kahojyun/Qynit.PulseGen#readme"
@@ -30,10 +30,8 @@ pattern = "(?P<version>.*)"
 [tool.hatch.build.hooks.custom]
 
 [tool.hatch.build.targets.wheel]
-packages = ["python/pulsegen_client"]
-
-[tool.hatch.build.targets.wheel.force-include]
-"artifacts/publish/Qynit.PulseGen.Server/release" = "pulsegen_client/lib"
+packages = ["python/pulsegen_cs"]
+artifacts = ["*.so", "*.dll"]
 
 [tool.hatch.envs.default]
 dependencies = ["scipy", "matplotlib", "ipython"]

@@ -10,9 +10,9 @@ from time import perf_counter
 
 import numpy as np
 from matplotlib import pyplot as plt
+from pulsegen_cs import *
 from scipy import signal
 
-from pulsegen_client import *
 
 def get_biquad(amp, tau, fs):
     z = -1 / (tau * (1 + amp))
