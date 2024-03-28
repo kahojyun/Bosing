@@ -25,88 +25,112 @@ public static class Api
     [UnmanagedCallersOnly(EntryPoint = "Qynit_PulseGen_Run")]
     public static unsafe int Run(byte* requestMsg, int requestMsgLen, void** outWaveformDict)
     {
-        ScheduleRequest request;
         try
         {
-            request = DeserializeRequest(requestMsg, requestMsgLen);
+            ScheduleRequest request;
+            try
+            {
+                request = DeserializeRequest(requestMsg, requestMsgLen);
+            }
+            catch (Exception e)
+            {
+                Console.Error.WriteLine(e);
+                return (int)ErrorCode.DeserializeError;
+            }
+            List<PooledComplexArray<float>> waveforms;
+            try
+            {
+                waveforms = GenerateWaveforms(request);
+            }
+            catch (Exception e)
+            {
+                Console.Error.WriteLine(e);
+                return (int)ErrorCode.GenerateWaveformsError;
+            }
+            var waveformsDict = waveforms.Zip(request.ChannelTable!).ToDictionary(x => x.Second.Name, x => x.First);
+            var handle = GCHandle.Alloc(waveformsDict);
+            *outWaveformDict = GCHandle.ToIntPtr(handle).ToPointer();
+            return (int)ErrorCode.Success;
         }
         catch (Exception e)
         {
             Console.Error.WriteLine(e);
-            return (int)ErrorCode.DeserializeError;
+            return (int)ErrorCode.InternalError;
         }
-        List<PooledComplexArray<float>> waveforms;
-        try
-        {
-            waveforms = GenerateWaveforms(request);
-        }
-        catch (Exception e)
-        {
-            Console.Error.WriteLine(e);
-            return (int)ErrorCode.GenerateWaveformsError;
-        }
-        var waveformsDict = waveforms.Zip(request.ChannelTable!).ToDictionary(x => x.Second.Name, x => x.First);
-        var handle = GCHandle.Alloc(waveformsDict);
-        *outWaveformDict = GCHandle.ToIntPtr(handle).ToPointer();
-        return (int)ErrorCode.Success;
     }
 
     [UnmanagedCallersOnly(EntryPoint = "Qynit_PulseGen_CopyWaveform")]
     public static unsafe int CopyWaveform(IntPtr handle, IntPtr chName, float* bufferI, float* bufferQ, int bufferLen)
     {
-        Dictionary<string, PooledComplexArray<float>> waveformsDict;
         try
         {
-            waveformsDict = (Dictionary<string, PooledComplexArray<float>>)GCHandle.FromIntPtr(handle).Target!;
+            Dictionary<string, PooledComplexArray<float>> waveformsDict;
+            try
+            {
+                waveformsDict = (Dictionary<string, PooledComplexArray<float>>)GCHandle.FromIntPtr(handle).Target!;
+            }
+            catch (Exception e)
+            {
+                Console.Error.WriteLine(e);
+                return (int)ErrorCode.InvalidHandle;
+            }
+            var chNameStr = Marshal.PtrToStringUTF8(chName);
+            if (chNameStr is null)
+            {
+                return (int)ErrorCode.KeyNotFound;
+            }
+            if (!waveformsDict.TryGetValue(chNameStr, out var waveform))
+            {
+                return (int)ErrorCode.KeyNotFound;
+            }
+            try
+            {
+                var spanI = new Span<float>(bufferI, bufferLen);
+                waveform.DataI.CopyTo(spanI);
+                var spanQ = new Span<float>(bufferQ, bufferLen);
+                waveform.DataQ.CopyTo(spanQ);
+            }
+            catch (Exception e)
+            {
+                Console.Error.WriteLine(e);
+                return (int)ErrorCode.CopyWaveformError;
+            }
+            return (int)ErrorCode.Success;
         }
         catch (Exception e)
         {
             Console.Error.WriteLine(e);
-            return (int)ErrorCode.InvalidHandle;
+            return (int)ErrorCode.InternalError;
         }
-        var chNameStr = Marshal.PtrToStringUTF8(chName);
-        if (chNameStr is null)
-        {
-            return (int)ErrorCode.KeyNotFound;
-        }
-        if (!waveformsDict.TryGetValue(chNameStr, out var waveform))
-        {
-            return (int)ErrorCode.KeyNotFound;
-        }
-        try
-        {
-            var spanI = new Span<float>(bufferI, bufferLen);
-            waveform.DataI.CopyTo(spanI);
-            var spanQ = new Span<float>(bufferQ, bufferLen);
-            waveform.DataQ.CopyTo(spanQ);
-        }
-        catch (Exception e)
-        {
-            Console.Error.WriteLine(e);
-            return (int)ErrorCode.CopyWaveformError;
-        }
-        return (int)ErrorCode.Success;
     }
 
     [UnmanagedCallersOnly(EntryPoint = "Qynit_PulseGen_FreeWaveform")]
     public static int FreeWaveform(IntPtr handle)
     {
-        Dictionary<string, PooledComplexArray<float>> waveformsDict;
         try
         {
-            waveformsDict = (Dictionary<string, PooledComplexArray<float>>)GCHandle.FromIntPtr(handle).Target!;
+            Dictionary<string, PooledComplexArray<float>> waveformsDict;
+            try
+            {
+                waveformsDict = (Dictionary<string, PooledComplexArray<float>>)GCHandle.FromIntPtr(handle).Target!;
+            }
+            catch (Exception e)
+            {
+                Console.Error.WriteLine(e);
+                return (int)ErrorCode.InvalidHandle;
+            }
+            foreach (var waveform in waveformsDict.Values)
+            {
+                waveform.Dispose();
+            }
+            GCHandle.FromIntPtr(handle).Free();
+            return (int)ErrorCode.Success;
         }
         catch (Exception e)
         {
             Console.Error.WriteLine(e);
-            return (int)ErrorCode.InvalidHandle;
+            return (int)ErrorCode.InternalError;
         }
-        foreach (var waveform in waveformsDict.Values)
-        {
-            waveform.Dispose();
-        }
-        GCHandle.FromIntPtr(handle).Free();
-        return (int)ErrorCode.Success;
     }
 
     private static List<PooledComplexArray<float>> GenerateWaveforms(ScheduleRequest request)
