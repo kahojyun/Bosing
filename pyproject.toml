@@ -13,8 +13,13 @@ keywords = []
 authors = [{ name = "kaho", email = "kaho0769@qq.com" }]
 classifiers = [
     "Development Status :: 3 - Alpha",
+    "Programming Language :: C#",
     "Programming Language :: Python",
     "Programming Language :: Python :: Implementation :: CPython",
+    "Programming Language :: Python :: Implementation :: PyPy",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering",
+    "License :: OSI Approved :: MIT License",
 ]
 dependencies = ["numpy", "msgpack", "attrs"]
 
@@ -35,3 +40,15 @@ artifacts = ["*.so", "*.dll"]
 
 [tool.hatch.envs.default]
 dependencies = ["scipy", "matplotlib", "ipython"]
+
+[tool.hatch.envs.docs]
+dependencies = ["sphinx", "furo"]
+
+[tool.hatch.envs.docs.scripts]
+build = "sphinx-build -M html python/docs python/docs/_build"
+clean = "rm -rf python/docs/_build docs/_autosummary"
+
+[tool.hatch.envs.docs.overrides]
+platform.windows.scripts = [
+    'clean=rmdir /s /q python\\docs\\_build python\\docs\\_autosummary',
+]

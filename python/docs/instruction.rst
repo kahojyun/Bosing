@@ -1,7 +1,7 @@
 Instruction
 ===========
 
-.. currentmodule:: pulsegen_client.models
+.. currentmodule:: pulsegen_cs.models
 
 PulseGen 通过一系列的指令控制波形的生成，目前支持的指令有：
 
