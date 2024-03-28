@@ -1,7 +1,7 @@
 Schedule API
 ============
 
-.. currentmodule:: pulsegen_client.models
+.. currentmodule:: pulsegen_cs.models
 
 Schedule API 使用类似 HTML、XAML 的结构来描述波形序列，用户可以定义基础的波形，然后通过组合的方式来构建复杂的波形序列。基础元素有 :doc:`instruction`：
 
@@ -30,12 +30,6 @@ Schedule API 使用类似 HTML、XAML 的结构来描述波形序列，用户可
 
 * :class:`Grid`
     按照定义的 column 宽度排列子元素，类似于 `Grid Layout <https://learn.microsoft.com/en-us/dotnet/maui/user-interface/layouts/grid>`_
-
-使用示例如下：
-
-.. literalinclude:: ../example/schedule.py
-    :language: python
-    :linenos:
 
 
 基础属性
@@ -89,12 +83,10 @@ Absolute 布局
 
 .. code-block:: python
 
-    absolute = Absolute(
-        [
-            Play(...),
-            (1e-9, Play(...)),
-            (2e-9, Stack(...)),
-        ]
+    absolute = Absolute().with_children(
+        Play(...),
+        (1e-9, Play(...)),
+        (2e-9, Stack(...)),
     )
 
 
@@ -107,13 +99,10 @@ Grid 布局
 
 .. code-block:: python
 
-    grid = Grid(
-        [
-            Play(...),
-            (1, Play(...)),
-            (0, 3, Stack(...)),
-        ],
-        columns=["*", "*", "*"],
+    grid = Grid(columns=["*", "*", "*"]).with_children(
+        Play(...),
+        (1, Play(...)),
+        (0, 3, Stack(...)),
     )
 
 .. tip::
@@ -122,7 +111,7 @@ Grid 布局
 
     .. code-block:: python
 
-        grid = Grid(..., columns=["Auto", "*", "2*", 30e-9])
+        grid = Grid(columns=["Auto", "*", "2*", 30e-9])
 
 .. caution:: 
 
@@ -151,7 +140,7 @@ Grid 布局
 波形对齐
 --------
 
-程序在采样包络时会对波形进行对齐，即将波形的起始点对齐到某个单位时间的整数倍。对齐参数在 :meth:`RequestBuilder.add_channel` 的 ``align_level`` 中指定，假设给定值为 :math:`n`，采样间隔为 :math:`\Delta t`，则对齐的单位时间为 :math:`2^n\Delta t`，比如 ``align_level`` 为 -4，则单位时间为 :math:`2^{-4}\Delta t`，即 :math:`\Delta t / 16`。
+程序在采样包络时会对波形进行对齐，即将波形的起始点对齐到某个单位时间的整数倍。对齐参数在 :attr:`ChannelInfo.align_level` 中指定，假设给定值为 :math:`n`，采样间隔为 :math:`\Delta t`，则对齐的单位时间为 :math:`2^n\Delta t`，比如 ``align_level`` 为 -4，则单位时间为 :math:`2^{-4}\Delta t`，即 :math:`\Delta t / 16`。
 
 
 计算结果

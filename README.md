@@ -7,13 +7,12 @@ Waveform generator for superconducting circuits.
 ## Prerequisites
 
 * .NET 8 or higher. Install the latest .NET SDK from [here](https://dotnet.microsoft.com/download/dotnet) or install with Visual Studio.
-* NodeJS
 
 ## Python API
 
 ### Build from source
 
-.NET SDK and NodeJS is required.
+.NET SDK is required.  Ensure `dotnet` cli is in `PATH`.
 
 ```bash
 git clone https://github.com/kahojyun/Qynit.PulseGen.git
@@ -25,12 +24,8 @@ pip install .
 
 Examples can be found in `python/examples`.
 
-## Waveform Viewer
-
-The server provides a simple waveform viewer. When the server is running, open the viewer in your browser with the url `http://localhost:{port}`.
-
-The viewer uses [SciChart.js](https://www.scichart.com/) for plotting. The community edition of SciChart.js is free for **non-commercial** use.
-
 ## Development
 
 Use Visual Studio or Visual Studio Code with the [C# extension](https://marketplace.visualstudio.com/items?itemName=ms-dotnettools.csharp).
+
+Manage python project with [hatch](https://github.com/pypa/hatch).

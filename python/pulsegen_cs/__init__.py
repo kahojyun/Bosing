@@ -1,8 +1,6 @@
-"""This module provides a client for the pulsegen service.
+"""Generates microwave pulses for superconducting quantum computing experiments.
 
-The client can be used to send requests to the pulsegen server and receive the
-result. There are two clients available: a synchronous client and an asynchronous
-client.
+This module wraps the ``Qynit.PulseGen`` C# library.
 
 .. note::
     All phase values are in number of cycles. For example, a phase of 0.25 means
@@ -12,7 +10,7 @@ client.
     This package is still in development and the API may change in the future.
 """
 
-from ._native import generate_waveforms
+from ._utils import generate_waveforms
 from .models import (
     Absolute,
     Alignment,
@@ -37,14 +35,16 @@ from .models import (
 )
 
 __all__ = [
-    "ChannelInfo",
-    "Biquad",
-    "IqCalibration",
-    "Options",
     "Absolute",
     "Alignment",
     "Barrier",
+    "Biquad",
+    "ChannelInfo",
     "Grid",
+    "HannShape",
+    "InterpolatedShape",
+    "IqCalibration",
+    "Options",
     "Play",
     "Repeat",
     "Request",
@@ -54,8 +54,6 @@ __all__ = [
     "ShiftPhase",
     "Stack",
     "SwapPhase",
-    "HannShape",
-    "InterpolatedShape",
     "TriangleShape",
     "generate_waveforms",
 ]

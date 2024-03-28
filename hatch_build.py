@@ -1,7 +1,6 @@
-import platform
+import os
 import shutil
 import subprocess
-import sys
 from typing import Any, Dict, List
 
 from hatchling.builders.hooks.plugin.interface import BuildHookInterface
@@ -55,6 +54,12 @@ def _dotnet_publish(version: str) -> None:
 
 class CustomBuildHook(BuildHookInterface):
     def initialize(self, version: str, build_data: Dict[str, Any]) -> None:
+        # Skip building the C# library when building the docs
+        if (
+            os.environ.get("HATCH_ENV_ACTIVE") == "docs"
+            or os.environ.get("READTHEDOCS") == "True"
+        ):
+            return
         if self.target_name == "wheel":
             _check_dotnet()
             _dotnet_publish(version)

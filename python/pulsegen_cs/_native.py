@@ -6,8 +6,6 @@ from pathlib import Path
 
 import numpy as np
 
-from . import models
-
 if sys.platform == "win32":
     lib_path = Path(__file__).parent / "lib" / "Qynit.PulseGen.Aot.dll"
 else:
@@ -46,7 +44,7 @@ Qynit_PulseGen_Run.argtypes = [
 Qynit_PulseGen_Run.restype = ctypes.c_int
 
 
-def _run(msg: bytes) -> ctypes.c_void_p:
+def run(msg: bytes) -> ctypes.c_void_p:
     handle = ctypes.c_void_p()
     ret = Qynit_PulseGen_Run(msg, len(msg), ctypes.byref(handle))
     if ret != 0:
@@ -67,7 +65,7 @@ Qynit_PulseGen_CopyWaveform.argtypes = [
 Qynit_PulseGen_CopyWaveform.restype = ctypes.c_int
 
 
-def _copy_waveform(
+def copy_waveform(
     handle: ctypes.c_void_p, name: str, length: int
 ) -> typing.Tuple[np.ndarray, np.ndarray]:
     wave_i = np.empty(length, dtype=np.float32)
@@ -88,22 +86,8 @@ Qynit_PulseGen_FreeWaveform.argtypes = [ctypes.c_void_p]
 Qynit_PulseGen_FreeWaveform.restype = ctypes.c_int
 
 
-def _free_waveform(handle: ctypes.c_void_p) -> None:
+def free_waveform(handle: ctypes.c_void_p) -> None:
     ret = Qynit_PulseGen_FreeWaveform(handle)
     if ret != 0:
         err = ErrorCode(ret)
         raise Exception(f"Failed to free waveform, error code: {err}")
-
-
-def generate_waveforms(
-    request: models.Request,
-) -> typing.Dict[str, typing.Tuple[np.ndarray, np.ndarray]]:
-    msg = request.packb()
-    handle = _run(msg)
-    try:
-        waveforms = {}
-        for ch in request.channels:
-            waveforms[ch.name] = _copy_waveform(handle, ch.name, ch.length)
-        return waveforms
-    finally:
-        _free_waveform(handle)

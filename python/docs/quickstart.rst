@@ -4,25 +4,23 @@ Quick Start Guide
 Installation
 ------------
 
-配置运行环境
-^^^^^^^^^^^^
+.. code-block:: console
 
-#.  安装 `.NET 8.0 SDK <https://dotnet.microsoft.com/en-us/download>`_
-#.  安装 Python 3.8 及以上版本
+    $ pip install pulsegen-cs
 
 
-安装 Client
-^^^^^^^^^^^^
+Build from source
+-----------------
 
-#.  安装 ``pulsegen_client``
+#.  Install `.NET 8.0 SDK <https://dotnet.microsoft.com/en-us/download>`_
+#.  Install Python 3.8 or later
+#.  Clone the repository and install the package
 
     .. code-block:: console
 
-        $ git clone https://github.com/kahojyun/pulsegen-client.git
-        $ cd pulsegen-client
-        $ pip install .
-        $ pip install matplotlib
-
+        $ git clone https://github.com/kahojyun/Qynit.PulseGen.git
+        $ cd Qynit.PulseGen
+        $ pip install -e .
 
 Example
 -------
