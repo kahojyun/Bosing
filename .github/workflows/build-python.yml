@@ -81,13 +81,13 @@ jobs:
     #     sudo apt-get update
     #     sudo apt-get install -y clang llvm binutils-aarch64-linux-gnu gcc-aarch64-linux-gnu zlib1g-dev:arm64
     - name: Build wheel
-      run: pip wheel . -w dist --no-deps
+      run: /opt/python/cp312-cp312m/bin/pip wheel . -w dist --no-deps
       env:
         BUILD_TARGET_ARCH: ${{ matrix.arch }}
     - name: Repair wheel
       run: |
-        pip install auditwheel
-        auditwheel repair dist/*.whl
+        /opt/python/cp312-cp312m/bin/pip install auditwheel
+        /opt/python/cp312-cp312m/scripts/auditwheel repair dist/*.whl
     - name: Upload wheel
       uses: actions/upload-artifact@v4
       with:
