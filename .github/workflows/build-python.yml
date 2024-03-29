@@ -11,7 +11,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [ubuntu-20.04, windows-latest, macos-latest]
         arch: [x64, arm64]
 
     runs-on: ${{ matrix.os }}
@@ -48,7 +48,7 @@ jobs:
       run: |
         pip install auditwheel
         auditwheel show dist/*.whl
-        auditwheel repair dist/*.whl
+        auditwheel repair dist/*.whl --plat manylinux_2_28_${{ matrix.arch == 'x64' && 'x86_64' || 'aarch64' }}
     - name: Repair macOS wheel
       if: startsWith(matrix.os, 'macos')
       run: |
