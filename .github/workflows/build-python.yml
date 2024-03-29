@@ -67,7 +67,6 @@ jobs:
       run: |
         export DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1
         dotnet restore
-        pip install hatch
     # - name: Setup cross-compilation
     #   if: startsWith(matrix.arch, 'arm64')
     #   run: |
@@ -82,7 +81,7 @@ jobs:
     #     sudo apt-get update
     #     sudo apt-get install -y clang llvm binutils-aarch64-linux-gnu gcc-aarch64-linux-gnu zlib1g-dev:arm64
     - name: Build wheel
-      run: hatch build -t wheel
+      run: pip wheel . -w dist --no-deps
       env:
         BUILD_TARGET_ARCH: ${{ matrix.arch }}
     - name: Repair wheel
