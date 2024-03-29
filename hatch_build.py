@@ -1,12 +1,16 @@
 import os
 import shutil
 import subprocess
+import sys
+import sysconfig
 from typing import Any, Dict, List
 
 from hatchling.builders.hooks.plugin.interface import BuildHookInterface
 
 SRC_DIR = "src/Qynit.PulseGen.Aot"
 DST_DIR = "python/pulsegen_cs/lib"
+
+BUILD_TARGET_ARCH = os.environ.get("BUILD_TARGET_ARCH")
 
 
 def _check_dotnet() -> None:
@@ -27,10 +31,15 @@ def _check_dotnet() -> None:
 def _dotnet_publish(version: str) -> None:
     if version == "editable":
         configuration = "Debug"
-        ci = "false"
     else:
         configuration = "Release"
-        ci = "true"
+    if BUILD_TARGET_ARCH is None or BUILD_TARGET_ARCH == "":
+        rid = ["--use-current-runtime"]
+    elif BUILD_TARGET_ARCH in ["x64", "arm64"]:
+        rid = ["--arch", BUILD_TARGET_ARCH]
+    else:
+        raise RuntimeError(f"Unsupported architecture: {BUILD_TARGET_ARCH}")
+
     try:
         subprocess.run(
             [
@@ -42,14 +51,39 @@ def _dotnet_publish(version: str) -> None:
                 "--configuration",
                 configuration,
                 "--nologo",
-                "--use-current-runtime",
-                f"-p:ContinuousIntegrationBuild={ci}",
-            ],
+            ]
+            + rid,
             check=True,
         )
     except subprocess.CalledProcessError as e:
         msg = "dotnet publish failed"
         raise RuntimeError(msg) from e
+
+
+def _infer_tag() -> str:
+    if BUILD_TARGET_ARCH is None or BUILD_TARGET_ARCH == "":
+        plat_tag = sysconfig.get_platform().replace("-", "_").replace(".", "_")
+    elif BUILD_TARGET_ARCH == "x64":
+        if sys.platform == "win32":
+            plat_tag = "win_amd64"
+        elif sys.platform == "linux":
+            plat_tag = "manylinux2014_x86_64"
+        elif sys.platform == "darwin":
+            plat_tag = "macosx_10_12_x86_64"
+        else:
+            raise RuntimeError(f"Unsupported platform: {sys.platform}")
+    elif BUILD_TARGET_ARCH == "arm64":
+        if sys.platform == "win32":
+            plat_tag = "win_arm64"
+        elif sys.platform == "linux":
+            plat_tag = "manylinux2014_aarch64"
+        elif sys.platform == "darwin":
+            plat_tag = "macosx_11_0_arm64"
+        else:
+            raise RuntimeError(f"Unsupported platform: {sys.platform}")
+    else:
+        raise RuntimeError(f"Unsupported architecture: {BUILD_TARGET_ARCH}")
+    return f"py3-none-{plat_tag}"
 
 
 class CustomBuildHook(BuildHookInterface):
@@ -63,6 +97,8 @@ class CustomBuildHook(BuildHookInterface):
         if self.target_name == "wheel":
             _check_dotnet()
             _dotnet_publish(version)
+            build_data["pure_python"] = False
+            build_data["tag"] = _infer_tag()
 
     def clean(self, versions: List[str]) -> None:
         shutil.rmtree(DST_DIR, ignore_errors=True)

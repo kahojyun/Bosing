@@ -1,0 +1,56 @@
+name: Build python
+
+on:
+  workflow_dispatch:
+
+jobs:
+  wheel:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        arch: [x64, arm64]
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 8.0.x
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+    - name: Install dependencies
+      run: |
+        dotnet restore
+        pipx install hatch
+    - name: Build wheel
+      run: hatch build -t wheel
+      env:
+        BUILD_TARGET_ARCH: ${{ matrix.arch }}
+    - name: Upload wheel
+      uses: actions/upload-artifact@v4
+      with:
+        name: wheel-${{ matrix.os }}-${{ matrix.arch }}
+        path: dist/*.whl
+
+  sdist:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+    - name: Install dependencies
+      run: pipx install hatch
+    - name: Build sdist
+      run: hatch build -t sdist
+    - name: Upload sdist
+      uses: actions/upload-artifact@v4
+      with:
+        name: sdist
+        path: dist/*.tar.gz
