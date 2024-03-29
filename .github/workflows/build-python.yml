@@ -47,16 +47,18 @@ jobs:
       run: hatch build -t wheel
       env:
         BUILD_TARGET_ARCH: ${{ matrix.arch }}
-    - name: Repair wheel
-      if: startsWith(matrix.os, 'ubuntu')
-      run: |
-        pip install auditwheel
-        auditwheel repair dist/*.whl
+    # - name: Repair wheel
+    #   if: startsWith(matrix.os, 'ubuntu')
+    #   run: |
+    #     pip install auditwheel
+    #     auditwheel repair dist/*.whl
     - name: Upload wheel
       uses: actions/upload-artifact@v4
       with:
         name: wheel-${{ matrix.os }}-${{ matrix.arch }}
-        path: dist/*.whl
+        path: |
+          dist/*.whl
+          artifacts/bin/Qynit.PulseGen.Aot/release/
 
   sdist:
     runs-on: ubuntu-latest
