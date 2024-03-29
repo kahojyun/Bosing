@@ -1,7 +1,10 @@
 name: Build python
 
 on:
-  workflow_dispatch:
+  push:
+
+permissions:
+  contents: read
 
 jobs:
   wheel:
