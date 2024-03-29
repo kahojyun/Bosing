@@ -52,13 +52,16 @@ jobs:
     #   run: |
     #     pip install auditwheel
     #     auditwheel repair dist/*.whl
+    - name: Repair macOS wheel
+      if: startsWith(matrix.os, 'macos')
+      run: |
+        pip install delocate
+        delocate-wheel dist/*.whl
     - name: Upload wheel
       uses: actions/upload-artifact@v4
       with:
         name: wheel-${{ matrix.os }}-${{ matrix.arch }}
-        path: |
-          dist/*.whl
-          artifacts/bin/Qynit.PulseGen.Aot/release/
+        path: dist/*.whl
 
   sdist:
     runs-on: ubuntu-latest
