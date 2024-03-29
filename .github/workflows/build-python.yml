@@ -65,7 +65,7 @@ jobs:
         python-version: '3.12'
     - name: Install dependencies
       run: |
-        DOTNET_SYSTEM_GLOBALIZATION_INVARIANT = 1
+        export DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1
         dotnet restore
         pip install hatch
     # - name: Setup cross-compilation
