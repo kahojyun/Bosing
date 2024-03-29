@@ -28,7 +28,7 @@ def _check_dotnet() -> None:
         raise RuntimeError(msg) from e
 
 
-def _dotnet_publish(version: str) -> None:
+def _dotnet_publish(version: str, build_data: Dict[str, Any]) -> None:
     if version == "editable":
         configuration = "Debug"
     else:
@@ -58,6 +58,12 @@ def _dotnet_publish(version: str) -> None:
     except subprocess.CalledProcessError as e:
         msg = "dotnet publish failed"
         raise RuntimeError(msg) from e
+    if sys.platform == "win32":
+        build_data["artifacts"].append(DST_DIR + "/Qynit.PulseGen.Aot.dll")
+    elif sys.platform == "linux":
+        build_data["artifacts"].append(DST_DIR + "/Qynit.PulseGen.Aot.so")
+    elif sys.platform == "darwin":
+        build_data["artifacts"].append(DST_DIR + "/Qynit.PulseGen.Aot.dylib")
 
 
 def _infer_tag() -> str:
@@ -96,7 +102,7 @@ class CustomBuildHook(BuildHookInterface):
             return
         if self.target_name == "wheel":
             _check_dotnet()
-            _dotnet_publish(version)
+            _dotnet_publish(version, build_data)
             build_data["pure_python"] = False
             build_data["tag"] = _infer_tag()
 
