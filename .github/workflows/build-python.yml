@@ -7,47 +7,108 @@ permissions:
   contents: read
 
 jobs:
-  wheels:
-    name: Build wheels on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
+  # wheel_windows_macos:
+  #   strategy:
+  #     fail-fast: false
+  #     matrix:
+  #       os: [windows-latest, macos-latest]
+  #       arch: [x64, arm64]
+
+  #   runs-on: ${{ matrix.os }}
+
+  #   steps:
+  #   - uses: actions/checkout@v4
+  #   - name: Setup .NET
+  #     uses: actions/setup-dotnet@v4
+  #     with:
+  #       dotnet-version: 8.0.x
+  #   - name: Setup Python
+  #     uses: actions/setup-python@v5
+  #     with:
+  #       python-version: '3.12'
+  #   - name: Install dependencies
+  #     run: |
+  #       dotnet restore
+  #       pip install hatch
+  #   - name: Build wheel
+  #     run: hatch build -t wheel
+  #     env:
+  #       BUILD_TARGET_ARCH: ${{ matrix.arch }}
+  #   - name: Repair macOS wheel
+  #     if: startsWith(matrix.os, 'macos')
+  #     run: |
+  #       pip install delocate
+  #       delocate-wheel -v dist/*.whl
+  #   - name: Upload wheel
+  #     uses: actions/upload-artifact@v4
+  #     with:
+  #       name: wheel-${{ matrix.os }}-${{ matrix.arch }}
+  #       path: dist/*.whl
+    
+  wheel_linux:
     strategy:
+      fail-fast: false
       matrix:
-        # macos-13 is an intel runner, macos-14 is apple silicon
-        os: [ubuntu-latest, windows-latest, macos-13, macos-14]
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Build wheels
-        uses: pypa/cibuildwheel@v2.17.0
-        # env:
-        #   CIBW_SOME_OPTION: value
-        #    ...
-        # with:
-        #   package-dir: .
-        #   output-dir: wheelhouse
-        #   config-file: "{package}/pyproject.toml"
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: cibw-wheels-${{ matrix.os }}-${{ strategy.job-index }}
-          path: ./wheelhouse/*.whl
-
-  sdist:
+        arch: [x64, arm64]
     runs-on: ubuntu-latest
+    container: quay.io/pypa/manylinux_2_28_x86_64
 
     steps:
     - uses: actions/checkout@v4
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 8.0.x
     - name: Setup Python
       uses: actions/setup-python@v5
       with:
         python-version: '3.12'
     - name: Install dependencies
-      run: pipx install hatch
-    - name: Build sdist
-      run: hatch build -t sdist
-    - name: Upload sdist
+      run: |
+        dotnet restore
+        pip install hatch
+    # - name: Setup cross-compilation
+    #   if: startsWith(matrix.arch, 'arm64')
+    #   run: |
+    #     sudo dpkg --add-architecture arm64
+    #     sudo bash -c 'cat > /etc/apt/sources.list.d/arm64.list <<EOF
+    #     deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports/ jammy main restricted
+    #     deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports/ jammy-updates main restricted
+    #     deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports/ jammy-backports main restricted universe multiverse
+    #     EOF'
+    #     sudo sed -i -e 's/deb http/deb [arch=amd64] http/g' /etc/apt/sources.list
+    #     sudo sed -i -e 's/deb mirror/deb [arch=amd64] mirror/g' /etc/apt/sources.list
+    #     sudo apt-get update
+    #     sudo apt-get install -y clang llvm binutils-aarch64-linux-gnu gcc-aarch64-linux-gnu zlib1g-dev:arm64
+    - name: Build wheel
+      run: hatch build -t wheel
+      env:
+        BUILD_TARGET_ARCH: ${{ matrix.arch }}
+    - name: Repair wheel
+      run: |
+        pip install auditwheel
+        auditwheel repair dist/*.whl
+    - name: Upload wheel
       uses: actions/upload-artifact@v4
       with:
-        name: sdist
-        path: dist/*.tar.gz
+        name: wheel-ubuntu-latest-${{ matrix.arch }}
+        path: dist/*.whl
+
+  # sdist:
+  #   runs-on: ubuntu-latest
+
+  #   steps:
+  #   - uses: actions/checkout@v4
+  #   - name: Setup Python
+  #     uses: actions/setup-python@v5
+  #     with:
+  #       python-version: '3.12'
+  #   - name: Install dependencies
+  #     run: pipx install hatch
+  #   - name: Build sdist
+  #     run: hatch build -t sdist
+  #   - name: Upload sdist
+  #     uses: actions/upload-artifact@v4
+  #     with:
+  #       name: sdist
+  #       path: dist/*.tar.gz
