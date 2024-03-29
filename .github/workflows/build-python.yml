@@ -48,7 +48,7 @@ jobs:
       run: |
         pip install auditwheel
         auditwheel show dist/*.whl
-        auditwheel repair dist/*.whl --plat manylinux_2_34_${{ matrix.arch == 'x64' && 'x86_64' || 'aarch64' }}
+        auditwheel repair dist/*.whl --plat manylinux_2_34_x86_64
     - name: Repair macOS wheel
       if: startsWith(matrix.os, 'macos')
       run: |
