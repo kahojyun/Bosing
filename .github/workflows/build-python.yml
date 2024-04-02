@@ -47,8 +47,9 @@ jobs:
       if: startsWith(matrix.os, 'ubuntu')
       run: |
         pip install auditwheel
-        auditwheel show dist/*.whl
-        auditwheel repair dist/*.whl --plat manylinux_2_34_x86_64
+        mv dist dist_unrepaired
+        auditwheel show dist_unrepaired/*.whl
+        auditwheel repair dist_unrepaired/*.whl --plat manylinux_2_34_x86_64 -w dist
     - name: Repair macOS wheel
       if: startsWith(matrix.os, 'macos')
       run: |
