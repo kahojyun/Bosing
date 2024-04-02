@@ -73,7 +73,7 @@ def _infer_tag() -> str:
         if sys.platform == "win32":
             plat_tag = "win_amd64"
         elif sys.platform == "linux":
-            plat_tag = "manylinux_2_34_x86_64"
+            plat_tag = "linux_x86_64"
         elif sys.platform == "darwin":
             plat_tag = "macosx_10_12_x86_64"
         else:
@@ -82,7 +82,7 @@ def _infer_tag() -> str:
         if sys.platform == "win32":
             plat_tag = "win_arm64"
         elif sys.platform == "linux":
-            plat_tag = "manylinux_2_34_aarch64"
+            plat_tag = "linux_aarch64"
         elif sys.platform == "darwin":
             plat_tag = "macosx_11_0_arm64"
         else:
