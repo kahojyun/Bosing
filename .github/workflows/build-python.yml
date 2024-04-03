@@ -6,6 +6,10 @@ on:
 permissions:
   contents: read
 
+concurrency: 
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   wheel:
     strategy:
@@ -22,12 +26,10 @@ jobs:
       uses: actions/setup-dotnet@v4
       with:
         dotnet-version: 8.0.x
-    - name: Setup Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.12'
+    - name: Install build
+      run: python -m pip install --upgrade build
     - name: Build wheel
-      run: pip wheel . --no-deps -w dist
+      run: python -m build --wheel
       env:
         BUILD_TARGET_ARCH: ${{ matrix.arch }}
     - name: Repair macOS wheel
@@ -49,9 +51,10 @@ jobs:
     - name: Build wheels
       uses: pypa/cibuildwheel@v2.17
       env:
-        CIBW_BUILD: "cp3*-manylinux_x86_64"
+        CIBW_BUILD: "*-manylinux_x86_64"
         CIBW_MANYLINUX_X86_64_IMAGE: quay.io/pypa/manylinux_2_28_x86_64
         CIBW_BEFORE_ALL_LINUX: dnf install -y dotnet-sdk-8.0
+        CIBW_BUILD_FRONTEND: build
         CIBW_TEST_SKIP: "*"
     - name: Upload wheel
       uses: actions/upload-artifact@v4
@@ -64,14 +67,10 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
-    - name: Setup Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.12'
-    - name: Install dependencies
-      run: pipx install hatch
+    - name: Install build
+      run: python -m pip install --upgrade build
     - name: Build sdist
-      run: hatch build -t sdist
+      run: python -m build --sdist
     - name: Upload sdist
       uses: actions/upload-artifact@v4
       with:
