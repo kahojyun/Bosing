@@ -13,21 +13,6 @@ DST_DIR = "python/pulsegen_cs/lib"
 BUILD_TARGET_ARCH = os.environ.get("BUILD_TARGET_ARCH")
 
 
-def _check_dotnet() -> None:
-    try:
-        subprocess.run(
-            [
-                "dotnet",
-                "--version",
-            ],
-            check=True,
-            capture_output=True,
-        )
-    except FileNotFoundError as e:
-        msg = "dotnet is not installed"
-        raise RuntimeError(msg) from e
-
-
 def _dotnet_publish(version: str, build_data: Dict[str, Any]) -> None:
     if version == "editable":
         configuration = "Debug"
@@ -55,6 +40,9 @@ def _dotnet_publish(version: str, build_data: Dict[str, Any]) -> None:
         )
     except subprocess.CalledProcessError as e:
         msg = "dotnet publish failed"
+        raise RuntimeError(msg) from e
+    except FileNotFoundError as e:
+        msg = "dotnet is not installed"
         raise RuntimeError(msg) from e
     if sys.platform == "win32":
         build_data["artifacts"].append(DST_DIR + "/Qynit.PulseGen.Aot.dll")
@@ -94,7 +82,6 @@ class CustomBuildHook(BuildHookInterface):
         ):
             return
         if self.target_name == "wheel":
-            _check_dotnet()
             _dotnet_publish(version, build_data)
             build_data["pure_python"] = False
             build_data["tag"] = _infer_tag()
