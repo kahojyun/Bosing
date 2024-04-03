@@ -35,10 +35,8 @@ def _dotnet_publish(version: str, build_data: Dict[str, Any]) -> None:
         configuration = "Release"
     if BUILD_TARGET_ARCH is None or BUILD_TARGET_ARCH == "":
         rid = ["--use-current-runtime"]
-    elif BUILD_TARGET_ARCH in ["x64", "arm64"]:
-        rid = ["--arch", BUILD_TARGET_ARCH]
     else:
-        raise RuntimeError(f"Unsupported architecture: {BUILD_TARGET_ARCH}")
+        rid = ["--arch", BUILD_TARGET_ARCH]
 
     try:
         subprocess.run(
@@ -67,17 +65,14 @@ def _dotnet_publish(version: str, build_data: Dict[str, Any]) -> None:
 
 
 def _infer_tag() -> str:
-    if BUILD_TARGET_ARCH is None or BUILD_TARGET_ARCH == "":
-        plat_tag = sysconfig.get_platform().replace("-", "_").replace(".", "_")
-    elif BUILD_TARGET_ARCH == "x64":
+    plat_tag = None
+    if BUILD_TARGET_ARCH == "x64":
         if sys.platform == "win32":
             plat_tag = "win_amd64"
         elif sys.platform == "linux":
             plat_tag = "linux_x86_64"
         elif sys.platform == "darwin":
             plat_tag = "macosx_10_12_x86_64"
-        else:
-            raise RuntimeError(f"Unsupported platform: {sys.platform}")
     elif BUILD_TARGET_ARCH == "arm64":
         if sys.platform == "win32":
             plat_tag = "win_arm64"
@@ -85,10 +80,8 @@ def _infer_tag() -> str:
             plat_tag = "linux_aarch64"
         elif sys.platform == "darwin":
             plat_tag = "macosx_11_0_arm64"
-        else:
-            raise RuntimeError(f"Unsupported platform: {sys.platform}")
-    else:
-        raise RuntimeError(f"Unsupported architecture: {BUILD_TARGET_ARCH}")
+    if plat_tag is None:
+        plat_tag = sysconfig.get_platform().replace("-", "_").replace(".", "_")
     return f"py3-none-{plat_tag}"
 
 

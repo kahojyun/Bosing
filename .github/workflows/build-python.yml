@@ -7,41 +7,41 @@ permissions:
   contents: read
 
 jobs:
-  # wheel:
-  #   strategy:
-  #     fail-fast: false
-  #     matrix:
-  #       os: [windows-latest, macos-latest]
-  #       arch: [x64, arm64]
+  wheel:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+        arch: [x64, arm64]
 
-  #   runs-on: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
 
-  #   steps:
-  #   - uses: actions/checkout@v4
-  #   - name: Setup .NET
-  #     uses: actions/setup-dotnet@v4
-  #     with:
-  #       dotnet-version: 8.0.x
-  #   - name: Setup Python
-  #     uses: actions/setup-python@v5
-  #     with:
-  #       python-version: '3.12'
-  #   - name: Build wheel
-  #     run: pip wheel . --no-deps -w dist
-  #     env:
-  #       BUILD_TARGET_ARCH: ${{ matrix.arch }}
-  #   - name: Repair macOS wheel
-  #     if: startsWith(matrix.os, 'macos')
-  #     run: |
-  #       pip install delocate
-  #       delocate-wheel -v dist/*.whl
-  #   - name: Upload wheel
-  #     uses: actions/upload-artifact@v4
-  #     with:
-  #       name: wheel-${{ matrix.os }}-${{ matrix.arch }}
-  #       path: dist/*.whl
+    steps:
+    - uses: actions/checkout@v4
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 8.0.x
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+    - name: Build wheel
+      run: pip wheel . --no-deps -w dist
+      env:
+        BUILD_TARGET_ARCH: ${{ matrix.arch }}
+    - name: Repair macOS wheel
+      if: startsWith(matrix.os, 'macos')
+      run: |
+        pip install delocate
+        delocate-wheel -v dist/*.whl
+    - name: Upload wheel
+      uses: actions/upload-artifact@v4
+      with:
+        name: wheel-${{ matrix.os }}-${{ matrix.arch }}
+        path: dist/*.whl
 
-  wheel_linux:
+  wheel-linux:
     runs-on: ubuntu-latest
 
     steps:
@@ -49,8 +49,7 @@ jobs:
     - name: Build wheels
       uses: pypa/cibuildwheel@v2.17
       env:
-        CIBW_SKIP: "*musllinux*"
-        CIBW_ARCHS_LINUX: x86_64
+        CIBW_BUILD: "cp3*-manylinux_x86_64"
         CIBW_MANYLINUX_X86_64_IMAGE: quay.io/pypa/manylinux_2_28_x86_64
         CIBW_BEFORE_ALL_LINUX: dnf install -y dotnet-sdk-8.0
         CIBW_TEST_SKIP: "*"
@@ -60,21 +59,21 @@ jobs:
         name: wheel-manylinux
         path: wheelhouse/*.whl
 
-  # sdist:
-  #   runs-on: ubuntu-latest
+  sdist:
+    runs-on: ubuntu-latest
 
-  #   steps:
-  #   - uses: actions/checkout@v4
-  #   - name: Setup Python
-  #     uses: actions/setup-python@v5
-  #     with:
-  #       python-version: '3.12'
-  #   - name: Install dependencies
-  #     run: pipx install hatch
-  #   - name: Build sdist
-  #     run: hatch build -t sdist
-  #   - name: Upload sdist
-  #     uses: actions/upload-artifact@v4
-  #     with:
-  #       name: sdist
-  #       path: dist/*.tar.gz
+    steps:
+    - uses: actions/checkout@v4
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+    - name: Install dependencies
+      run: pipx install hatch
+    - name: Build sdist
+      run: hatch build -t sdist
+    - name: Upload sdist
+      uses: actions/upload-artifact@v4
+      with:
+        name: sdist
+        path: dist/*.tar.gz
