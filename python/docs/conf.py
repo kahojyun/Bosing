@@ -6,7 +6,7 @@
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
-project = "pulsegen-cs"
+project = "bosing"
 copyright = "2023, Jiahao Yuan"
 author = "Jiahao Yuan"
 
@@ -21,7 +21,7 @@ extensions = [
 ]
 
 autodoc_typehints = "description"
-autodoc_mock_imports = ["pulsegen_cs._native"]
+autodoc_mock_imports = ["bosing._native"]
 autosummary_imported_members = True
 intersphinx_mapping = {"python": ("https://docs.python.org/3", None)}
 

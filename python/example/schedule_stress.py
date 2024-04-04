@@ -1,15 +1,12 @@
-"""An example of using the client to generate a pulse sequence.
-
-.. note::
-
-    The server must be running for this example to work.
+"""An example of using bosing to generate a pulse sequence.
 """
 
 import time
 from itertools import cycle
 
 import numpy as np
-from pulsegen_cs import *
+
+from bosing import *
 
 
 def gen_n(n: int):

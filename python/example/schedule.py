@@ -1,8 +1,4 @@
-"""An example of using the client to generate a pulse sequence.
-
-.. note::
-
-    The server must be running for this example to work.
+"""An example of using bosing to generate a pulse sequence.
 """
 
 import math
@@ -10,8 +6,9 @@ from time import perf_counter
 
 import numpy as np
 from matplotlib import pyplot as plt
-from pulsegen_cs import *
 from scipy import signal
+
+from bosing import *
 
 
 def get_biquad(amp, tau, fs):

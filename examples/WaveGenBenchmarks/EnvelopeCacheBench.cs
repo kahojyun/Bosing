@@ -1,6 +1,6 @@
 using BenchmarkDotNet.Attributes;
 
-using Qynit.PulseGen;
+using Bosing;
 
 namespace WaveGenBenchmarks;
 

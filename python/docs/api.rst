@@ -5,4 +5,4 @@ API Reference
    :toctree: _autosummary
    :recursive:
 
-   pulsegen_cs
+   bosing

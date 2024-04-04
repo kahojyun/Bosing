@@ -2,7 +2,7 @@ using System.Numerics;
 
 using BenchmarkDotNet.Attributes;
 
-using Qynit.PulseGen;
+using Bosing;
 
 namespace WaveGenBenchmarks;
 public class WaveformUtilsBench

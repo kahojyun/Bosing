@@ -1,0 +1,62 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.4.33213.308
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Bosing", "src\Bosing\Bosing.csproj", "{8A71F7BA-E700-4DA3-BBE7-5E7C866466B8}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{3EBAD22F-230A-4BCB-B16C-A9063E2A4E9A}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{7BEC5D1A-5E54-40A4-B7F6-067F81829321}"
+	ProjectSection(SolutionItems) = preProject
+		.editorconfig = .editorconfig
+		Directory.Build.props = Directory.Build.props
+		exclusion.dic = exclusion.dic
+	EndProjectSection
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Bosing.Tests", "tests\Bosing.Tests\Bosing.Tests.csproj", "{33659EDC-29F9-45DB-A9FA-E01E648BE4B9}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{3B8B8B3E-9095-4A7E-9309-661439C30D9A}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "examples", "examples", "{6741804E-962A-4762-B289-CD4899A62AD8}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "WaveGenBenchmarks", "examples\WaveGenBenchmarks\WaveGenBenchmarks.csproj", "{ECE2579D-700C-4BB3-9009-F35395177B7A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Bosing.Aot", "src\Bosing.Aot\Bosing.Aot.csproj", "{50443AA3-B148-4D75-87EE-55AFB5A53D69}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{8A71F7BA-E700-4DA3-BBE7-5E7C866466B8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8A71F7BA-E700-4DA3-BBE7-5E7C866466B8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8A71F7BA-E700-4DA3-BBE7-5E7C866466B8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8A71F7BA-E700-4DA3-BBE7-5E7C866466B8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{33659EDC-29F9-45DB-A9FA-E01E648BE4B9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{33659EDC-29F9-45DB-A9FA-E01E648BE4B9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{33659EDC-29F9-45DB-A9FA-E01E648BE4B9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{33659EDC-29F9-45DB-A9FA-E01E648BE4B9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{ECE2579D-700C-4BB3-9009-F35395177B7A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{ECE2579D-700C-4BB3-9009-F35395177B7A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{ECE2579D-700C-4BB3-9009-F35395177B7A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{ECE2579D-700C-4BB3-9009-F35395177B7A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{50443AA3-B148-4D75-87EE-55AFB5A53D69}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{50443AA3-B148-4D75-87EE-55AFB5A53D69}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{50443AA3-B148-4D75-87EE-55AFB5A53D69}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{50443AA3-B148-4D75-87EE-55AFB5A53D69}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{8A71F7BA-E700-4DA3-BBE7-5E7C866466B8} = {3EBAD22F-230A-4BCB-B16C-A9063E2A4E9A}
+		{33659EDC-29F9-45DB-A9FA-E01E648BE4B9} = {3B8B8B3E-9095-4A7E-9309-661439C30D9A}
+		{ECE2579D-700C-4BB3-9009-F35395177B7A} = {6741804E-962A-4762-B289-CD4899A62AD8}
+		{50443AA3-B148-4D75-87EE-55AFB5A53D69} = {3EBAD22F-230A-4BCB-B16C-A9063E2A4E9A}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {1DC52AEE-D9FC-4B2F-9492-0C92B0479A3C}
+	EndGlobalSection
+EndGlobal
