@@ -7,8 +7,8 @@ from typing import Any, Dict, List
 
 from hatchling.builders.hooks.plugin.interface import BuildHookInterface
 
-SRC_DIR = "src/Qynit.PulseGen.Aot"
-DST_DIR = "python/pulsegen_cs/lib"
+SRC_DIR = "src/Bosing.Aot"
+DST_DIR = "python/bosing/lib"
 
 BUILD_TARGET_ARCH = os.environ.get("BUILD_TARGET_ARCH")
 
@@ -45,11 +45,11 @@ def _dotnet_publish(version: str, build_data: Dict[str, Any]) -> None:
         msg = "dotnet is not installed"
         raise RuntimeError(msg) from e
     if sys.platform == "win32":
-        build_data["artifacts"].append(DST_DIR + "/Qynit.PulseGen.Aot.dll")
+        build_data["artifacts"].append(DST_DIR + "/Bosing.Aot.dll")
     elif sys.platform == "linux":
-        build_data["artifacts"].append(DST_DIR + "/Qynit.PulseGen.Aot.so")
+        build_data["artifacts"].append(DST_DIR + "/Bosing.Aot.so")
     elif sys.platform == "darwin":
-        build_data["artifacts"].append(DST_DIR + "/Qynit.PulseGen.Aot.dylib")
+        build_data["artifacts"].append(DST_DIR + "/Bosing.Aot.dylib")
 
 
 def _infer_tag() -> str:

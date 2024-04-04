@@ -6,7 +6,7 @@ Installation
 
 .. code-block:: console
 
-    $ pip install pulsegen-cs
+    $ pip install bosing
 
 
 Build from source
@@ -18,8 +18,8 @@ Build from source
 
     .. code-block:: console
 
-        $ git clone https://github.com/kahojyun/Qynit.PulseGen.git
-        $ cd Qynit.PulseGen
+        $ git clone https://github.com/kahojyun/Bosing.git
+        $ cd Bosing
         $ pip install -e .
 
 Example

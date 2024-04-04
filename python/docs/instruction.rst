@@ -1,9 +1,9 @@
 Instruction
 ===========
 
-.. currentmodule:: pulsegen_cs.models
+.. currentmodule:: bosing.models
 
-PulseGen 通过一系列的指令控制波形的生成，目前支持的指令有：
+Bosing 通过一系列的指令控制波形的生成，目前支持的指令有：
 
 :class:`Play`
     在指定通道上添加波形

@@ -9,7 +9,8 @@ import time
 from itertools import cycle
 
 import numpy as np
-from pulsegen_cs import *
+
+from bosing import *
 
 
 def gen_n(n: int):

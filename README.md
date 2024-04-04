@@ -1,4 +1,4 @@
-# Qynit.PulseGen
+# Bosing
 
 Waveform generator for superconducting circuits.
 
@@ -15,8 +15,8 @@ Waveform generator for superconducting circuits.
 .NET SDK is required.  Ensure `dotnet` cli is in `PATH`.
 
 ```bash
-git clone https://github.com/kahojyun/Qynit.PulseGen.git
-cd Qynit.PulseGen
+git clone https://github.com/kahojyun/Bosing.git
+cd Bosing
 pip install .
 ```
 

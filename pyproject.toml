@@ -3,9 +3,9 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "pulsegen-cs"
+name = "bosing"
 dynamic = ["version"]
-description = "Bindings for Qynit.PulseGen"
+description = "Waveform generator for pulse sequences in quantum computing"
 readme = "README.md"
 requires-python = ">=3.8"
 license = "MIT"
@@ -24,9 +24,9 @@ classifiers = [
 dependencies = ["numpy", "msgpack", "attrs"]
 
 [project.urls]
-Documentation = "https://github.com/kahojyun/Qynit.PulseGen#readme"
-Issues = "https://github.com/kahojyun/Qynit.PulseGen/issues"
-Source = "https://github.com/kahojyun/Qynit.PulseGen"
+Documentation = "https://github.com/kahojyun/Bosing#readme"
+Issues = "https://github.com/kahojyun/Bosing/issues"
+Source = "https://github.com/kahojyun/Bosing"
 
 [tool.hatch.version]
 path = "VERSION.txt"
@@ -35,7 +35,7 @@ pattern = "(?P<version>.*)"
 [tool.hatch.build.hooks.custom]
 
 [tool.hatch.build.targets.wheel]
-packages = ["python/pulsegen_cs"]
+packages = ["python/bosing"]
 
 [tool.hatch.envs.default]
 dependencies = ["scipy", "matplotlib", "ipython"]
