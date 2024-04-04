@@ -51,3 +51,15 @@ clean = "rm -rf python/docs/_build docs/_autosummary"
 platform.windows.scripts = [
     'clean=rmdir /s /q python\\docs\\_build python\\docs\\_autosummary',
 ]
+
+[tool.hatch.envs.tests]
+dependencies = ["pytest"]
+
+[tool.hatch.envs.tests.scripts]
+run = "pytest {args}"
+
+[tool.pytest.ini_options]
+addopts = [
+    "--import-mode=importlib",
+]
+testpaths = ["python/tests"]
