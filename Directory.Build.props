@@ -3,4 +3,7 @@
     <Version>$([System.IO.File]::ReadAllText("$(MSBuildThisFileDirectory)VERSION.txt"))</Version>
     <UseArtifactsOutput>true</UseArtifactsOutput>
   </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="DotNet.ReproducibleBuilds" Version="1.1.1" PrivateAssets="All"/>
+  </ItemGroup>
 </Project>

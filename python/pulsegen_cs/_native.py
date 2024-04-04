@@ -8,8 +8,12 @@ import numpy as np
 
 if sys.platform == "win32":
     lib_path = Path(__file__).parent / "lib" / "Qynit.PulseGen.Aot.dll"
-else:
+elif sys.platform == "linux":
     lib_path = Path(__file__).parent / "lib" / "Qynit.PulseGen.Aot.so"
+elif sys.platform == "darwin":
+    lib_path = Path(__file__).parent / "lib" / "Qynit.PulseGen.Aot.dylib"
+else:
+    raise Exception(f"Unsupported platform: {sys.platform}")
 
 lib = ctypes.cdll.LoadLibrary(str(lib_path.resolve()))
 

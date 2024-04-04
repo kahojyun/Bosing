@@ -36,7 +36,6 @@ pattern = "(?P<version>.*)"
 
 [tool.hatch.build.targets.wheel]
 packages = ["python/pulsegen_cs"]
-artifacts = ["*.so", "*.dll"]
 
 [tool.hatch.envs.default]
 dependencies = ["scipy", "matplotlib", "ipython"]
