@@ -1,8 +1,4 @@
-"""An example of using the client to generate a pulse sequence.
-
-.. note::
-
-    The server must be running for this example to work.
+"""An example of using bosing to generate a pulse sequence.
 """
 
 import math
