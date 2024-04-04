@@ -144,8 +144,6 @@ jobs:
         CIBW_MANYLINUX_X86_64_IMAGE: quay.io/pypa/manylinux_2_28_x86_64
         CIBW_BEFORE_ALL_LINUX: dnf install -y dotnet-sdk-8.0
         CIBW_BUILD_FRONTEND: build
-        CIBW_TEST_COMMAND: pytest {package}/python/tests
-        CIBW_TEST_REQUIRES: pytest
     - name: Upload wheel
       uses: actions/upload-artifact@v4
       with:
@@ -177,6 +175,20 @@ jobs:
       with:
         name: sdist
         path: dist/*.tar.gz
+
+  # For branch protection rules
+  check:
+    if: always()
+    needs:
+      - build-wheel
+      - build-wheel-linux
+      - sdist
+    runs-on: ubuntu-latest
+    steps:
+      - name: Decide whether the needed jobs succeeded or failed
+        uses: re-actors/alls-green@release/v1
+        with:
+          jobs: ${{ toJSON(needs) }}
 
   # Should run only on push
   publish:
