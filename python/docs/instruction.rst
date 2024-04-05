@@ -14,10 +14,10 @@ Bosing 通过一系列的指令控制波形的生成，目前支持的指令有�
 :class:`SetPhase`
     设置指定通道的相位
 
-:class:`ShiftFrequency`
+:class:`ShiftFreq`
     偏置指定通道的频率
 
-:class:`SetFrequency`
+:class:`SetFreq`
     设置指定通道的频率
 
 :class:`SwapPhase`
@@ -46,7 +46,7 @@ Bosing 通过一系列的指令控制波形的生成，目前支持的指令有�
 
     \phi_p(t) = \phi_c(t) + 2\pi f_p (t - \tau)
 
-目前 :class:`ShiftFrequency` 指令与 :class:`SetFrequency` 指令改变的是 :math:`f_a`，并且会令额外相位 :math:`\phi_a(t)` 在给定时刻 :math:`\tau` 连续：
+目前 :class:`ShiftFreq` 指令与 :class:`SetFreq` 指令改变的是 :math:`f_a`，并且会令额外相位 :math:`\phi_a(t)` 在给定时刻 :math:`\tau` 连续：
 
 .. math::
 

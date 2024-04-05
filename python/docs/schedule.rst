@@ -8,8 +8,8 @@ Schedule API 使用类似 HTML、XAML 的结构来描述波形序列，用户可
 * :class:`Play`
 * :class:`ShiftPhase`
 * :class:`SetPhase`
-* :class:`ShiftFrequency`
-* :class:`SetFrequency`
+* :class:`ShiftFreq`
+* :class:`SetFreq`
 * :class:`SwapPhase`
 
 另外还有：
@@ -140,7 +140,7 @@ Grid 布局
 波形对齐
 --------
 
-程序在采样包络时会对波形进行对齐，即将波形的起始点对齐到某个单位时间的整数倍。对齐参数在 :attr:`ChannelInfo.align_level` 中指定，假设给定值为 :math:`n`，采样间隔为 :math:`\Delta t`，则对齐的单位时间为 :math:`2^n\Delta t`，比如 ``align_level`` 为 -4，则单位时间为 :math:`2^{-4}\Delta t`，即 :math:`\Delta t / 16`。
+程序在采样包络时会对波形进行对齐，即将波形的起始点对齐到某个单位时间的整数倍。对齐参数在 :attr:`Channel.align_level` 中指定，假设给定值为 :math:`n`，采样间隔为 :math:`\Delta t`，则对齐的单位时间为 :math:`2^n\Delta t`，比如 ``align_level`` 为 -4，则单位时间为 :math:`2^{-4}\Delta t`，即 :math:`\Delta t / 16`。
 
 
 计算结果

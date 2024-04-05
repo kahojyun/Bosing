@@ -122,7 +122,7 @@ class IqCalibration(MsgObject):
 
 
 @_attrs.frozen
-class ChannelInfo(MsgObject):
+class Channel(MsgObject):
     """Information about a channel.
 
     :param name: The name of the channel.
@@ -145,22 +145,13 @@ class ChannelInfo(MsgObject):
     """The delay of the channel."""
     length: int
     """The length of the channel."""
-    align_level: int
+    align_level: int = -10
     """The alignment level of the channel."""
     iq_calibration: _typing.Optional[IqCalibration] = None
     iir: _typing.List[Biquad] = _attrs.field(factory=list, converter=list)
     """The biquad filter chain of the channel."""
     fir: _typing.List[float] = _attrs.field(factory=list, converter=list)
     """The FIR filter of the channel."""
-
-
-class DataType(_enum.Enum):
-    """Data types for waveforms."""
-
-    FLOAT32 = 0
-    """32-bit floating point."""
-    FLOAT64 = 1
-    """64-bit floating point."""
 
 
 @_attrs.frozen
@@ -220,28 +211,21 @@ class ShapeInfo(UnionObject):
 
 
 @_attrs.frozen
-class HannShape(ShapeInfo):
+class Hann(ShapeInfo):
     """A Hann shape."""
 
     TYPE_ID = 0
 
 
 @_attrs.frozen
-class TriangleShape(ShapeInfo):
-    """A triangle shape."""
-
-    TYPE_ID = 1
-
-
-@_attrs.frozen
-class InterpolatedShape(ShapeInfo):
+class Interp(ShapeInfo):
     """An interpolated shape.
 
     :param x_array: The x values of the shape.
     :param y_array: The y values of the shape.
     """
 
-    TYPE_ID = 2
+    TYPE_ID = 1
 
     x_array: _typing.List[float] = _attrs.field(converter=list)
     """The x values of the shape."""
@@ -389,7 +373,7 @@ class SetPhase(Element):
 
 
 @_attrs.frozen
-class ShiftFrequency(Element):
+class ShiftFreq(Element):
     """A frequency shift element.
 
     :param channel_id: Target channel ID.
@@ -414,7 +398,7 @@ class ShiftFrequency(Element):
 
 
 @_attrs.frozen
-class SetFrequency(Element):
+class SetFreq(Element):
     """A frequency set element.
 
     :param channel_id: Target channel ID.
@@ -451,7 +435,7 @@ class SwapPhase(Element):
         \\phi = (f + \\Delta f) t + \\phi_0
 
     where :math:`f` is the frequency defined in
-    :class:`bosing.models.ChannelInfo`, :math:`\\Delta f` is the
+    :class:`bosing.models.Channel`, :math:`\\Delta f` is the
     frequency shift due to :class:`ShiftFrequency`, and :math:`\\phi_0` is the
     phase offset due to :class:`ShiftPhase` and other phase instructions.
 
@@ -851,7 +835,7 @@ class Request(MsgObject):
     :param options: Options for the Bosing service.
     """
 
-    channels: _typing.List[ChannelInfo] = _attrs.field(converter=list)
+    channels: _typing.List[Channel] = _attrs.field(converter=list)
     """Information about the channels used in the schedule."""
     shapes: _typing.List[ShapeInfo] = _attrs.field(converter=list)
     """Information about the shapes used in the schedule."""
