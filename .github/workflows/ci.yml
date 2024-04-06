@@ -70,8 +70,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          # TODO: Set to false to actually publish
-          dry-run: true
           plugins: |
             [
               "@semantic-release/commit-analyzer",
@@ -80,9 +78,7 @@ jobs:
             ]
     outputs:
       version: ${{ steps.semantic-release.outputs.release-version || '0.0.0-dev' }}
-      # TODO: Set to true to actually publish
-      # published: ${{ steps.semantic-release.outputs.new-release-published || 'false' }}
-      published: 'false'
+      published: ${{ steps.semantic-release.outputs.new-release-published || 'false' }}
 
   # Should run on every push and PR
   build-wheel:
@@ -210,6 +206,3 @@ jobs:
           path: dist
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          # TODO: Switch to pypi when ready
-          repository-url: https://test.pypi.org/legacy/
