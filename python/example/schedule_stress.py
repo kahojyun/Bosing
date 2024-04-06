@@ -15,9 +15,9 @@ def gen_n(n: int):
     nu = 2 * nxy
     nm = nxy // 8
     channels = (
-        [Channel(f"xy{i}", 3e6 * i, 2e9, 0, 100000, -10) for i in range(nxy)]
-        + [Channel(f"u{i}", 0, 2e9, 0, 100000, -10) for i in range(nu)]
-        + [Channel(f"m{i}", 0, 2e9, 0, 100000, 0) for i in range(nm)]
+        [Channel(f"xy{i}", 3e6 * i, 2e9, 100000) for i in range(nxy)]
+        + [Channel(f"u{i}", 0, 2e9, 100000) for i in range(nu)]
+        + [Channel(f"m{i}", 0, 2e9, 100000) for i in range(nm)]
     )
     c = {ch.name: i for i, ch in enumerate(channels)}
     halfcos = np.sin(np.linspace(0, np.pi, 10))
