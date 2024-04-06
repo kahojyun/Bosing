@@ -36,15 +36,13 @@ if __name__ == "__main__":
             "xy0",
             0,
             2e9,
-            0,
             100000,
-            -10,
             iq_calibration=get_iq_calibration(1.1, math.pi / 3, 0, 0),
         ),
-        Channel("xy1", 0, 2e9, 0, 100000, -10),
-        Channel("u0", 0, 2e9, 0, 100000, -10, iir=[bq]),
-        Channel("u1", 0, 2e9, 0, 100000, -10, iir=[bq], fir=fir),
-        Channel("m0", 0, 2e9, 0, 100000, 0),
+        Channel("xy1", 0, 2e9, 100000),
+        Channel("u0", 0, 2e9, 100000, iir=[bq]),
+        Channel("u1", 0, 2e9, 100000, iir=[bq], fir=fir),
+        Channel("m0", 0, 2e9, 100000),
     ]
     c = {ch.name: i for i, ch in enumerate(channels)}
     halfcos = np.sin(np.linspace(0, np.pi, 10))

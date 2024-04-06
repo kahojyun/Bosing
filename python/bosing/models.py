@@ -102,8 +102,8 @@ class Channel(MsgObject):
     name: str
     base_freq: float
     sample_rate: float
-    delay: float
     length: int
+    delay: float = 0
     align_level: int = -10
     iq_calibration: _typing.Optional[IqCalibration] = None
     iir: _typing.List[Biquad] = _attrs.field(factory=list, converter=list)
