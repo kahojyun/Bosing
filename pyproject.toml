@@ -44,7 +44,7 @@ dependencies = ["scipy", "matplotlib", "ipython"]
 dependencies = ["sphinx", "furo"]
 
 [tool.hatch.envs.docs.scripts]
-build = "sphinx-build -M html python/docs python/docs/_build"
+build = "sphinx-build -M html python/docs python/docs/_build {args}"
 clean = "rm -rf python/docs/_build docs/_autosummary"
 
 [tool.hatch.envs.docs.overrides]
@@ -52,10 +52,13 @@ platform.windows.scripts = [
     'clean=rmdir /s /q python\\docs\\_build python\\docs\\_autosummary',
 ]
 
-[tool.hatch.envs.tests]
+[tool.hatch.envs.test]
 dependencies = ["pytest"]
 
-[tool.hatch.envs.tests.scripts]
+[[tool.hatch.envs.test.matrix]]
+python = ["3.8", "3.9", "3.10", "3.11", "3.12"]
+
+[tool.hatch.envs.test.scripts]
 run = "pytest {args}"
 
 [tool.pytest.ini_options]

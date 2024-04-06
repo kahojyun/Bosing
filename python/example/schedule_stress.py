@@ -15,15 +15,15 @@ def gen_n(n: int):
     nu = 2 * nxy
     nm = nxy // 8
     channels = (
-        [ChannelInfo(f"xy{i}", 3e6 * i, 2e9, 0, 100000, -10) for i in range(nxy)]
-        + [ChannelInfo(f"u{i}", 0, 2e9, 0, 100000, -10) for i in range(nu)]
-        + [ChannelInfo(f"m{i}", 0, 2e9, 0, 100000, 0) for i in range(nm)]
+        [Channel(f"xy{i}", 3e6 * i, 2e9, 0, 100000, -10) for i in range(nxy)]
+        + [Channel(f"u{i}", 0, 2e9, 0, 100000, -10) for i in range(nu)]
+        + [Channel(f"m{i}", 0, 2e9, 0, 100000, 0) for i in range(nm)]
     )
     c = {ch.name: i for i, ch in enumerate(channels)}
     halfcos = np.sin(np.linspace(0, np.pi, 10))
     shapes = [
-        HannShape(),
-        InterpolatedShape(np.linspace(-0.5, 0.5, 10), halfcos),
+        Hann(),
+        Interp(np.linspace(-0.5, 0.5, 10), halfcos),
     ]
     s = {"hann": 0, "rect": -1, "halfcos": 1}
 
@@ -57,9 +57,7 @@ def gen_n(n: int):
         measure,
     )
 
-    job = Request(channels, shapes, schedule)
-
-    _ = generate_waveforms(job)
+    _ = generate_waveforms(channels, shapes, schedule)
 
     t1 = time.perf_counter()
     print(f"Time: {t1-t0:.3f}s")

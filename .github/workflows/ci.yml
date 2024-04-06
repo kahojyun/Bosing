@@ -46,7 +46,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install hatch
       - name: Test
-        run: hatch run tests:run 
+        run: hatch run test:run 
 
   # Should run on every push and PR, but only run semantic-release on push
   release:

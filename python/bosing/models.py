@@ -52,25 +52,13 @@ class UnionObject(MsgObject):
 
 @_attrs.frozen
 class Biquad(MsgObject):
-    """A biquad filter.
-
-    :param b0: The b0 coefficient.
-    :param b1: The b1 coefficient.
-    :param b2: The b2 coefficient.
-    :param a1: The a1 coefficient.
-    :param a2: The a2 coefficient.
-    """
+    """A biquad filter."""
 
     b0: float
-    """The b0 coefficient."""
     b1: float
-    """The b1 coefficient."""
     b2: float
-    """The b2 coefficient."""
     a1: float
-    """The a1 coefficient."""
     a2: float
-    """The a2 coefficient."""
 
 
 @_attrs.frozen
@@ -97,70 +85,29 @@ class IqCalibration(MsgObject):
             i_{offset} \\\\
             q_{offset}
         \\end{bmatrix}
-
-    
-    :param a: The a coefficient.
-    :param b: The b coefficient.
-    :param c: The c coefficient.
-    :param d: The d coefficient.
-    :param i_offset: The I offset.
-    :param q_offset: The Q offset.
     """
 
     a: float
-    """The a coefficient."""
     b: float
-    """The b coefficient."""
     c: float
-    """The c coefficient."""
     d: float
-    """The d coefficient."""
     i_offset: float = 0
-    """The I offset."""
     q_offset: float = 0
-    """The Q offset."""
 
 
 @_attrs.frozen
-class ChannelInfo(MsgObject):
-    """Information about a channel.
-
-    :param name: The name of the channel.
-    :param base_freq: The base frequency of the channel.
-    :param sample_rate: The sample rate of the channel.
-    :param delay: The delay of the channel.
-    :param length: The length of the channel.
-    :param align_level: The alignment level of the channel.
-    :param iir: The biquad filter chain of the channel.
-    :param fir: The FIR filter of the channel.
-    """
+class Channel(MsgObject):
+    """Information about a channel."""
 
     name: str
-    """The name of the channel."""
     base_freq: float
-    """The base frequency of the channel."""
     sample_rate: float
-    """The sample rate of the channel."""
     delay: float
-    """The delay of the channel."""
     length: int
-    """The length of the channel."""
-    align_level: int
-    """The alignment level of the channel."""
+    align_level: int = -10
     iq_calibration: _typing.Optional[IqCalibration] = None
     iir: _typing.List[Biquad] = _attrs.field(factory=list, converter=list)
-    """The biquad filter chain of the channel."""
     fir: _typing.List[float] = _attrs.field(factory=list, converter=list)
-    """The FIR filter of the channel."""
-
-
-class DataType(_enum.Enum):
-    """Data types for waveforms."""
-
-    FLOAT32 = 0
-    """32-bit floating point."""
-    FLOAT64 = 1
-    """64-bit floating point."""
 
 
 @_attrs.frozen
@@ -174,13 +121,9 @@ class Options(MsgObject):
     """
 
     time_tolerance: float = 1e-12
-    """The time tolerance of the scheduler."""
     amp_tolerance: float = 0.1 / 2**16
-    """The amplitude tolerance in waveform calculation."""
     phase_tolerance: float = 1e-4
-    """The phase tolerance in waveform calculation."""
     allow_oversize: bool = False
-    """Whether to allow arranging schedules with duration shorter than desired."""
 
 
 class Alignment(_enum.Enum):
@@ -220,33 +163,20 @@ class ShapeInfo(UnionObject):
 
 
 @_attrs.frozen
-class HannShape(ShapeInfo):
+class Hann(ShapeInfo):
     """A Hann shape."""
 
     TYPE_ID = 0
 
 
 @_attrs.frozen
-class TriangleShape(ShapeInfo):
-    """A triangle shape."""
+class Interp(ShapeInfo):
+    """An interpolated shape."""
 
     TYPE_ID = 1
 
-
-@_attrs.frozen
-class InterpolatedShape(ShapeInfo):
-    """An interpolated shape.
-
-    :param x_array: The x values of the shape.
-    :param y_array: The y values of the shape.
-    """
-
-    TYPE_ID = 2
-
     x_array: _typing.List[float] = _attrs.field(converter=list)
-    """The x values of the shape."""
     y_array: _typing.List[float] = _attrs.field(converter=list)
-    """The y values of the shape."""
 
 
 @_attrs.frozen
@@ -270,19 +200,13 @@ class Element(UnionObject):
     margin: _typing.Tuple[float, float] = _attrs.field(
         kw_only=True, default=(0, 0), converter=_convert_margin
     )
-    """The margin of the element."""
     alignment: Alignment = _attrs.field(
         kw_only=True, default=Alignment.END, converter=_convert_alignment
     )
-    """The alignment of the element."""
     visibility: bool = _attrs.field(kw_only=True, default=True)
-    """Whether the element has effect on the output."""
     duration: _typing.Optional[float] = _attrs.field(kw_only=True, default=None)
-    """Requested duration of the element."""
     max_duration: float = _attrs.field(kw_only=True, default=_math.inf)
-    """Maximum duration of the element."""
     min_duration: float = _attrs.field(kw_only=True, default=0)
-    """Minimum duration of the element."""
 
 
 @_attrs.frozen
@@ -302,37 +226,19 @@ class Play(Element):
     :param frequency: The frequency of the pulse.
     :param phase: The phase of the pulse in **cycles**.
     :param flexible: Whether the pulse can be shortened or extended.
-
-    :param margin: The margin of the element. If a single value is given, it is
-        used for both sides.
-    :type margin: float | tuple[float, float]
-    :param alignment: The alignment of the element.
-    :param visibility: Whether the element has effect on the output.
-    :param duration: Requested duration of the element.
-    :param max_duration: Maximum duration of the element.
-    :param min_duration: Minimum duration of the element.
     """
 
     TYPE_ID = 0
 
     channel_id: int
-    """Target channel ID."""
     amplitude: float
-    """The amplitude of the pulse."""
     shape_id: int
-    """The shape ID of the pulse."""
     width: float
-    """The width of the pulse."""
     plateau: float = _attrs.field(kw_only=True, default=0)
-    """The plateau of the pulse."""
     drag_coef: float = _attrs.field(kw_only=True, default=0)
-    """The drag coefficient of the pulse."""
     frequency: float = _attrs.field(kw_only=True, default=0)
-    """The frequency of the pulse."""
     phase: float = _attrs.field(kw_only=True, default=0)
-    """The phase of the pulse in **cycles**."""
     flexible: bool = _attrs.field(kw_only=True, default=False)
-    """Whether the plateau can be shortened or extended."""
 
 
 @_attrs.frozen
@@ -341,23 +247,12 @@ class ShiftPhase(Element):
 
     :param channel_id: Target channel ID.
     :param phase: Delta phase in **cycles**.
-
-    :param margin: The margin of the element. If a single value is given, it is
-        used for both sides.
-    :type margin: float | tuple[float, float]
-    :param alignment: The alignment of the element.
-    :param visibility: Whether the element has effect on the output.
-    :param duration: Requested duration of the element.
-    :param max_duration: Maximum duration of the element.
-    :param min_duration: Minimum duration of the element.
     """
 
     TYPE_ID = 1
 
     channel_id: int
-    """Target channel ID."""
     phase: float
-    """Delta phase in **cycles**."""
 
 
 @_attrs.frozen
@@ -369,73 +264,40 @@ class SetPhase(Element):
 
     :param channel_id: Target channel ID.
     :param phase: Target phase in **cycles**.
-
-    :param margin: The margin of the element. If a single value is given, it is
-        used for both sides.
-    :type margin: float | tuple[float, float]
-    :param alignment: The alignment of the element.
-    :param visibility: Whether the element has effect on the output.
-    :param duration: Requested duration of the element.
-    :param max_duration: Maximum duration of the element.
-    :param min_duration: Minimum duration of the element.
     """
 
     TYPE_ID = 2
 
     channel_id: int
-    """Target channel ID."""
     phase: float
-    """Target phase in **cycles**."""
 
 
 @_attrs.frozen
-class ShiftFrequency(Element):
+class ShiftFreq(Element):
     """A frequency shift element.
 
     :param channel_id: Target channel ID.
     :param frequency: Delta frequency.
-
-    :param margin: The margin of the element. If a single value is given, it is
-        used for both sides.
-    :type margin: float | tuple[float, float]
-    :param alignment: The alignment of the element.
-    :param visibility: Whether the element has effect on the output.
-    :param duration: Requested duration of the element.
-    :param max_duration: Maximum duration of the element.
-    :param min_duration: Minimum duration of the element.
     """
 
     TYPE_ID = 3
 
     channel_id: int
-    """Target channel ID."""
     frequency: float
-    """Delta frequency."""
 
 
 @_attrs.frozen
-class SetFrequency(Element):
+class SetFreq(Element):
     """A frequency set element.
 
     :param channel_id: Target channel ID.
     :param frequency: Target frequency.
-
-    :param margin: The margin of the element. If a single value is given, it is
-        used for both sides.
-    :type margin: float | tuple[float, float]
-    :param alignment: The alignment of the element.
-    :param visibility: Whether the element has effect on the output.
-    :param duration: Requested duration of the element.
-    :param max_duration: Maximum duration of the element.
-    :param min_duration: Minimum duration of the element.
     """
 
     TYPE_ID = 4
 
     channel_id: int
-    """Target channel ID."""
     frequency: float
-    """Target frequency."""
 
 
 @_attrs.frozen
@@ -451,29 +313,18 @@ class SwapPhase(Element):
         \\phi = (f + \\Delta f) t + \\phi_0
 
     where :math:`f` is the frequency defined in
-    :class:`bosing.models.ChannelInfo`, :math:`\\Delta f` is the
-    frequency shift due to :class:`ShiftFrequency`, and :math:`\\phi_0` is the
+    :class:`bosing.models.Channel`, :math:`\\Delta f` is the
+    frequency shift due to :class:`ShiftFreq`, and :math:`\\phi_0` is the
     phase offset due to :class:`ShiftPhase` and other phase instructions.
 
     :param channel_id1: Target channel ID 1.
     :param channel_id2: Target channel ID 2.
-
-    :param margin: The margin of the element. If a single value is given, it is
-        used for both sides.
-    :type margin: float | tuple[float, float]
-    :param alignment: The alignment of the element.
-    :param visibility: Whether the element has effect on the output.
-    :param duration: Requested duration of the element.
-    :param max_duration: Maximum duration of the element.
-    :param min_duration: Minimum duration of the element.
     """
 
     TYPE_ID = 5
 
     channel_id1: int
-    """Target channel ID 1."""
     channel_id2: int
-    """Target channel ID 2."""
 
 
 @_attrs.frozen
@@ -483,53 +334,31 @@ class Barrier(Element):
     A barrier element is a zero-duration no-op element. Useful for aligning
     elements on different channels in :class:`Stack`.
 
-    If :attr:`channel_ids` is empty, the barrier is applied to all channels in
-    its parent element.
+    If :attr:`channel_ids` is empty, the barrier is applied to
+    all channels in its parent element.
 
     :param channel_ids: Target channel IDs.
-
-    :param margin: The margin of the element. If a single value is given, it is
-        used for both sides.
-    :type margin: float | tuple[float, float]
-    :param alignment: The alignment of the element.
-    :param visibility: Whether the element has effect on the output.
-    :param duration: Requested duration of the element.
-    :param max_duration: Maximum duration of the element.
-    :param min_duration: Minimum duration of the element.
     """
 
     TYPE_ID = 6
 
     channel_ids: _typing.List[int] = _attrs.field(converter=list, factory=list)
-    """Target channel IDs."""
 
 
 @_attrs.frozen
 class Repeat(Element):
     """A repeated schedule element.
 
-    :param element: The repeated element.
+    :param child: The repeated element.
     :param count: The number of repetitions.
     :param spacing: The spacing between repeated elements.
-
-    :param margin: The margin of the element. If a single value is given, it is
-        used for both sides.
-    :type margin: float | tuple[float, float]
-    :param alignment: The alignment of the element.
-    :param visibility: Whether the element has effect on the output.
-    :param duration: Requested duration of the element.
-    :param max_duration: Maximum duration of the element.
-    :param min_duration: Minimum duration of the element.
     """
 
     TYPE_ID = 7
 
     child: Element
-    """The repeated element."""
     count: int
-    """The number of repetitions."""
     spacing: float = _attrs.field(kw_only=True, default=0)
-    """The spacing between repeated elements."""
 
 
 class ArrangeDirection(_enum.Enum):
@@ -557,27 +386,16 @@ class Stack(Element):
     forwards or backwards. :class:`Barrier` can be used to synchronize
     multiple channels.
 
-    :param elements: Child elements.
+    :param children: Child elements.
     :param direction: The direction of arrangement.
-
-    :param margin: The margin of the element. If a single value is given, it is
-        used for both sides.
-    :type margin: float | tuple[float, float]
-    :param alignment: The alignment of the element.
-    :param visibility: Whether the element has effect on the output.
-    :param duration: Requested duration of the element.
-    :keyword max_duration: Maximum duration of the element.
-    :param min_duration: Minimum duration of the element.
     """
 
     TYPE_ID = 8
 
     children: _typing.List[Element] = _attrs.field(converter=list, factory=list)
-    """Child elements."""
     direction: ArrangeDirection = _attrs.field(
         kw_only=True, default=ArrangeDirection.BACKWARDS, converter=_convert_direction
     )
-    """The direction of arrangement."""
 
     def with_children(self, *children: Element) -> "Stack":
         """Create a new stack with different children.
@@ -590,12 +408,14 @@ class Stack(Element):
 
 @_attrs.frozen
 class AbsoluteEntry(MsgObject):
-    """An entry in the absolute schedule."""
+    """An entry in the absolute schedule.
+
+    :param time: Time relative to the start of the absolute schedule.
+    :param element: The child element.
+    """
 
     time: float
-    """Time relative to the start of the absolute schedule."""
     element: Element
-    """The child element."""
 
     @classmethod
     def from_tuple(
@@ -629,19 +449,10 @@ class Absolute(Element):
     element is relative to the start of the absolute schedule. The duration of
     the absolute schedule is the maximum end time of the child elements.
 
-    :param elements: Child elements with absolute timing. Each item in the list
+    :param children: Child elements with absolute timing. Each item in the list
         can be either an :class:`Element` or ``(time, element)``. Default
         ``time`` is 0.
-    :type elements: list[Element | tuple[float, Element] | AbsoluteEntry]
-
-    :param margin: The margin of the element. If a single value is given, it is
-        used for both sides.
-    :type margin: float | tuple[float, float]
-    :param alignment: The alignment of the element.
-    :param visibility: Whether the element has effect on the output.
-    :param duration: Requested duration of the element.
-    :param max_duration: Maximum duration of the element.
-    :param min_duration: Minimum duration of the element.
+    :type children: list[Element | tuple[float, Element] | AbsoluteEntry]
     """
 
     TYPE_ID = 9
@@ -649,7 +460,6 @@ class Absolute(Element):
     children: _typing.List[AbsoluteEntry] = _attrs.field(
         converter=_convert_abs_entries, factory=list
     )
-    """Child elements with absolute timing."""
 
     def with_children(
         self, *children: _typing.Union[Element, _typing.Tuple[float, Element]]
@@ -680,15 +490,10 @@ class GridLength(MsgObject):
     :class:`GridLength` is used to specify the length of a grid column. The
     length can be specified in seconds, as a fraction of the remaining space,
     or automatically.
-
-    :param value: The value of the length.
-    :param unit: The unit of the length.
     """
 
     value: float
-    """The value of the length."""
     unit: GridLengthUnit
-    """The unit of the length."""
 
     @classmethod
     def auto(cls) -> "GridLength":
@@ -739,11 +544,8 @@ class GridEntry(MsgObject):
     """An entry in the grid schedule."""
 
     column: int
-    """The column index."""
     span: int
-    """The column span."""
     element: Element
-    """The child element."""
 
     @classmethod
     def from_tuple(
@@ -794,24 +596,15 @@ def _convert_columns(
 class Grid(Element):
     """A grid schedule element.
 
+    :param children: Child elements with column index and span. Each item in the
+        list can be either :class:`Element`, ``(column, element)`` or
+        ``(column, span, element)``. The default column is 0 and the default
+        span is 1.
+    :type children: list[Element | tuple[int, Element] | tuple[int, int, Element] | GridEntry]
     :param columns: Definitions of grid columns. The length of the columns can
         be specified as a :class:`GridLength`, a string, or a float. See
         :meth:`GridLength.parse` for details.
     :type columns: list[GridLength | str | float]
-    :param elements: Child elements with column index and span. Each item in the
-        list can be either :class:`Element`, ``(column, element)`` or
-        ``(column, span, element)``. The default column is 0 and the default
-        span is 1.
-    :type elements: list[Element | tuple[int, Element] | tuple[int, int, Element] | GridEntry]
-
-    :param margin: The margin of the element. If a single value is given, it is
-        used for both sides.
-    :type margin: float | tuple[float, float]
-    :param alignment: The alignment of the element.
-    :param visibility: Whether the element has effect on the output.
-    :param duration: Requested duration of the element.
-    :param max_duration: Maximum duration of the element.
-    :param min_duration: Minimum duration of the element.
     """
 
     TYPE_ID = 10
@@ -851,11 +644,7 @@ class Request(MsgObject):
     :param options: Options for the Bosing service.
     """
 
-    channels: _typing.List[ChannelInfo] = _attrs.field(converter=list)
-    """Information about the channels used in the schedule."""
+    channels: _typing.List[Channel] = _attrs.field(converter=list)
     shapes: _typing.List[ShapeInfo] = _attrs.field(converter=list)
-    """Information about the shapes used in the schedule."""
     schedule: Element
-    """The root element of the schedule."""
     options: Options = _attrs.field(factory=Options)
-    """Options for the Bosing service."""
