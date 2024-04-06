@@ -13,11 +13,15 @@ This module wraps the ``Bosing`` C# library.
 from ._utils import generate_waveforms
 from .models import (
     Absolute,
+    AbsoluteEntry,
     Alignment,
     Barrier,
     Biquad,
     Channel,
+    Element,
     Grid,
+    GridEntry,
+    GridLength,
     Hann,
     Interp,
     IqCalibration,

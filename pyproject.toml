@@ -44,7 +44,7 @@ dependencies = ["scipy", "matplotlib", "ipython"]
 dependencies = ["sphinx", "furo"]
 
 [tool.hatch.envs.docs.scripts]
-build = "sphinx-build -M html python/docs python/docs/_build"
+build = "sphinx-build -M html python/docs python/docs/_build {args}"
 clean = "rm -rf python/docs/_build docs/_autosummary"
 
 [tool.hatch.envs.docs.overrides]
