@@ -117,13 +117,19 @@ public static class WaveformUtils
 
         var leftEdge = envelopeSample.LeftEdge;
         MixAdd(target[currentIndex..], leftEdge, complexAmplitude, dragAmplitude, dPhase);
-        currentIndex += leftEdge.Length;
-
+        ShiftIndex(leftEdge.Length);
         MixAddPlateau(target.Slice(currentIndex, envelopeSample.Plateau), complexAmplitude, dPhase);
-        currentIndex += envelopeSample.Plateau;
-
+        ShiftIndex(envelopeSample.Plateau);
         var rightEdge = envelopeSample.RightEdge;
         MixAdd(target[currentIndex..], rightEdge, complexAmplitude, dragAmplitude, dPhase);
+
+        void ShiftIndex(int count)
+        {
+            currentIndex += count;
+            var phaseInc = IqPair<T>.FromPolarCoordinates(T.One, dPhase * T.CreateChecked(count));
+            complexAmplitude *= phaseInc;
+            dragAmplitude *= phaseInc;
+        }
     }
 
     public static void MixAddPlateau<T>(ComplexSpan<T> target, IqPair<T> amplitude, T dPhase)
