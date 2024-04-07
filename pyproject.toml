@@ -41,7 +41,7 @@ packages = ["python/bosing"]
 dependencies = ["scipy", "matplotlib", "ipython"]
 
 [tool.hatch.envs.docs]
-dependencies = ["sphinx", "furo"]
+dependencies = ["sphinx", "furo", "matplotlib"]
 
 [tool.hatch.envs.docs.scripts]
 build = "sphinx-build -M html python/docs python/docs/_build {args}"

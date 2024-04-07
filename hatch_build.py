@@ -75,12 +75,6 @@ def _infer_tag() -> str:
 
 class CustomBuildHook(BuildHookInterface):
     def initialize(self, version: str, build_data: Dict[str, Any]) -> None:
-        # Skip building the C# library when building the docs
-        if (
-            os.environ.get("HATCH_ENV_ACTIVE") == "docs"
-            or os.environ.get("READTHEDOCS") == "True"
-        ):
-            return
         if self.target_name == "wheel":
             _dotnet_publish(version, build_data)
             build_data["pure_python"] = False
