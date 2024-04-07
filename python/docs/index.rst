@@ -1,22 +1,17 @@
-.. Bosing documentation master file, created by
-   sphinx-quickstart on Fri Jul 14 21:18:09 2023.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
-
-Welcome to Bosing's documentation!
-===========================================
+bosing: 微波波形生成器
+=======================
 
 .. toctree::
    :maxdepth: 2
-   :caption: Contents:
+   :caption: 目录:
 
    quickstart
    instruction
    schedule
    api
 
-Indices and tables
-==================
+索引
+=====
 
 * :ref:`genindex`
 * :ref:`modindex`

@@ -21,9 +21,7 @@ def get_biquad(amp, tau, fs):
 
 
 def get_iq_calibration(ratio, phase, offset_i, offset_q):
-    return IqCalibration(
-        1, -math.tan(phase), 0, ratio / math.cos(phase), offset_i, offset_q
-    )
+    return IqCali(1, -math.tan(phase), 0, ratio / math.cos(phase), offset_i, offset_q)
 
 
 if __name__ == "__main__":
