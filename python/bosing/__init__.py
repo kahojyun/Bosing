@@ -1,13 +1,9 @@
 """Generates microwave pulses for superconducting quantum computing experiments.
 
-This module wraps the ``Bosing`` C# library.
+.. caution::
 
-.. note::
-    All phase values are in number of cycles. For example, a phase of 0.25 means
-    pi/2 radians.
-
-.. warning::
-    This package is still in development and the API may change in the future.
+    All phase values are in number of cycles. For example, a phase of
+    :math:`0.25` means :math:`\\pi/2` radians.
 """
 
 from ._utils import generate_waveforms
@@ -24,7 +20,7 @@ from .models import (
     GridLength,
     Hann,
     Interp,
-    IqCalibration,
+    IqCali,
     Options,
     Play,
     Repeat,
@@ -45,7 +41,7 @@ __all__ = [
     "Grid",
     "Hann",
     "Interp",
-    "IqCalibration",
+    "IqCali",
     "Options",
     "Play",
     "Repeat",

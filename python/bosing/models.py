@@ -43,7 +43,6 @@ class UnionObject(MsgObject):
     """
 
     TYPE_ID: _typing.ClassVar[int]
-    """The type ID of the union object."""
 
     @property
     def data(self) -> tuple:
@@ -62,29 +61,29 @@ class Biquad(MsgObject):
 
 
 @_attrs.frozen
-class IqCalibration(MsgObject):
+class IqCali(MsgObject):
     """IQ calibration data.
 
     The calibration data consists of a 2x2 transformation matrix and an 2x1 offset
     vector. The transformation matrix is applied first, followed by the offset vector.
 
     .. math::
-        \\begin{bmatrix}
+        \\begin{pmatrix}
             I_{out} \\\\
             Q_{out}
-        \\end{bmatrix} =
-        \\begin{bmatrix}
+        \\end{pmatrix} =
+        \\begin{pmatrix}
             a & b \\\\
             c & d
-        \\end{bmatrix}
-        \\begin{bmatrix}
+        \\end{pmatrix}
+        \\begin{pmatrix}
             I_{in} \\\\
             Q_{in}
-        \\end{bmatrix} +
-        \\begin{bmatrix}
+        \\end{pmatrix} +
+        \\begin{pmatrix}
             i_{offset} \\\\
             q_{offset}
-        \\end{bmatrix}
+        \\end{pmatrix}
     """
 
     a: float
@@ -97,7 +96,7 @@ class IqCalibration(MsgObject):
 
 @_attrs.frozen
 class Channel(MsgObject):
-    """Information about a channel."""
+    """Channel configuration."""
 
     name: str
     base_freq: float
@@ -105,14 +104,14 @@ class Channel(MsgObject):
     length: int
     delay: float = 0
     align_level: int = -10
-    iq_calibration: _typing.Optional[IqCalibration] = None
+    iq_calibration: _typing.Optional[IqCali] = None
     iir: _typing.List[Biquad] = _attrs.field(factory=list, converter=list)
     fir: _typing.List[float] = _attrs.field(factory=list, converter=list)
 
 
 @_attrs.frozen
 class Options(MsgObject):
-    """Options for Bosing.
+    """Various options for waveform generation.
 
     :param time_tolerance: The time tolerance of the scheduler.
     :param amp_tolerance: The amplitude tolerance in waveform calculation.
@@ -130,11 +129,8 @@ class Alignment(_enum.Enum):
     """Alignment of a schedule element."""
 
     END = 0
-    """Align to the end of parent element."""
     START = 1
-    """Align to the start of parent element."""
     CENTER = 2
-    """Align to the center of parent element."""
     STRETCH = 3
     """Stretch to fill parent element."""
 
@@ -158,19 +154,19 @@ def _convert_alignment(
 
 
 @_attrs.frozen
-class ShapeInfo(UnionObject):
-    """Information about a shape."""
+class Shape(UnionObject):
+    """Base class for shapes."""
 
 
 @_attrs.frozen
-class Hann(ShapeInfo):
+class Hann(Shape):
     """A Hann shape."""
 
     TYPE_ID = 0
 
 
 @_attrs.frozen
-class Interp(ShapeInfo):
+class Interp(Shape):
     """An interpolated shape."""
 
     TYPE_ID = 1
@@ -184,17 +180,28 @@ class Element(UnionObject):
     """Base class for schedule elements.
 
     A schedule element is a node in the tree structure of a schedule similar to
-    HTML elements. The design is inspired by `XAML in WPF / WinUI <https://learn.
-    microsoft.com/en-us/windows/apps/design/layout/layouts-with-xaml>`_
+    HTML elements. The design is inspired by `XAML in WPF / WinUI
+    <https://learn.microsoft.com/en-us/windows/apps/design/layout/layouts-with-xaml>`_
+
+    When :attr:`duration`, :attr:`max_duration`, and :attr:`min_duration` are
+    conflicting, the priority is as follows:
+
+    1. :attr:`min_duration`
+    2. :attr:`max_duration`
+    3. :attr:`duration`
 
     :param margin: The margin of the element. If a single value is given, it is
-        used for both sides.
+        used for both sides. Default to 0.
     :type margin: float | tuple[float, float]
-    :param alignment: The alignment of the element.
-    :param visibility: Whether the element has effect on the output.
-    :param duration: Requested duration of the element.
-    :param max_duration: Maximum duration of the element.
-    :param min_duration: Minimum duration of the element.
+    :param alignment: The alignment of the element. Default to
+        :attr:`Alignment.END`.
+    :param visibility: Whether the element has effect on the output. Default to
+        ``True``.
+    :param duration: Requested duration of the element. If ``None``, the actual
+        duration is determined by the measuring and arranging process. Default
+        to ``None``.
+    :param max_duration: Maximum duration of the element. Default to infinity.
+    :param min_duration: Minimum duration of the element. Default to 0.
     """
 
     margin: _typing.Tuple[float, float] = _attrs.field(
@@ -214,18 +221,20 @@ class Play(Element):
     """A pulse play element.
 
     If :attr:`flexible` is set to ``True`` and :attr:`alignment` is set to
-    :attr:`Alignment.STRETCH`, the duration of the pulse is determined by the
-    parent element such as :class:`Grid`.
+    :attr:`Alignment.STRETCH`, the plateau of the pulse is stretched to fill the
+    parent element.
 
     :param channel_id: Target channel ID.
     :param amplitude: The amplitude of the pulse.
     :param shape_id: The shape ID of the pulse.
     :param width: The width of the pulse.
-    :param plateau: The plateau of the pulse.
-    :param drag_coef: The drag coefficient of the pulse.
-    :param frequency: The frequency of the pulse.
-    :param phase: The phase of the pulse in **cycles**.
-    :param flexible: Whether the pulse can be shortened or extended.
+    :param plateau: The plateau of the pulse. Default to 0.
+    :param drag_coef: The drag coefficient of the pulse. Default to 0.
+    :param frequency: Additional frequency of the pulse on top of channel base
+        frequency and frequency shift. Default to 0.
+    :param phase: Additional phase of the pulse in **cycles**. Default to 0.
+    :param flexible: Whether the pulse can be shortened or extended. Default to
+        ``False``.
     """
 
     TYPE_ID = 0
@@ -259,8 +268,16 @@ class ShiftPhase(Element):
 class SetPhase(Element):
     """A phase set element.
 
-    Currently the effect of set phase instruction is calculated based on the
-    cumulative frequency shift. This may change in the future.
+    Given the base frequency :math:`f`, the frequency shift :math:`\\Delta f`,
+    the time :math:`t`, and the phase offset :math:`\\phi_0`, the phase is
+    defined as
+
+    .. math::
+
+        \\phi(t) = (f + \\Delta f) t + \\phi_0
+
+    :class:`SetPhase` sets the phase offset :math:`\\phi_0` such that
+    :math:`\\phi(t)` is equal to the given phase.
 
     :param channel_id: Target channel ID.
     :param phase: Target phase in **cycles**.
@@ -276,6 +293,10 @@ class SetPhase(Element):
 class ShiftFreq(Element):
     """A frequency shift element.
 
+    Additional frequency shift on top of the channel cumulative frequency shift.
+    Phase offset will be adjusted accordingly such that the phase is continuous
+    at the shift point.
+
     :param channel_id: Target channel ID.
     :param frequency: Delta frequency.
     """
@@ -289,6 +310,9 @@ class ShiftFreq(Element):
 @_attrs.frozen
 class SetFreq(Element):
     """A frequency set element.
+
+    Set the channel frequency shift to the target frequency. Phase offset will
+    be adjusted accordingly such that the phase is continuous at the shift point.
 
     :param channel_id: Target channel ID.
     :param frequency: Target frequency.
@@ -304,18 +328,14 @@ class SetFreq(Element):
 class SwapPhase(Element):
     """A phase swap element.
 
-    Let :math:`\\phi_1` and :math:`\\phi_2` be the phases of the two target
-    channels, respectively. The effect of the swap phase instruction is to
-    change the phases to :math:`\\phi_2` and :math:`\\phi_1`, respectively.
-    Currently the phase :math:`\\phi` is defined as
+    This instruction swaps carrier phases between two target channels at the
+    scheduled time point. Carrier phase is defined as
 
     .. math::
-        \\phi = (f + \\Delta f) t + \\phi_0
+        \\phi(t) = (f + \\Delta f) t + \\phi_0
 
-    where :math:`f` is the frequency defined in
-    :class:`bosing.models.Channel`, :math:`\\Delta f` is the
-    frequency shift due to :class:`ShiftFreq`, and :math:`\\phi_0` is the
-    phase offset due to :class:`ShiftPhase` and other phase instructions.
+    where :math:`f` is the base frequency, :math:`\\Delta f` is the frequency
+    shift, :math:`t` is the time, and :math:`\\phi_0` is the phase offset.
 
     :param channel_id1: Target channel ID 1.
     :param channel_id2: Target channel ID 2.
@@ -337,7 +357,7 @@ class Barrier(Element):
     If :attr:`channel_ids` is empty, the barrier is applied to
     all channels in its parent element.
 
-    :param channel_ids: Target channel IDs.
+    :param channel_ids: Target channel IDs. Default to empty.
     """
 
     TYPE_ID = 6
@@ -351,7 +371,7 @@ class Repeat(Element):
 
     :param child: The repeated element.
     :param count: The number of repetitions.
-    :param spacing: The spacing between repeated elements.
+    :param spacing: The spacing between repeated elements. Default to 0.
     """
 
     TYPE_ID = 7
@@ -383,8 +403,10 @@ class Stack(Element):
     """Layout child elements in one direction.
 
     The child elements are arranged in one direction. The direction can be
-    forwards or backwards. :class:`Barrier` can be used to synchronize
-    multiple channels.
+    forwards or backwards.
+
+    Child elements with no common channel are arranged in parallel.
+    :class:`Barrier` can be used to synchronize multiple channels.
 
     :param children: Child elements.
     :param direction: The direction of arrangement.
@@ -641,10 +663,10 @@ class Request(MsgObject):
     :param channels: Information about the channels used in the schedule.
     :param shapes: Information about the shapes used in the schedule.
     :param schedule: The root element of the schedule.
-    :param options: Options for the Bosing service.
+    :param options: Various options for waveform generation.
     """
 
     channels: _typing.List[Channel] = _attrs.field(converter=list)
-    shapes: _typing.List[ShapeInfo] = _attrs.field(converter=list)
+    shapes: _typing.List[Shape] = _attrs.field(converter=list)
     schedule: Element
     options: Options = _attrs.field(factory=Options)
