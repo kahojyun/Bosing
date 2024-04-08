@@ -47,8 +47,6 @@ jobs:
           pip install hatch
       - name: Test
         run: hatch run test:run
-      - name: Check formatting
-        run: dotnet format --verify-no-changes
 
   # Should run on every push and PR, but only run semantic-release on push
   release:
