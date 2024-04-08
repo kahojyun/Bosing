@@ -6,18 +6,18 @@
     :math:`0.25` means :math:`\\pi/2` radians.
 """
 
-from ._utils import generate_waveforms
-from .models import (
+from bosing._utils import generate_waveforms
+from bosing.models import (
     Absolute,
-    AbsoluteEntry,
+    AbsoluteEntry,  # noqa: F401
     Alignment,
     Barrier,
     Biquad,
     Channel,
-    Element,
+    Element,  # noqa: F401
     Grid,
-    GridEntry,
-    GridLength,
+    GridEntry,  # noqa: F401
+    GridLength,  # noqa: F401
     Hann,
     Interp,
     IqCali,

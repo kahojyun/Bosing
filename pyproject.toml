@@ -66,3 +66,10 @@ addopts = [
     "--import-mode=importlib",
 ]
 testpaths = ["python/tests"]
+
+[tool.hatch.envs.hatch-static-analysis]
+config-path = "ruff_defaults.toml"
+
+[tool.ruff]
+extend = "ruff_defaults.toml"
+include = ["python/bosing/*.py", "python/tests/*.py"]

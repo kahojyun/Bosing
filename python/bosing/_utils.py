@@ -1,17 +1,19 @@
-import typing
+from __future__ import annotations
 
-import numpy as np
+from collections.abc import Iterable  # noqa: TCH003
 
-from ._native import copy_waveform, free_waveform, run
-from .models import Channel, Element, Options, Request, Shape
+import numpy as np  # noqa: TCH002
+
+from bosing._native import copy_waveform, free_waveform, run
+from bosing.models import Channel, Element, Options, Request, Shape
 
 
 def generate_waveforms(
-    channels: typing.Iterable[Channel],
-    shapes: typing.Iterable[Shape],
+    channels: Iterable[Channel],
+    shapes: Iterable[Shape],
     schedule: Element,
-    options: typing.Optional[Options] = None,
-) -> typing.Dict[str, typing.Tuple[np.ndarray, np.ndarray]]:
+    options: Options | None = None,
+) -> dict[str, tuple[np.ndarray, np.ndarray]]:
     """Generate waveforms.
 
     :param channels: Information about the channels used in the schedule.
@@ -21,6 +23,7 @@ def generate_waveforms(
     :return: A dictionary of waveforms, where the key is the channel name and
         the value is a tuple of two numpy arrays representing the I and Q
         components of the waveform.
+    :raises RuntimeError: If the waveform generation fails.
     """
     request = Request(
         channels=channels,

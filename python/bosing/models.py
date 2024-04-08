@@ -1,8 +1,11 @@
 """Data models for the Bosing service."""
 
+from __future__ import annotations
+
 import enum as _enum
 import math as _math
 import typing as _typing
+from typing import ClassVar
 
 import attrs as _attrs
 import msgpack as _msgpack
@@ -25,12 +28,13 @@ class MsgObject:
     def packb(self) -> bytes:
         """Serialize the message object to bytes in msgpack format."""
 
-        def encode(obj: _typing.Union[MsgObject, _enum.Enum]):
+        def encode(obj: MsgObject | _enum.Enum):
             if isinstance(obj, MsgObject):
                 return obj.data
             if isinstance(obj, _enum.Enum):
                 return obj.value
-            raise TypeError(f"Cannot encode object of type {type(obj)}")
+            msg = f"Cannot encode object of type {type(obj)}"
+            raise TypeError(msg)
 
         return _msgpack.packb(self, default=encode)  # type: ignore
 
@@ -42,7 +46,7 @@ class UnionObject(MsgObject):
     A union object is a message object that can be one of several types.
     """
 
-    TYPE_ID: _typing.ClassVar[int]
+    TYPE_ID: ClassVar[int]
 
     @property
     def data(self) -> tuple:
@@ -104,9 +108,9 @@ class Channel(MsgObject):
     length: int
     delay: float = 0
     align_level: int = -10
-    iq_calibration: _typing.Optional[IqCali] = None
-    iir: _typing.List[Biquad] = _attrs.field(factory=list, converter=list)
-    fir: _typing.List[float] = _attrs.field(factory=list, converter=list)
+    iq_calibration: IqCali | None = None
+    iir: list[Biquad] = _attrs.field(factory=list, converter=list)
+    fir: list[float] = _attrs.field(factory=list, converter=list)
 
 
 @_attrs.frozen
@@ -135,18 +139,14 @@ class Alignment(_enum.Enum):
     """Stretch to fill parent element."""
 
 
-def _convert_margin(
-    margin: _typing.Union[float, _typing.Tuple[float, float]]
-) -> _typing.Tuple[float, float]:
+def _convert_margin(margin: float | tuple[float, float]) -> tuple[float, float]:
     if not isinstance(margin, tuple):
         margin = (margin, margin)
     return margin
 
 
 def _convert_alignment(
-    alignment: _typing.Union[
-        _typing.Literal["end", "start", "center", "stretch"], Alignment
-    ]
+    alignment: _typing.Literal["end", "start", "center", "stretch"] | Alignment,
 ) -> Alignment:
     if isinstance(alignment, str):
         return Alignment[alignment.upper()]
@@ -171,8 +171,8 @@ class Interp(Shape):
 
     TYPE_ID = 1
 
-    x_array: _typing.List[float] = _attrs.field(converter=list)
-    y_array: _typing.List[float] = _attrs.field(converter=list)
+    x_array: list[float] = _attrs.field(converter=list)
+    y_array: list[float] = _attrs.field(converter=list)
 
 
 @_attrs.frozen
@@ -204,14 +204,10 @@ class Element(UnionObject):
     :param min_duration: Minimum duration of the element. Default to 0.
     """
 
-    margin: _typing.Tuple[float, float] = _attrs.field(
-        kw_only=True, default=(0, 0), converter=_convert_margin
-    )
-    alignment: Alignment = _attrs.field(
-        kw_only=True, default=Alignment.END, converter=_convert_alignment
-    )
+    margin: tuple[float, float] = _attrs.field(kw_only=True, default=(0, 0), converter=_convert_margin)
+    alignment: Alignment = _attrs.field(kw_only=True, default=Alignment.END, converter=_convert_alignment)
     visibility: bool = _attrs.field(kw_only=True, default=True)
-    duration: _typing.Optional[float] = _attrs.field(kw_only=True, default=None)
+    duration: float | None = _attrs.field(kw_only=True, default=None)
     max_duration: float = _attrs.field(kw_only=True, default=_math.inf)
     min_duration: float = _attrs.field(kw_only=True, default=0)
 
@@ -362,7 +358,7 @@ class Barrier(Element):
 
     TYPE_ID = 6
 
-    channel_ids: _typing.List[int] = _attrs.field(converter=list, factory=list)
+    channel_ids: list[int] = _attrs.field(converter=list, factory=list)
 
 
 @_attrs.frozen
@@ -391,7 +387,7 @@ class ArrangeDirection(_enum.Enum):
 
 
 def _convert_direction(
-    direction: _typing.Union[_typing.Literal["backwards", "forwards"], ArrangeDirection]
+    direction: _typing.Literal["backwards", "forwards"] | ArrangeDirection,
 ) -> ArrangeDirection:
     if isinstance(direction, str):
         return ArrangeDirection[direction.upper()]
@@ -414,12 +410,12 @@ class Stack(Element):
 
     TYPE_ID = 8
 
-    children: _typing.List[Element] = _attrs.field(converter=list, factory=list)
+    children: list[Element] = _attrs.field(converter=list, factory=list)
     direction: ArrangeDirection = _attrs.field(
         kw_only=True, default=ArrangeDirection.BACKWARDS, converter=_convert_direction
     )
 
-    def with_children(self, *children: Element) -> "Stack":
+    def with_children(self, *children: Element) -> Stack:
         """Create a new stack with different children.
 
         :param children: The new children.
@@ -440,9 +436,7 @@ class AbsoluteEntry(MsgObject):
     element: Element
 
     @classmethod
-    def from_tuple(
-        cls, obj: _typing.Union[Element, _typing.Tuple[float, Element], "AbsoluteEntry"]
-    ) -> "AbsoluteEntry":
+    def from_tuple(cls, obj: Element | tuple[float, Element] | AbsoluteEntry) -> AbsoluteEntry:
         """Create an absolute entry from a tuple.
 
         :param obj: The object to be converted.
@@ -456,10 +450,8 @@ class AbsoluteEntry(MsgObject):
 
 
 def _convert_abs_entries(
-    entries: _typing.List[
-        _typing.Union[Element, _typing.Tuple[float, Element], AbsoluteEntry]
-    ]
-) -> _typing.List[AbsoluteEntry]:
+    entries: list[Element | tuple[float, Element] | AbsoluteEntry],
+) -> list[AbsoluteEntry]:
     return [AbsoluteEntry.from_tuple(obj) for obj in entries]
 
 
@@ -479,13 +471,9 @@ class Absolute(Element):
 
     TYPE_ID = 9
 
-    children: _typing.List[AbsoluteEntry] = _attrs.field(
-        converter=_convert_abs_entries, factory=list
-    )
+    children: list[AbsoluteEntry] = _attrs.field(converter=_convert_abs_entries, factory=list)
 
-    def with_children(
-        self, *children: _typing.Union[Element, _typing.Tuple[float, Element]]
-    ) -> "Absolute":
+    def with_children(self, *children: Element | tuple[float, Element]) -> Absolute:
         """Create a new absolute schedule with different children.
 
         :param children: The new children.
@@ -518,22 +506,22 @@ class GridLength(MsgObject):
     unit: GridLengthUnit
 
     @classmethod
-    def auto(cls) -> "GridLength":
+    def auto(cls) -> GridLength:
         """Create an automatic grid length."""
         return cls(value=_math.nan, unit=GridLengthUnit.AUTO)
 
     @classmethod
-    def star(cls, value: float) -> "GridLength":
+    def star(cls, value: float) -> GridLength:
         """Create a star grid length."""
         return cls(value=value, unit=GridLengthUnit.STAR)
 
     @classmethod
-    def abs(cls, value: float) -> "GridLength":
-        """Create an absolute grid length."""
+    def fixed(cls, value: float) -> GridLength:
+        """Create an fixed grid length."""
         return cls(value=value, unit=GridLengthUnit.SECOND)
 
     @classmethod
-    def parse(cls, value: _typing.Union[str, float]) -> "GridLength":
+    def parse(cls, value: str | float) -> GridLength:
         """Create a grid length from a string or a float.
 
         The value can be one of the following formats:
@@ -553,12 +541,12 @@ class GridLength(MsgObject):
         :param value: The value to parse.
         """
         if isinstance(value, (float, int)):
-            return cls.abs(value)
+            return cls.fixed(value)
         if value.lower() == "auto":
             return cls.auto()
         if value.endswith("*"):
             return cls.star(float(value[:-1]))
-        return cls.abs(float(value))
+        return cls.fixed(float(value))
 
 
 @_attrs.frozen
@@ -572,13 +560,8 @@ class GridEntry(MsgObject):
     @classmethod
     def from_tuple(
         cls,
-        obj: _typing.Union[
-            Element,
-            _typing.Tuple[int, Element],
-            _typing.Tuple[int, int, Element],
-            "GridEntry",
-        ],
-    ) -> "GridEntry":
+        obj: Element | tuple[int, Element] | tuple[int, int, Element] | GridEntry,
+    ) -> GridEntry:
         """Create a grid entry from a tuple.
 
         :param obj: The tuple to convert.
@@ -586,32 +569,20 @@ class GridEntry(MsgObject):
         if isinstance(obj, Element):
             return cls(column=0, span=1, element=obj)
         if isinstance(obj, tuple):
-            if len(obj) == 2:
+            if len(obj) == 2:  # noqa: PLR2004
                 return cls(column=obj[0], span=1, element=obj[1])
             return cls(column=obj[0], span=obj[1], element=obj[2])
         return obj
 
 
 def _convert_grid_entries(
-    entries: _typing.List[
-        _typing.Union[
-            Element,
-            _typing.Tuple[int, Element],
-            _typing.Tuple[int, int, Element],
-            GridEntry,
-        ]
-    ]
-) -> _typing.List[GridEntry]:
+    entries: list[Element | tuple[int, Element] | tuple[int, int, Element] | GridEntry],
+) -> list[GridEntry]:
     return [GridEntry.from_tuple(obj) for obj in entries]
 
 
-def _convert_columns(
-    columns: _typing.List[_typing.Union[GridLength, str, float]]
-) -> _typing.List[GridLength]:
-    return [
-        GridLength.parse(column) if not isinstance(column, GridLength) else column
-        for column in columns
-    ]
+def _convert_columns(columns: list[GridLength | str | float]) -> list[GridLength]:
+    return [GridLength.parse(column) if not isinstance(column, GridLength) else column for column in columns]
 
 
 @_attrs.frozen
@@ -631,23 +602,15 @@ class Grid(Element):
 
     TYPE_ID = 10
 
-    children: _typing.List[GridEntry] = _attrs.field(
-        converter=_convert_grid_entries, factory=list
-    )
+    children: list[GridEntry] = _attrs.field(converter=_convert_grid_entries, factory=list)
     """Child elements with grid positioning."""
-    columns: _typing.List[GridLength] = _attrs.field(
-        converter=_convert_columns, factory=list
-    )
+    columns: list[GridLength] = _attrs.field(converter=_convert_columns, factory=list)
     """Definitions of grid columns."""
 
     def with_children(
         self,
-        *children: _typing.Union[
-            Element,
-            _typing.Tuple[int, Element],
-            _typing.Tuple[int, int, Element],
-        ],
-    ) -> "Grid":
+        *children: Element | tuple[int, Element] | tuple[int, int, Element],
+    ) -> Grid:
         """Create a new grid schedule with different children.
 
         :param children: The new children.
@@ -666,7 +629,7 @@ class Request(MsgObject):
     :param options: Various options for waveform generation.
     """
 
-    channels: _typing.List[Channel] = _attrs.field(converter=list)
-    shapes: _typing.List[Shape] = _attrs.field(converter=list)
+    channels: list[Channel] = _attrs.field(converter=list)
+    shapes: list[Shape] = _attrs.field(converter=list)
     schedule: Element
     options: Options = _attrs.field(factory=Options)
