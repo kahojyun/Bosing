@@ -1,37 +1,35 @@
 """Generates microwave pulses for superconducting quantum computing experiments.
 
-This module wraps the ``Bosing`` C# library.
+.. caution::
 
-.. note::
-    All phase values are in number of cycles. For example, a phase of 0.25 means
-    pi/2 radians.
-
-.. warning::
-    This package is still in development and the API may change in the future.
+    All phase values are in number of cycles. For example, a phase of
+    :math:`0.25` means :math:`\\pi/2` radians.
 """
 
-from ._utils import generate_waveforms
-from .models import (
+from bosing._utils import generate_waveforms
+from bosing.models import (
     Absolute,
+    AbsoluteEntry,  # noqa: F401
     Alignment,
     Barrier,
     Biquad,
-    ChannelInfo,
+    Channel,
+    Element,  # noqa: F401
     Grid,
-    HannShape,
-    InterpolatedShape,
-    IqCalibration,
+    GridEntry,  # noqa: F401
+    GridLength,  # noqa: F401
+    Hann,
+    Interp,
+    IqCali,
     Options,
     Play,
     Repeat,
-    Request,
-    SetFrequency,
+    SetFreq,
     SetPhase,
-    ShiftFrequency,
+    ShiftFreq,
     ShiftPhase,
     Stack,
     SwapPhase,
-    TriangleShape,
 )
 
 __all__ = [
@@ -39,21 +37,19 @@ __all__ = [
     "Alignment",
     "Barrier",
     "Biquad",
-    "ChannelInfo",
+    "Channel",
     "Grid",
-    "HannShape",
-    "InterpolatedShape",
-    "IqCalibration",
+    "Hann",
+    "Interp",
+    "IqCali",
     "Options",
     "Play",
     "Repeat",
-    "Request",
-    "SetFrequency",
+    "SetFreq",
     "SetPhase",
-    "ShiftFrequency",
+    "ShiftFreq",
     "ShiftPhase",
     "Stack",
     "SwapPhase",
-    "TriangleShape",
     "generate_waveforms",
 ]

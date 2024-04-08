@@ -21,9 +21,7 @@ def get_biquad(amp, tau, fs):
 
 
 def get_iq_calibration(ratio, phase, offset_i, offset_q):
-    return IqCalibration(
-        1, -math.tan(phase), 0, ratio / math.cos(phase), offset_i, offset_q
-    )
+    return IqCali(1, -math.tan(phase), 0, ratio / math.cos(phase), offset_i, offset_q)
 
 
 if __name__ == "__main__":
@@ -32,25 +30,23 @@ if __name__ == "__main__":
     bq = get_biquad(-0.1, 20e-9, 2e9)
     fir = signal.firwin(5, 100e6, fs=2e9)
     channels = [
-        ChannelInfo(
+        Channel(
             "xy0",
             0,
             2e9,
-            0,
             100000,
-            -10,
             iq_calibration=get_iq_calibration(1.1, math.pi / 3, 0, 0),
         ),
-        ChannelInfo("xy1", 0, 2e9, 0, 100000, -10),
-        ChannelInfo("u0", 0, 2e9, 0, 100000, -10, iir=[bq]),
-        ChannelInfo("u1", 0, 2e9, 0, 100000, -10, iir=[bq], fir=fir),
-        ChannelInfo("m0", 0, 2e9, 0, 100000, 0),
+        Channel("xy1", 0, 2e9, 100000),
+        Channel("u0", 0, 2e9, 100000, iir=[bq]),
+        Channel("u1", 0, 2e9, 100000, iir=[bq], fir=fir),
+        Channel("m0", 0, 2e9, 100000),
     ]
     c = {ch.name: i for i, ch in enumerate(channels)}
     halfcos = np.sin(np.linspace(0, np.pi, 10))
     shapes = [
-        HannShape(),
-        InterpolatedShape(np.linspace(-0.5, 0.5, 10), halfcos),
+        Hann(),
+        Interp(np.linspace(-0.5, 0.5, 10), halfcos),
     ]
     s = {"hann": 0, "rect": -1, "halfcos": 1}
 
@@ -87,11 +83,9 @@ if __name__ == "__main__":
 
     options = Options(time_tolerance=1e-13)
 
-    job = Request(channels, shapes, schedule, options=options)
-
     t1 = perf_counter()
 
-    result = generate_waveforms(job)
+    result = generate_waveforms(channels, shapes, schedule, options=options)
 
     t2 = perf_counter()
 

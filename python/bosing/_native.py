@@ -1,6 +1,7 @@
+from __future__ import annotations
+
 import ctypes
 import sys
-import typing
 from enum import Enum
 from pathlib import Path
 
@@ -13,7 +14,8 @@ elif sys.platform == "linux":
 elif sys.platform == "darwin":
     lib_path = Path(__file__).parent / "lib" / "Bosing.Aot.dylib"
 else:
-    raise Exception(f"Unsupported platform: {sys.platform}")
+    msg = f"Unsupported platform: {sys.platform}"
+    raise RuntimeError(msg)
 
 lib = ctypes.cdll.LoadLibrary(str(lib_path.resolve()))
 
@@ -48,12 +50,13 @@ Bosing_Run.argtypes = [
 Bosing_Run.restype = ctypes.c_int
 
 
-def run(msg: bytes) -> ctypes.c_void_p:
+def run(req_msg: bytes) -> ctypes.c_void_p:
     handle = ctypes.c_void_p()
-    ret = Bosing_Run(msg, len(msg), ctypes.byref(handle))
+    ret = Bosing_Run(req_msg, len(req_msg), ctypes.byref(handle))
     if ret != 0:
         err = ErrorCode(ret)
-        raise Exception(f"Failed to run Bosing, error code: {err}")
+        msg = f"Failed to run Bosing, error code: {err}"
+        raise RuntimeError(msg)
     return handle
 
 
@@ -69,9 +72,7 @@ Bosing_CopyWaveform.argtypes = [
 Bosing_CopyWaveform.restype = ctypes.c_int
 
 
-def copy_waveform(
-    handle: ctypes.c_void_p, name: str, length: int
-) -> typing.Tuple[np.ndarray, np.ndarray]:
+def copy_waveform(handle: ctypes.c_void_p, name: str, length: int) -> tuple[np.ndarray, np.ndarray]:
     wave_i = np.empty(length, dtype=np.float32)
     wave_q = np.empty(length, dtype=np.float32)
     pstr = name.encode("utf-8")
@@ -80,7 +81,8 @@ def copy_waveform(
     ret = Bosing_CopyWaveform(handle, pstr, ptr_i_float, ptr_q_float, length)
     if ret != 0:
         err = ErrorCode(ret)
-        raise Exception(f"Failed to copy waveform, error code: {err}")
+        msg = f"Failed to copy waveform, error code: {err}"
+        raise RuntimeError(msg)
     return wave_i, wave_q
 
 
@@ -94,4 +96,5 @@ def free_waveform(handle: ctypes.c_void_p) -> None:
     ret = Bosing_FreeWaveform(handle)
     if ret != 0:
         err = ErrorCode(ret)
-        raise Exception(f"Failed to free waveform, error code: {err}")
+        msg = f"Failed to free waveform, error code: {err}"
+        raise RuntimeError(msg)

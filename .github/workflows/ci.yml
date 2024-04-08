@@ -12,11 +12,11 @@ on:
       - alpha
       - beta
 
-concurrency: 
+concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-permissions: 
+permissions:
   contents: read
 
 jobs:
@@ -46,7 +46,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install hatch
       - name: Test
-        run: hatch run tests:run 
+        run: hatch run test:run
 
   # Should run on every push and PR, but only run semantic-release on push
   release:
@@ -70,8 +70,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          # TODO: Set to false to actually publish
-          dry-run: true
           plugins: |
             [
               "@semantic-release/commit-analyzer",
@@ -80,9 +78,7 @@ jobs:
             ]
     outputs:
       version: ${{ steps.semantic-release.outputs.release-version || '0.0.0-dev' }}
-      # TODO: Set to true to actually publish
-      # published: ${{ steps.semantic-release.outputs.new-release-published || 'false' }}
-      published: 'false'
+      published: ${{ steps.semantic-release.outputs.new-release-published || 'false' }}
 
   # Should run on every push and PR
   build-wheel:
@@ -201,15 +197,13 @@ jobs:
     if: needs.release.outputs.published == 'true' && github.event_name == 'push'
     runs-on: ubuntu-latest
     environment: pypi
-    permissions: 
+    permissions:
       id-token: write
     steps:
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
           path: dist
+          merge-multiple: true
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          # TODO: Switch to pypi when ready
-          repository-url: https://test.pypi.org/legacy/

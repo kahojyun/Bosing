@@ -1,8 +1,8 @@
 using System.Runtime.InteropServices;
 
-using MessagePack;
-
 using Bosing.Aot.Models;
+
+using MessagePack;
 
 namespace Bosing.Aot;
 
