@@ -13,9 +13,15 @@ bosing: 微波波形生成器
 简介
 ----
 
+.. currentmodule:: bosing
+
 ``bosing`` 是一个用于生成微波波形的 Python 库, 通过类似 HTML DOM 的结构编排波形,
 既可直接用于生成简单的波形序列, 也可作为 `qiskit <https://qiskit.org>`_ 等量子门
-线路优化器的后端, 生成复杂的微波波形.
+线路优化器的后端, 生成复杂的微波波形. 目前实现的功能有:
+
+* 脉冲编排: 通过 :class:`Stack` 等控制波形时序
+* 自定义波形: 通过 :class:`Interp` 自定义插值波形
+* 滤波器: 通过 :attr:`Channel.iir` 和 :attr:`Channel.fir` 添加滤波器
 
 安装
 ----

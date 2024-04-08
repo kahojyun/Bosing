@@ -44,23 +44,24 @@ dotnet test
 hatch run test:run
 ```
 
-### Usage (TODO)
+### Usage
 
 Examples can be found in `python/examples`.
 
 ```python
-from bosing import Play, Hann, Channel, Stack, generate_waveforms
+from bosing import Play, Barrier, Hann, Channel, Stack, generate_waveforms
 import matplotlib.pyplot as plt
 
 channels = [Channel("xy", 200e6, 2e9, 100000)]
 shapes = [Hann()]
-schedule = Stack(duration=49.9e-6).with_children(
+schedule = Stack(duration=50e-6).with_children(
     Play(
         channel_id = 0,
         amplitude = 0.3,
         shape_id = 0,
         width = 100e-9,
-    )
+    ),
+    Barrier(duration=10e-9),
 )
 result = generate_waveforms(channels, shapes, schedule)
 i, q = result["xy"]
