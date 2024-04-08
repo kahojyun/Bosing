@@ -1,8 +1,8 @@
 using System.Diagnostics;
 
-using CommunityToolkit.Diagnostics;
-
 using Bosing.Aot.Models;
+
+using CommunityToolkit.Diagnostics;
 
 namespace Bosing.Aot;
 

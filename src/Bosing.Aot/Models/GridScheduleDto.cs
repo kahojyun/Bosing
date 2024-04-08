@@ -1,8 +1,8 @@
+using Bosing.Schedules;
+
 using CommunityToolkit.Diagnostics;
 
 using MessagePack;
-
-using Bosing.Schedules;
 
 namespace Bosing.Aot.Models;
 

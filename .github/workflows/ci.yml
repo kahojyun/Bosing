@@ -12,11 +12,11 @@ on:
       - alpha
       - beta
 
-concurrency: 
+concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-permissions: 
+permissions:
   contents: read
 
 jobs:
@@ -46,7 +46,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install hatch
       - name: Test
-        run: hatch run test:run 
+        run: hatch run test:run
 
   # Should run on every push and PR, but only run semantic-release on push
   release:
@@ -197,7 +197,7 @@ jobs:
     if: needs.release.outputs.published == 'true' && github.event_name == 'push'
     runs-on: ubuntu-latest
     environment: pypi
-    permissions: 
+    permissions:
       id-token: write
     steps:
       - name: Download artifacts
