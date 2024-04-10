@@ -1,6 +1,6 @@
 [build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+requires = ["maturin>=1.5,<2.0"]
+build-backend = "maturin"
 
 [project]
 name = "bosing"
@@ -13,29 +13,22 @@ keywords = []
 authors = [{ name = "kaho", email = "kaho0769@qq.com" }]
 classifiers = [
     "Development Status :: 3 - Alpha",
-    "Programming Language :: C#",
-    "Programming Language :: Python",
+    "Programming Language :: Rust",
     "Programming Language :: Python :: Implementation :: CPython",
     "Programming Language :: Python :: Implementation :: PyPy",
     "Intended Audience :: Science/Research",
     "Topic :: Scientific/Engineering",
     "License :: OSI Approved :: MIT License",
 ]
-dependencies = ["numpy", "msgpack", "attrs"]
+dependencies = ["numpy"]
 
 [project.urls]
 Documentation = "https://github.com/kahojyun/Bosing#readme"
 Issues = "https://github.com/kahojyun/Bosing/issues"
 Source = "https://github.com/kahojyun/Bosing"
 
-[tool.hatch.version]
-path = "VERSION.txt"
-pattern = "(?P<version>.*)"
-
-[tool.hatch.build.hooks.custom]
-
-[tool.hatch.build.targets.wheel]
-packages = ["python/bosing"]
+[tool.maturin]
+features = ["pyo3/extension-module"]
 
 [tool.hatch.envs.default]
 dependencies = ["scipy", "matplotlib", "ipython"]
@@ -44,12 +37,12 @@ dependencies = ["scipy", "matplotlib", "ipython"]
 dependencies = ["sphinx", "furo", "matplotlib"]
 
 [tool.hatch.envs.docs.scripts]
-build = "sphinx-build -M html python/docs python/docs/_build {args}"
-clean = "rm -rf python/docs/_build docs/_autosummary"
+build = "sphinx-build -M html docs docs/_build {args}"
+clean = "rm -rf docs/_build docs/_autosummary"
 
 [tool.hatch.envs.docs.overrides]
 platform.windows.scripts = [
-    'clean=rmdir /s /q python\\docs\\_build python\\docs\\_autosummary',
+    'clean=rmdir /s /q docs\\_build docs\\_autosummary',
 ]
 
 [tool.hatch.envs.test]
@@ -65,11 +58,10 @@ run = "pytest {args}"
 addopts = [
     "--import-mode=importlib",
 ]
-testpaths = ["python/tests"]
+testpaths = ["tests"]
 
 [tool.hatch.envs.hatch-static-analysis]
 config-path = "ruff_defaults.toml"
 
 [tool.ruff]
 extend = "ruff_defaults.toml"
-include = ["python/bosing/*.py", "python/tests/*.py"]

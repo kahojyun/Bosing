@@ -1,7 +1,7 @@
 波形编排
 ========
 
-.. currentmodule:: bosing.models
+.. currentmodule:: bosing
 
 ``bosing`` 使用类似 HTML, XAML 的结构来描述波形序列, 用户可以定义基础的波形,
 然后通过组合的方式来构建复杂的波形序列. 基础元素有 :doc:`instruction`:
