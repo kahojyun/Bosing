@@ -72,7 +72,7 @@
     GUI 布局中如果子元素的大小超过了容器的大小, 布局系统会裁剪子元素. 但是在波形
     计算中, 往往需要保留子元素的完整波形, 因此一旦出现超出容器的情况会抛出异常.
 
-.. note:: 
+.. note::
 
     当 :attr:`Element.duration`, :attr:`Element.max_duration`,
     :attr:`Element.min_duration` 三个属性同时存在且存在冲突时, 优先级为
@@ -134,7 +134,7 @@ Grid 布局
 
         grid = Grid(columns=["Auto", "*", "2*", 30e-9])
 
-.. caution:: 
+.. caution::
 
     当可用时长较小时, 无法保证按比例分配 ``Star`` 长度的列.
 
@@ -155,7 +155,7 @@ Grid 布局
 执行顺序
 --------
 
-.. caution:: 
+.. caution::
 
     在布局完成后, 会按照子元素插入顺序遍历执行, 与布局得到的元素位置无关.
 

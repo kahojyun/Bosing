@@ -6,9 +6,7 @@ import bosing
 def test_basic():
     channels = [bosing.Channel("xy0", 100e6, 2e9, 100000)]
     shapes = [bosing.Hann()]
-    schedule = bosing.Stack(duration=49.9e-6).with_children(
-        bosing.Play(0, 0.1, 0, 100e-9)
-    )
+    schedule = bosing.Stack(duration=49.9e-6).with_children(bosing.Play(0, 0.1, 0, 100e-9))
     result = bosing.generate_waveforms(channels, shapes, schedule)
     assert "xy0" in result
     i, q = result["xy0"]

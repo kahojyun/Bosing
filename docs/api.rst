@@ -1,8 +1,7 @@
 API Reference
 =============
 
-.. autosummary:: 
-   :toctree: _autosummary
-   :recursive:
-
-   bosing
+.. automodule:: bosing
+    :members:
+    :undoc-members:
+    :show-inheritance:

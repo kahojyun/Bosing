@@ -27,7 +27,7 @@ bosing: 微波波形生成器
 ----
 
 .. code-block:: console
-   
+
     $ pip install bosing
 
 

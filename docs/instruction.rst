@@ -1,7 +1,7 @@
 波形指令
 ========
 
-.. currentmodule:: bosing.models
+.. currentmodule:: bosing
 
 ``bosing`` 通过一系列的指令控制波形的生成, 目前支持的指令有:
 

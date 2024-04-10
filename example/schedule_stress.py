@@ -1,5 +1,4 @@
-"""An example of using bosing to generate a pulse sequence.
-"""
+"""An example of using bosing to generate a pulse sequence."""
 
 import time
 from itertools import cycle
@@ -28,19 +27,11 @@ def gen_n(n: int):
     s = {"hann": 0, "rect": -1, "halfcos": 1}
 
     measure = Absolute().with_children(
-        *(
-            Play(c[f"m{i}"], 0.1, s["hann"], 30e-9, plateau=1e-6, frequency=20e6 * i)
-            for i in range(nm)
-        )
+        *(Play(c[f"m{i}"], 0.1, s["hann"], 30e-9, plateau=1e-6, frequency=20e6 * i) for i in range(nm))
     )
-    c_group = Stack().with_children(
-        *(Play(c[f"u{i}"], 0.01 * (i + 1), s["halfcos"], 50e-9) for i in range(nu))
-    )
+    c_group = Stack().with_children(*(Play(c[f"u{i}"], 0.01 * (i + 1), s["halfcos"], 50e-9) for i in range(nu)))
     x_group = Stack().with_children(
-        *(
-            Play(c[f"xy{i}"], 0.01 * (i + 1), s["hann"], 50e-9, drag_coef=5e-10)
-            for i in range(nxy)
-        )
+        *(Play(c[f"xy{i}"], 0.01 * (i + 1), s["hann"], 50e-9, drag_coef=5e-10) for i in range(nxy))
     )
 
     schedule = Stack(duration=49.9e-6).with_children(

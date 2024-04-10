@@ -1,5 +1,4 @@
-"""An example of using bosing to generate a pulse sequence.
-"""
+"""An example of using bosing to generate a pulse sequence."""
 
 import math
 from time import perf_counter
