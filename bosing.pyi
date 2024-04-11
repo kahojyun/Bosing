@@ -1,12 +1,12 @@
 from collections.abc import Iterable, Sequence
-from typing import ClassVar, Literal, final
+from typing import ClassVar, Literal, Self, TypeAlias, final
 
 import numpy as np
 
 @final
 class Channel:
-    def __init__(
-        self,
+    def __new__(
+        cls,
         name: str,
         base_freq: float,
         sample_rate: float,
@@ -14,7 +14,7 @@ class Channel:
         *,
         delay: float = ...,
         align_level: int = ...,
-    ) -> None: ...
+    ) -> Self: ...
     @property
     def name(self) -> str: ...
     @property
@@ -30,14 +30,14 @@ class Channel:
 
 @final
 class Options:
-    def __init__(
-        self,
+    def __new__(
+        cls,
         *,
         time_tolerance: float = ...,
         amp_tolerance: float = ...,
         phase_tolerance: float = ...,
         allow_oversize: bool = ...,
-    ) -> None: ...
+    ) -> Self: ...
     @property
     def time_tolerance(self) -> float: ...
     @property
@@ -53,18 +53,18 @@ class Alignment:
     Start: ClassVar[Alignment]
     Center: ClassVar[Alignment]
     Stretch: ClassVar[Alignment]
-    @classmethod
-    def from_str(cls, s: Literal["end", "start", "center", "stretch"]) -> Alignment: ...
+    @staticmethod
+    def convert(obj: Literal["end", "start", "center", "stretch"] | Alignment) -> Alignment: ...
 
 class Shape: ...
 
 @final
 class Hann(Shape):
-    def __init__(self) -> None: ...
+    def __new__(cls) -> Self: ...
 
 @final
 class Interp(Shape):
-    def __init__(self, xs: Iterable[float], ys: Iterable[float]) -> None: ...
+    def __new__(cls, xs: Iterable[float], ys: Iterable[float]) -> Self: ...
     @property
     def xs(self) -> Sequence[float]: ...
     @property
@@ -76,7 +76,7 @@ class Element:
     @property
     def alignment(self) -> Alignment: ...
     @property
-    def visibility(self) -> bool: ...
+    def phantom(self) -> bool: ...
     @property
     def duration(self) -> float | None: ...
     @property
@@ -86,8 +86,8 @@ class Element:
 
 @final
 class Play(Element):
-    def __init__(
-        self,
+    def __new__(
+        cls,
         channel_id: int,
         amplitude: float,
         shape_id: int | None,
@@ -100,11 +100,11 @@ class Play(Element):
         flexible: bool = ...,
         margin: float | tuple[float, float] = ...,
         alignment: Literal["end", "start", "center", "stretch"] | Alignment = ...,
-        visibility: bool = ...,
+        phantom: bool = ...,
         duration: float | None = ...,
         max_duration: float = ...,
         min_duration: float = ...,
-    ) -> None: ...
+    ) -> Self: ...
     @property
     def channel_id(self) -> int: ...
     @property
@@ -126,18 +126,18 @@ class Play(Element):
 
 @final
 class ShiftPhase(Element):
-    def __init__(
-        self,
+    def __new__(
+        cls,
         channel_id: int,
         phase: float,
         *,
         margin: float | tuple[float, float] = ...,
         alignment: Literal["end", "start", "center", "stretch"] | Alignment = ...,
-        visibility: bool = ...,
+        phantom: bool = ...,
         duration: float | None = ...,
         max_duration: float = ...,
         min_duration: float = ...,
-    ) -> None: ...
+    ) -> Self: ...
     @property
     def channel_id(self) -> int: ...
     @property
@@ -145,18 +145,18 @@ class ShiftPhase(Element):
 
 @final
 class SetPhase(Element):
-    def __init__(
-        self,
+    def __new__(
+        cls,
         channel_id: int,
         phase: float,
         *,
         margin: float | tuple[float, float] = ...,
         alignment: Literal["end", "start", "center", "stretch"] | Alignment = ...,
-        visibility: bool = ...,
+        phantom: bool = ...,
         duration: float | None = ...,
         max_duration: float = ...,
         min_duration: float = ...,
-    ) -> None: ...
+    ) -> Self: ...
     @property
     def channel_id(self) -> int: ...
     @property
@@ -164,18 +164,18 @@ class SetPhase(Element):
 
 @final
 class ShiftFreq(Element):
-    def __init__(
-        self,
+    def __new__(
+        cls,
         channel_id: int,
         frequency: float,
         *,
         margin: float | tuple[float, float] = ...,
         alignment: Literal["end", "start", "center", "stretch"] | Alignment = ...,
-        visibility: bool = ...,
+        phantom: bool = ...,
         duration: float | None = ...,
         max_duration: float = ...,
         min_duration: float = ...,
-    ) -> None: ...
+    ) -> Self: ...
     @property
     def channel_id(self) -> int: ...
     @property
@@ -183,18 +183,18 @@ class ShiftFreq(Element):
 
 @final
 class SetFreq(Element):
-    def __init__(
-        self,
+    def __new__(
+        cls,
         channel_id: int,
         frequency: float,
         *,
         margin: float | tuple[float, float] = ...,
         alignment: Literal["end", "start", "center", "stretch"] | Alignment = ...,
-        visibility: bool = ...,
+        phantom: bool = ...,
         duration: float | None = ...,
         max_duration: float = ...,
         min_duration: float = ...,
-    ) -> None: ...
+    ) -> Self: ...
     @property
     def channel_id(self) -> int: ...
     @property
@@ -202,18 +202,18 @@ class SetFreq(Element):
 
 @final
 class SwapPhase(Element):
-    def __init__(
-        self,
+    def __new__(
+        cls,
         channel_id1: int,
         channel_id2: int,
         *,
         margin: float | tuple[float, float] = ...,
         alignment: Literal["end", "start", "center", "stretch"] | Alignment = ...,
-        visibility: bool = ...,
+        phantom: bool = ...,
         duration: float | None = ...,
         max_duration: float = ...,
         min_duration: float = ...,
-    ) -> None: ...
+    ) -> Self: ...
     @property
     def channel_id1(self) -> int: ...
     @property
@@ -221,35 +221,34 @@ class SwapPhase(Element):
 
 @final
 class Barrier(Element):
-    def __init__(
-        self,
-        channel_ids: Iterable[int] = ...,
-        *,
+    def __new__(
+        cls,
+        *channel_ids: int,
         margin: float | tuple[float, float] = ...,
         alignment: Literal["end", "start", "center", "stretch"] | Alignment = ...,
-        visibility: bool = ...,
+        phantom: bool = ...,
         duration: float | None = ...,
         max_duration: float = ...,
         min_duration: float = ...,
-    ) -> None: ...
+    ) -> Self: ...
     @property
     def channel_ids(self) -> Sequence[int]: ...
 
 @final
 class Repeat(Element):
-    def __init__(
-        self,
+    def __new__(
+        cls,
         child: Element,
         count: int,
         spacing: float = ...,
         *,
         margin: float | tuple[float, float] = ...,
         alignment: Literal["end", "start", "center", "stretch"] | Alignment = ...,
-        visibility: bool = ...,
+        phantom: bool = ...,
         duration: float | None = ...,
         max_duration: float = ...,
         min_duration: float = ...,
-    ) -> None: ...
+    ) -> Self: ...
     @property
     def child(self) -> Element: ...
     @property
@@ -261,57 +260,54 @@ class Repeat(Element):
 class Direction:
     Forward: ClassVar[Direction]
     Backward: ClassVar[Direction]
-    @classmethod
-    def from_str(cls, s: Literal["forward", "backward"]) -> Direction: ...
+    @staticmethod
+    def convert(obj: Literal["forward", "backward"] | Direction) -> Direction: ...
 
 @final
 class Stack(Element):
-    def __init__(
-        self,
+    def __new__(
+        cls,
         children: Iterable[Element] = ...,
         *,
         direction: Literal["forward", "backward"] | Direction = ...,
         margin: float | tuple[float, float] = ...,
         alignment: Literal["end", "start", "center", "stretch"] | Alignment = ...,
-        visibility: bool = ...,
+        phantom: bool = ...,
         duration: float | None = ...,
         max_duration: float = ...,
         min_duration: float = ...,
-    ) -> None: ...
+    ) -> Self: ...
     def with_children(self, *children: Element) -> Stack: ...
     @property
     def direction(self) -> Direction: ...
     @property
     def children(self) -> Sequence[Element]: ...
 
+_AbsoluteEntryLike: TypeAlias = Element | tuple[float, Element] | AbsoluteEntry
+
 @final
 class AbsoluteEntry:
-    def __init__(self, time: float, element: Element) -> None: ...
+    def __new__(cls, time: float, element: Element) -> Self: ...
     @property
     def time(self) -> float: ...
     @property
     def element(self) -> Element: ...
-    @classmethod
-    def convert(
-        cls, obj: Element | tuple[float, Element] | AbsoluteEntry
-    ) -> AbsoluteEntry: ...
+    @staticmethod
+    def convert(obj: _AbsoluteEntryLike) -> AbsoluteEntry: ...
 
 @final
 class Absolute(Element):
-    def __init__(
-        self,
-        children: Iterable[Element | tuple[float, Element] | AbsoluteEntry] = ...,
-        *,
+    def __new__(
+        cls,
+        *children: _AbsoluteEntryLike,
         margin: float | tuple[float, float] = ...,
         alignment: Literal["end", "start", "center", "stretch"] | Alignment = ...,
-        visibility: bool = ...,
+        phantom: bool = ...,
         duration: float | None = ...,
         max_duration: float = ...,
         min_duration: float = ...,
-    ) -> None: ...
-    def with_children(
-        self, *children: Element | tuple[float, Element] | AbsoluteEntry
-    ) -> Absolute: ...
+    ) -> Self: ...
+    def with_children(self, *children: _AbsoluteEntryLike) -> Absolute: ...
     @property
     def children(self) -> Sequence[AbsoluteEntry]: ...
 
@@ -323,53 +319,50 @@ class GridLengthUnit:
 
 @final
 class GridLength:
-    def __init__(self, value: float, unit: GridLengthUnit) -> None: ...
+    def __new__(cls, value: float, unit: GridLengthUnit) -> Self: ...
     @property
     def value(self) -> float: ...
     @property
     def unit(self) -> GridLengthUnit: ...
-    @classmethod
-    def auto(cls) -> GridLength: ...
-    @classmethod
-    def star(cls, value: float) -> GridLength: ...
-    @classmethod
-    def fixed(cls, value: float) -> GridLength: ...
-    @classmethod
-    def parse(cls, s: str | float) -> GridLength: ...
+    @staticmethod
+    def auto() -> GridLength: ...
+    @staticmethod
+    def star(value: float) -> GridLength: ...
+    @staticmethod
+    def fixed(value: float) -> GridLength: ...
+    @staticmethod
+    def convert(obj: str | float | GridLength) -> GridLength: ...
+
+_GridEntryLike: TypeAlias = Element | tuple[Element, int] | tuple[Element, int, int] | GridEntry
 
 @final
 class GridEntry:
-    def __init__(self, column: int, span: int, element: Element) -> None: ...
+    def __new__(cls, element: Element, column: int = ..., span: int = ...) -> Self: ...
     @property
     def column(self) -> int: ...
     @property
     def span(self) -> int: ...
     @property
     def element(self) -> Element: ...
-    @classmethod
-    def convert(
-        cls, obj: Element | tuple[int, Element] | tuple[int, int, Element] | GridEntry
-    ) -> GridEntry: ...
+    @staticmethod
+    def convert(obj: _GridEntryLike) -> GridEntry: ...
 
 @final
 class Grid(Element):
-    def __init__(
-        self,
-        children: Iterable[
-            Element | tuple[int, Element] | tuple[int, int, Element] | GridEntry
-        ] = ...,
+    def __new__(
+        cls,
+        *children: _GridEntryLike,
         columns: Sequence[GridLength] = ...,
-        *,
         margin: float | tuple[float, float] = ...,
         alignment: Literal["end", "start", "center", "stretch"] | Alignment = ...,
-        visibility: bool = ...,
+        phantom: bool = ...,
         duration: float | None = ...,
         max_duration: float = ...,
         min_duration: float = ...,
-    ) -> None: ...
+    ) -> Self: ...
     def with_children(
         self,
-        *children: Element | tuple[int, Element] | tuple[int, int, Element] | GridEntry,
+        *children: _GridEntryLike,
     ) -> Grid: ...
     @property
     def children(self) -> Sequence[GridEntry]: ...
@@ -380,5 +373,5 @@ def generate_waveforms(
     channels: Iterable[Channel],
     shapes: Iterable[Shape],
     schedule: Element,
-    options: Options = ...,
+    options: Options | None = ...,
 ) -> dict[str, tuple[np.ndarray, np.ndarray]]: ...

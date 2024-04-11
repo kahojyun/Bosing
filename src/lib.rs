@@ -2,77 +2,7 @@
 //! possible to create cyclic references because we don't allow mutate the
 //! children after creation.
 
-use pyo3::{prelude::*, types::PyTuple};
-
-
-/// Biquad filter
-#[pyclass(get_all)]
-#[derive(Clone, Debug)]
-pub struct Biquad {
-    /// float: b0
-    pub b0: f64,
-    pub b1: f64,
-    pub b2: f64,
-    pub a1: f64,
-    pub a2: f64,
-}
-
-#[pymethods]
-impl Biquad {
-    #[new]
-    fn new(b0: f64, b1: f64, b2: f64, a1: f64, a2: f64) -> Self {
-        Biquad { b0, b1, b2, a1, a2 }
-    }
-
-    fn __repr__(&self) -> String {
-        format!(
-            "Biquad(b0={}, b1={}, b2={}, a1={}, a2={})",
-            self.b0, self.b1, self.b2, self.a1, self.a2
-        )
-    }
-
-    /// say_hello() -> str
-    /// 
-    /// Say hello from Rust
-    pub fn say_hello(&self) -> PyResult<String> {
-        Ok("Hello from Rust!".to_string())
-    }
-
-    /// get_array() -> numpy.ndarray
-    /// 
-    /// Return the coefficients as a numpy array.
-    pub fn get_array(&self) -> PyResult<Vec<f64>> {
-        Ok(vec![self.b0, self.b1, self.b2, self.a1, self.a2])
-    }
-}
-
-#[pyclass]
-#[derive(Clone, Debug)]
-struct IqCalibration {
-    a: f64,
-    b: f64,
-    c: f64,
-    d: f64,
-    i_offset: f64,
-    q_offset: f64,
-}
-
-#[pymethods]
-impl IqCalibration {
-    #[new]
-    fn new(a: f64, b: f64, c: f64, d: f64, i_offset: Option<f64>, q_offset: Option<f64>) -> Self {
-        let i_offset = i_offset.unwrap_or(0.0);
-        let q_offset = q_offset.unwrap_or(0.0);
-        IqCalibration {
-            a,
-            b,
-            c,
-            d,
-            i_offset,
-            q_offset,
-        }
-    }
-}
+use pyo3::{exceptions::PyValueError, prelude::*, types::PyDict};
 
 #[pyclass(get_all)]
 #[derive(Clone, Debug)]
@@ -83,29 +13,20 @@ struct Channel {
     length: usize,
     delay: f64,
     align_level: i32,
-    iq_calibration: Option<IqCalibration>,
-    iir: Vec<Biquad>,
-    fir: Vec<f64>,
 }
 
 #[pymethods]
 impl Channel {
     #[new]
+    #[pyo3(signature = (name, base_freq, sample_rate, length, *, delay=0.0, align_level=-10))]
     fn new(
         name: String,
         base_freq: f64,
         sample_rate: f64,
         length: usize,
-        delay: Option<f64>,
-        align_level: Option<i32>,
-        iq_calibration: Option<IqCalibration>,
-        iir: Option<Vec<Biquad>>,
-        fir: Option<Vec<f64>>,
+        delay: f64,
+        align_level: i32,
     ) -> Self {
-        let delay = delay.unwrap_or(0.0);
-        let align_level = align_level.unwrap_or(-10);
-        let iir = iir.unwrap_or_default();
-        let fir = fir.unwrap_or_default();
         Channel {
             name,
             base_freq,
@@ -113,14 +34,11 @@ impl Channel {
             length,
             delay,
             align_level,
-            iq_calibration,
-            iir,
-            fir,
         }
     }
 }
 
-#[pyclass]
+#[pyclass(get_all)]
 #[derive(Clone, Debug)]
 struct Options {
     time_tolerance: f64,
@@ -132,32 +50,24 @@ struct Options {
 #[pymethods]
 impl Options {
     #[new]
+    #[pyo3(signature = (
+        *,
+        time_tolerance=1e-12,
+        amp_tolerance=0.1 / 2f64.powi(16),
+        phase_tolerance=1e-4,
+        allow_oversize=false,
+    ))]
     fn new(
-        time_tolerance: Option<f64>,
-        amp_tolerance: Option<f64>,
-        phase_tolerance: Option<f64>,
-        allow_oversize: Option<bool>,
+        time_tolerance: f64,
+        amp_tolerance: f64,
+        phase_tolerance: f64,
+        allow_oversize: bool,
     ) -> Self {
-        let time_tolerance = time_tolerance.unwrap_or(1e-12);
-        let amp_tolerance = amp_tolerance.unwrap_or(0.1 / 2f64.powi(16));
-        let phase_tolerance = phase_tolerance.unwrap_or(1e-4);
-        let allow_oversize = allow_oversize.unwrap_or(false);
         Options {
             time_tolerance,
             amp_tolerance,
             phase_tolerance,
             allow_oversize,
-        }
-    }
-}
-
-impl Default for Options {
-    fn default() -> Self {
-        Options {
-            time_tolerance: 1e-12,
-            amp_tolerance: 0.1 / 2f64.powi(16),
-            phase_tolerance: 1e-4,
-            allow_oversize: false,
         }
     }
 }
@@ -171,43 +81,77 @@ enum Alignment {
     Stretch,
 }
 
+#[pymethods]
+impl Alignment {
+    #[staticmethod]
+    fn convert(obj: &Bound<'_, PyAny>) -> PyResult<Py<Self>> {
+        if let Ok(slf) = obj.extract() {
+            return Ok(slf);
+        }
+        if let Ok(s) = obj.extract() {
+            let alignment = match s {
+                "end" => Some(Alignment::End),
+                "start" => Some(Alignment::Start),
+                "center" => Some(Alignment::Center),
+                "stretch" => Some(Alignment::Stretch),
+                _ => None,
+            };
+            if let Some(alignment) = alignment {
+                return Py::new(obj.py(), alignment);
+            }
+        }
+        let msg = concat!(
+            "Failed to convert the value to Alignment. ",
+            "Must be Alignment or one of 'end', 'start', 'center', 'stretch'"
+        );
+        Err(PyValueError::new_err(msg))
+    }
+}
+
+fn extract_alignment(obj: &Bound<'_, PyAny>) -> PyResult<Alignment> {
+    Alignment::convert(obj).and_then(|x| x.extract(obj.py()))
+}
+
 #[pyclass(subclass)]
 #[derive(Clone, Debug)]
-struct ShapeInfo;
+struct Shape;
 
-#[pyclass(extends=ShapeInfo)]
+#[pyclass(extends=Shape)]
 #[derive(Clone, Debug)]
 struct Hann;
 
 #[pymethods]
 impl Hann {
     #[new]
-    fn new() -> (Self, ShapeInfo) {
-        (Self, ShapeInfo)
+    fn new() -> (Self, Shape) {
+        (Self, Shape)
     }
 }
 
-#[pyclass(extends=ShapeInfo)]
+#[pyclass(extends=Shape, get_all)]
 #[derive(Clone, Debug)]
 struct Interp {
-    x_array: Vec<f64>,
-    y_array: Vec<f64>,
+    xs: Vec<f64>,
+    ys: Vec<f64>,
 }
 
 #[pymethods]
 impl Interp {
     #[new]
-    fn new(x_array: Vec<f64>, y_array: Vec<f64>) -> (Self, ShapeInfo) {
-        (Self { x_array, y_array }, ShapeInfo)
+    fn new(xs: Vec<f64>, ys: Vec<f64>) -> PyResult<(Self, Shape)> {
+        if xs.len() != ys.len() {
+            return Err(PyValueError::new_err("Length of xs and ys must be equal"));
+        }
+        Ok((Self { xs, ys }, Shape))
     }
 }
 
-#[pyclass(subclass)]
+#[pyclass(subclass, get_all)]
 #[derive(Clone, Debug)]
-pub struct Element {
+struct Element {
     margin: (f64, f64),
     alignment: Alignment,
-    visibility: bool,
+    phantom: bool,
     duration: Option<f64>,
     max_duration: f64,
     min_duration: f64,
@@ -215,30 +159,29 @@ pub struct Element {
 
 impl Element {
     fn new(
-        margin: Option<(f64, f64)>,
-        alignment: Option<Alignment>,
-        visibility: Option<bool>,
+        margin: (f64, f64),
+        alignment: Option<&Bound<'_, PyAny>>,
+        phantom: bool,
         duration: Option<f64>,
-        max_duration: Option<f64>,
-        min_duration: Option<f64>,
-    ) -> Self {
-        let margin = margin.unwrap_or((0.0, 0.0));
-        let alignment = alignment.unwrap_or(Alignment::End);
-        let visibility = visibility.unwrap_or(true);
-        let max_duration = max_duration.unwrap_or(f64::INFINITY);
-        let min_duration = min_duration.unwrap_or(0.0);
-        Element {
+        max_duration: f64,
+        min_duration: f64,
+    ) -> PyResult<Self> {
+        let alignment = match alignment {
+            Some(alignment) => extract_alignment(alignment)?,
+            None => Alignment::End,
+        };
+        Ok(Element {
             margin,
             alignment,
-            visibility,
+            phantom,
             duration,
             max_duration,
             min_duration,
-        }
+        })
     }
 }
 
-#[pyclass(extends=Element)]
+#[pyclass(extends=Element, get_all)]
 #[derive(Clone, Debug)]
 struct Play {
     channel_id: usize,
@@ -255,37 +198,51 @@ struct Play {
 #[pymethods]
 impl Play {
     #[new]
+    #[pyo3(signature = (
+        channel_id,
+        amplitude,
+        shape_id,
+        width,
+        *,
+        plateau=0.0,
+        drag_coef=0.0,
+        frequency=0.0,
+        phase=0.0,
+        flexible=false,
+        margin=(0.0, 0.0),
+        alignment=None,
+        phantom=false,
+        duration=None,
+        max_duration=f64::INFINITY,
+        min_duration=0.0,
+    ))]
+    #[allow(clippy::too_many_arguments)]
     fn new(
         channel_id: usize,
         amplitude: f64,
         shape_id: usize,
         width: f64,
-        plateau: Option<f64>,
-        drag_coef: Option<f64>,
-        frequency: Option<f64>,
-        phase: Option<f64>,
-        flexible: Option<bool>,
-        margin: Option<(f64, f64)>,
-        alignment: Option<Alignment>,
-        visibility: Option<bool>,
+        plateau: f64,
+        drag_coef: f64,
+        frequency: f64,
+        phase: f64,
+        flexible: bool,
+        margin: (f64, f64),
+        alignment: Option<&Bound<'_, PyAny>>,
+        phantom: bool,
         duration: Option<f64>,
-        max_duration: Option<f64>,
-        min_duration: Option<f64>,
-    ) -> (Self, Element) {
-        let plateau = plateau.unwrap_or(0.0);
-        let drag_coef = drag_coef.unwrap_or(0.0);
-        let frequency = frequency.unwrap_or(0.0);
-        let phase = phase.unwrap_or(0.0);
-        let flexible = flexible.unwrap_or(false);
+        max_duration: f64,
+        min_duration: f64,
+    ) -> PyResult<(Self, Element)> {
         let element = Element::new(
             margin,
             alignment,
-            visibility,
+            phantom,
             duration,
             max_duration,
             min_duration,
-        );
-        (
+        )?;
+        Ok((
             Self {
                 channel_id,
                 amplitude,
@@ -298,11 +255,11 @@ impl Play {
                 flexible,
             },
             element,
-        )
+        ))
     }
 }
 
-#[pyclass(extends=Element)]
+#[pyclass(extends=Element, get_all)]
 #[derive(Clone, Debug)]
 struct ShiftPhase {
     channel_id: usize,
@@ -312,29 +269,41 @@ struct ShiftPhase {
 #[pymethods]
 impl ShiftPhase {
     #[new]
+    #[pyo3(signature = (
+        channel_id,
+        phase,
+        *,
+        margin=(0.0, 0.0),
+        alignment=None,
+        phantom=false,
+        duration=None,
+        max_duration=f64::INFINITY,
+        min_duration=0.0,
+    ))]
+    #[allow(clippy::too_many_arguments)]
     fn new(
         channel_id: usize,
         phase: f64,
-        margin: Option<(f64, f64)>,
-        alignment: Option<Alignment>,
-        visibility: Option<bool>,
+        margin: (f64, f64),
+        alignment: Option<&Bound<'_, PyAny>>,
+        phantom: bool,
         duration: Option<f64>,
-        max_duration: Option<f64>,
-        min_duration: Option<f64>,
-    ) -> (Self, Element) {
+        max_duration: f64,
+        min_duration: f64,
+    ) -> PyResult<(Self, Element)> {
         let element = Element::new(
             margin,
             alignment,
-            visibility,
+            phantom,
             duration,
             max_duration,
             min_duration,
-        );
-        (Self { channel_id, phase }, element)
+        )?;
+        Ok((Self { channel_id, phase }, element))
     }
 }
 
-#[pyclass(extends=Element)]
+#[pyclass(extends=Element, get_all)]
 #[derive(Clone, Debug)]
 struct SetPhase {
     channel_id: usize,
@@ -344,29 +313,41 @@ struct SetPhase {
 #[pymethods]
 impl SetPhase {
     #[new]
+    #[pyo3(signature = (
+        channel_id,
+        phase,
+        *,
+        margin=(0.0, 0.0),
+        alignment=None,
+        phantom=false,
+        duration=None,
+        max_duration=f64::INFINITY,
+        min_duration=0.0,
+    ))]
+    #[allow(clippy::too_many_arguments)]
     fn new(
         channel_id: usize,
         phase: f64,
-        margin: Option<(f64, f64)>,
-        alignment: Option<Alignment>,
-        visibility: Option<bool>,
+        margin: (f64, f64),
+        alignment: Option<&Bound<'_, PyAny>>,
+        phantom: bool,
         duration: Option<f64>,
-        max_duration: Option<f64>,
-        min_duration: Option<f64>,
-    ) -> (Self, Element) {
+        max_duration: f64,
+        min_duration: f64,
+    ) -> PyResult<(Self, Element)> {
         let element = Element::new(
             margin,
             alignment,
-            visibility,
+            phantom,
             duration,
             max_duration,
             min_duration,
-        );
-        (Self { channel_id, phase }, element)
+        )?;
+        Ok((Self { channel_id, phase }, element))
     }
 }
 
-#[pyclass(extends=Element)]
+#[pyclass(extends=Element, get_all)]
 #[derive(Clone, Debug)]
 struct ShiftFreq {
     channel_id: usize,
@@ -376,35 +357,47 @@ struct ShiftFreq {
 #[pymethods]
 impl ShiftFreq {
     #[new]
+    #[pyo3(signature = (
+        channel_id,
+        frequency,
+        *,
+        margin=(0.0, 0.0),
+        alignment=None,
+        phantom=false,
+        duration=None,
+        max_duration=f64::INFINITY,
+        min_duration=0.0,
+    ))]
+    #[allow(clippy::too_many_arguments)]
     fn new(
         channel_id: usize,
         frequency: f64,
-        margin: Option<(f64, f64)>,
-        alignment: Option<Alignment>,
-        visibility: Option<bool>,
+        margin: (f64, f64),
+        alignment: Option<&Bound<'_, PyAny>>,
+        phantom: bool,
         duration: Option<f64>,
-        max_duration: Option<f64>,
-        min_duration: Option<f64>,
-    ) -> (Self, Element) {
+        max_duration: f64,
+        min_duration: f64,
+    ) -> PyResult<(Self, Element)> {
         let element = Element::new(
             margin,
             alignment,
-            visibility,
+            phantom,
             duration,
             max_duration,
             min_duration,
-        );
-        (
+        )?;
+        Ok((
             Self {
                 channel_id,
                 frequency,
             },
             element,
-        )
+        ))
     }
 }
 
-#[pyclass(extends=Element)]
+#[pyclass(extends=Element, get_all)]
 #[derive(Clone, Debug)]
 struct SetFreq {
     channel_id: usize,
@@ -414,35 +407,47 @@ struct SetFreq {
 #[pymethods]
 impl SetFreq {
     #[new]
+    #[pyo3(signature = (
+        channel_id,
+        frequency,
+        *,
+        margin=(0.0, 0.0),
+        alignment=None,
+        phantom=false,
+        duration=None,
+        max_duration=f64::INFINITY,
+        min_duration=0.0,
+    ))]
+    #[allow(clippy::too_many_arguments)]
     fn new(
         channel_id: usize,
         frequency: f64,
-        margin: Option<(f64, f64)>,
-        alignment: Option<Alignment>,
-        visibility: Option<bool>,
+        margin: (f64, f64),
+        alignment: Option<&Bound<'_, PyAny>>,
+        phantom: bool,
         duration: Option<f64>,
-        max_duration: Option<f64>,
-        min_duration: Option<f64>,
-    ) -> (Self, Element) {
+        max_duration: f64,
+        min_duration: f64,
+    ) -> PyResult<(Self, Element)> {
         let element = Element::new(
             margin,
             alignment,
-            visibility,
+            phantom,
             duration,
             max_duration,
             min_duration,
-        );
-        (
+        )?;
+        Ok((
             Self {
                 channel_id,
                 frequency,
             },
             element,
-        )
+        ))
     }
 }
 
-#[pyclass(extends=Element)]
+#[pyclass(extends=Element, get_all)]
 #[derive(Clone, Debug)]
 struct SwapPhase {
     channel_id1: usize,
@@ -452,35 +457,47 @@ struct SwapPhase {
 #[pymethods]
 impl SwapPhase {
     #[new]
+    #[pyo3(signature = (
+        channel_id1,
+        channel_id2,
+        *,
+        margin=(0.0, 0.0),
+        alignment=None,
+        phantom=false,
+        duration=None,
+        max_duration=f64::INFINITY,
+        min_duration=0.0,
+    ))]
+    #[allow(clippy::too_many_arguments)]
     fn new(
         channel_id1: usize,
         channel_id2: usize,
-        margin: Option<(f64, f64)>,
-        alignment: Option<Alignment>,
-        visibility: Option<bool>,
+        margin: (f64, f64),
+        alignment: Option<&Bound<'_, PyAny>>,
+        phantom: bool,
         duration: Option<f64>,
-        max_duration: Option<f64>,
-        min_duration: Option<f64>,
-    ) -> (Self, Element) {
+        max_duration: f64,
+        min_duration: f64,
+    ) -> PyResult<(Self, Element)> {
         let element = Element::new(
             margin,
             alignment,
-            visibility,
+            phantom,
             duration,
             max_duration,
             min_duration,
-        );
-        (
+        )?;
+        Ok((
             Self {
                 channel_id1,
                 channel_id2,
             },
             element,
-        )
+        ))
     }
 }
 
-#[pyclass(extends=Element)]
+#[pyclass(extends=Element, get_all)]
 #[derive(Clone, Debug)]
 struct Barrier {
     channel_ids: Vec<usize>,
@@ -489,29 +506,37 @@ struct Barrier {
 #[pymethods]
 impl Barrier {
     #[new]
+    #[pyo3(signature = (
+        *channel_ids,
+        margin=(0.0, 0.0),
+        alignment=None,
+        phantom=false,
+        duration=None,
+        max_duration=f64::INFINITY,
+        min_duration=0.0,
+    ))]
     fn new(
-        channel_ids: Option<Vec<usize>>,
-        margin: Option<(f64, f64)>,
-        alignment: Option<Alignment>,
-        visibility: Option<bool>,
+        channel_ids: Vec<usize>,
+        margin: (f64, f64),
+        alignment: Option<&Bound<'_, PyAny>>,
+        phantom: bool,
         duration: Option<f64>,
-        max_duration: Option<f64>,
-        min_duration: Option<f64>,
-    ) -> (Self, Element) {
+        max_duration: f64,
+        min_duration: f64,
+    ) -> PyResult<(Self, Element)> {
         let element = Element::new(
             margin,
             alignment,
-            visibility,
+            phantom,
             duration,
             max_duration,
             min_duration,
-        );
-        let channel_ids = channel_ids.unwrap_or_default();
-        (Self { channel_ids }, element)
+        )?;
+        Ok((Self { channel_ids }, element))
     }
 }
 
-#[pyclass(extends=Element)]
+#[pyclass(extends=Element, get_all)]
 #[derive(Clone, Debug)]
 struct Repeat {
     child: Py<Element>,
@@ -522,94 +547,128 @@ struct Repeat {
 #[pymethods]
 impl Repeat {
     #[new]
+    #[pyo3(signature = (
+        child,
+        count,
+        spacing=0.0,
+        *,
+        margin=(0.0, 0.0),
+        alignment=None,
+        phantom=false,
+        duration=None,
+        max_duration=f64::INFINITY,
+        min_duration=0.0,
+    ))]
+    #[allow(clippy::too_many_arguments)]
     fn new(
         child: Py<Element>,
         count: usize,
         spacing: f64,
-        margin: Option<(f64, f64)>,
-        alignment: Option<Alignment>,
-        visibility: Option<bool>,
+        margin: (f64, f64),
+        alignment: Option<&Bound<'_, PyAny>>,
+        phantom: bool,
         duration: Option<f64>,
-        max_duration: Option<f64>,
-        min_duration: Option<f64>,
-    ) -> (Self, Element) {
+        max_duration: f64,
+        min_duration: f64,
+    ) -> PyResult<(Self, Element)> {
         let element = Element::new(
             margin,
             alignment,
-            visibility,
+            phantom,
             duration,
             max_duration,
             min_duration,
-        );
-        (
+        )?;
+        Ok((
             Self {
                 child,
                 count,
                 spacing,
             },
             element,
-        )
+        ))
     }
 }
 
 #[pyclass]
 #[derive(Clone, Debug)]
-enum ArrangeDirection {
-    Backwards,
-    Forwards,
+enum Direction {
+    Backward,
+    Forward,
 }
 
-impl ArrangeDirection {
-    fn from_str(s: &str) -> Self {
-        match s {
-            "backwards" => ArrangeDirection::Backwards,
-            "forwards" => ArrangeDirection::Forwards,
-            _ => panic!("Invalid ArrangeDirection"),
+#[pymethods]
+impl Direction {
+    #[staticmethod]
+    fn convert(obj: &Bound<'_, PyAny>) -> PyResult<Py<Self>> {
+        if let Ok(slf) = obj.extract() {
+            return Ok(slf);
         }
-    }
-
-    fn from_py(s: &Bound<PyAny>) -> PyResult<Self> {
-        if let Ok(v) = s.extract() {
-            Ok(v)
-        } else {
-            let s = s.extract::<&str>()?;
-            Ok(ArrangeDirection::from_str(s))
+        if let Ok(s) = obj.extract() {
+            let direction = match s {
+                "backward" => Some(Direction::Backward),
+                "forward" => Some(Direction::Forward),
+                _ => None,
+            };
+            if let Some(direction) = direction {
+                return Py::new(obj.py(), direction);
+            }
         }
+        let msg = concat!(
+            "Failed to convert the value to Direction. ",
+            "Must be Direction or one of 'backward', 'forward'"
+        );
+        Err(PyValueError::new_err(msg))
     }
 }
 
-#[pyclass(extends=Element)]
+fn extract_direction(obj: &Bound<'_, PyAny>) -> PyResult<Direction> {
+    Direction::convert(obj).and_then(|x| x.extract(obj.py()))
+}
+
+#[pyclass(extends=Element, get_all)]
 #[derive(Clone, Debug)]
 struct Stack {
     children: Vec<Py<Element>>,
-    direction: ArrangeDirection,
+    direction: Direction,
 }
 
 #[pymethods]
 impl Stack {
     #[new]
+    #[pyo3(signature = (
+        *children,
+        direction=None,
+        margin=(0.0, 0.0),
+        alignment=None,
+        phantom=false,
+        duration=None,
+        max_duration=f64::INFINITY,
+        min_duration=0.0,
+    ))]
+    #[allow(clippy::too_many_arguments)]
     fn new(
-        children: Option<Vec<Py<Element>>>,
-        direction: Option<&Bound<PyAny>>,
-        margin: Option<(f64, f64)>,
-        alignment: Option<Alignment>,
-        visibility: Option<bool>,
+        children: Vec<Py<Element>>,
+        direction: Option<&Bound<'_, PyAny>>,
+        margin: (f64, f64),
+        alignment: Option<&Bound<'_, PyAny>>,
+        phantom: bool,
         duration: Option<f64>,
-        max_duration: Option<f64>,
-        min_duration: Option<f64>,
+        max_duration: f64,
+        min_duration: f64,
     ) -> PyResult<(Self, Element)> {
         let element = Element::new(
             margin,
             alignment,
-            visibility,
+            phantom,
             duration,
             max_duration,
             min_duration,
-        );
-        let children = children.unwrap_or_default();
-        let direction = direction
-            .map(ArrangeDirection::from_py)
-            .unwrap_or(Ok(ArrangeDirection::Backwards))?;
+        )?;
+        let direction = match direction {
+            Some(direction) => extract_direction(direction)?,
+            None => Direction::Backward,
+        };
         Ok((
             Self {
                 children,
@@ -620,19 +679,18 @@ impl Stack {
     }
 
     #[pyo3(signature=(*children))]
-    fn with_children(slf: &Bound<Self>, children: &Bound<PyTuple>) -> PyResult<Py<Self>> {
-        let children = children.extract()?;
-        let stack = Self {
+    fn with_children(slf: &Bound<'_, Self>, children: Vec<Py<Element>>) -> PyResult<Py<Self>> {
+        let new = Self {
             children,
             direction: slf.borrow().direction.clone(),
         };
         let base = slf.downcast::<Element>()?.borrow().clone();
         let py = slf.py();
-        Py::new(py, (stack, base))
+        Py::new(py, (new, base))
     }
 }
 
-#[pyclass]
+#[pyclass(get_all)]
 #[derive(Clone, Debug)]
 struct AbsoluteEntry {
     time: f64,
@@ -645,9 +703,30 @@ impl AbsoluteEntry {
     fn new(time: f64, element: Py<Element>) -> Self {
         AbsoluteEntry { time, element }
     }
+
+    #[staticmethod]
+    fn convert(obj: &Bound<'_, PyAny>) -> PyResult<Py<Self>> {
+        let py = obj.py();
+        if let Ok(slf) = obj.extract() {
+            return Ok(slf);
+        }
+        if let Ok(element) = obj.extract() {
+            return Py::new(py, AbsoluteEntry::new(0.0, element));
+        }
+        if let Ok((time, element)) = obj.extract() {
+            return Py::new(py, AbsoluteEntry::new(time, element));
+        }
+        Err(PyValueError::new_err(
+            "Failed to convert the value to AbsoluteEntry",
+        ))
+    }
 }
 
-#[pyclass(extends=Element)]
+fn extract_absolute_entry(obj: &Bound<'_, PyAny>) -> PyResult<AbsoluteEntry> {
+    AbsoluteEntry::convert(obj).and_then(|x| x.extract(obj.py()))
+}
+
+#[pyclass(extends=Element, get_all)]
 #[derive(Clone, Debug)]
 struct Absolute {
     children: Vec<AbsoluteEntry>,
@@ -656,96 +735,282 @@ struct Absolute {
 #[pymethods]
 impl Absolute {
     #[new]
+    #[pyo3(signature = (
+        *children,
+        margin=(0.0, 0.0),
+        alignment=None,
+        phantom=false,
+        duration=None,
+        max_duration=f64::INFINITY,
+        min_duration=0.0,
+    ))]
+    #[allow(clippy::too_many_arguments)]
     fn new(
-        children: Option<Vec<AbsoluteEntry>>,
-        margin: Option<(f64, f64)>,
-        alignment: Option<Alignment>,
-        visibility: Option<bool>,
+        py: Python<'_>,
+        children: Vec<Py<PyAny>>,
+        margin: (f64, f64),
+        alignment: Option<&Bound<'_, PyAny>>,
+        phantom: bool,
         duration: Option<f64>,
-        max_duration: Option<f64>,
-        min_duration: Option<f64>,
-    ) -> (Self, Element) {
+        max_duration: f64,
+        min_duration: f64,
+    ) -> PyResult<(Self, Element)> {
         let element = Element::new(
             margin,
             alignment,
-            visibility,
+            phantom,
             duration,
             max_duration,
             min_duration,
-        );
-        let children = children.unwrap_or_default();
-        (Self { children }, element)
+        )?;
+        let children = children
+            .into_iter()
+            .map(|x| extract_absolute_entry(&x.into_bound(py)))
+            .collect::<PyResult<_>>()?;
+        Ok((Self { children }, element))
     }
 
     #[pyo3(signature=(*children))]
-    fn with_children(slf: &Bound<Self>, children: &Bound<PyTuple>) -> PyResult<Py<Self>> {
-        let children = children.extract()?;
-        let stack = Self { children };
-        let base = slf.downcast::<Element>()?.borrow().clone();
+    fn with_children(slf: &Bound<'_, Self>, children: Vec<Py<PyAny>>) -> PyResult<Py<Self>> {
         let py = slf.py();
-        Py::new(py, (stack, base))
+        let children = children
+            .into_iter()
+            .map(|x| extract_absolute_entry(&x.into_bound(py)))
+            .collect::<PyResult<_>>()?;
+        let new = Self { children };
+        let base = slf.downcast::<Element>()?.borrow().clone();
+        Py::new(py, (new, base))
     }
 }
 
 #[pyclass]
 #[derive(Clone, Debug)]
-struct Request {
-    channels: Vec<Channel>,
-    shapes: Vec<ShapeInfo>,
-    schedule: Py<Element>,
-    options: Options,
+enum GridLengthUnit {
+    Seconds,
+    Auto,
+    Star,
+}
+
+#[pyclass(get_all)]
+#[derive(Clone, Debug)]
+struct GridLength {
+    value: f64,
+    unit: GridLengthUnit,
 }
 
 #[pymethods]
-impl Request {
+impl GridLength {
     #[new]
-    fn new(
-        channels: Vec<Channel>,
-        shapes: Vec<ShapeInfo>,
-        schedule: Py<Element>,
-        options: Option<Options>,
-    ) -> Self {
-        let options = options.unwrap_or_default();
-        Request {
-            channels,
-            shapes,
-            schedule,
-            options,
+    fn new(value: f64, unit: GridLengthUnit) -> Self {
+        GridLength { value, unit }
+    }
+
+    #[staticmethod]
+    fn auto() -> Self {
+        GridLength {
+            value: 0.0,
+            unit: GridLengthUnit::Auto,
         }
+    }
+
+    #[staticmethod]
+    fn star(value: f64) -> Self {
+        GridLength {
+            value,
+            unit: GridLengthUnit::Star,
+        }
+    }
+
+    #[staticmethod]
+    fn fixed(value: f64) -> Self {
+        GridLength {
+            value,
+            unit: GridLengthUnit::Seconds,
+        }
+    }
+
+    #[staticmethod]
+    fn convert(obj: &Bound<'_, PyAny>) -> PyResult<Py<Self>> {
+        let py = obj.py();
+        if let Ok(slf) = obj.extract() {
+            return Ok(slf);
+        }
+        if let Ok(v) = obj.extract() {
+            return Py::new(py, GridLength::fixed(v));
+        }
+        if let Ok(s) = obj.extract::<&str>() {
+            if s == "auto" {
+                return Py::new(py, GridLength::auto());
+            }
+            if let Some(v) = s.strip_suffix('*').and_then(|x| x.parse().ok()) {
+                return Py::new(py, GridLength::star(v));
+            }
+            if let Ok(v) = s.parse() {
+                return Py::new(py, GridLength::fixed(v));
+            }
+        }
+        Err(PyValueError::new_err(
+            "Failed to convert the value to GridLength.",
+        ))
     }
 }
 
-/// add(a: int, b: int) -> int
-/// 
-/// A simple function that adds two numbers together.
+fn extract_grid_length(obj: &Bound<'_, PyAny>) -> PyResult<GridLength> {
+    GridLength::convert(obj).and_then(|x| x.extract(obj.py()))
+}
+
+#[pyclass(get_all)]
+#[derive(Debug, Clone)]
+struct GridEntry {
+    element: Py<Element>,
+    column: usize,
+    span: usize,
+}
+
+#[pymethods]
+impl GridEntry {
+    #[new]
+    #[pyo3(signature = (element, column=0, span=1))]
+    fn new(element: Py<Element>, column: usize, span: usize) -> Self {
+        GridEntry {
+            element,
+            column,
+            span,
+        }
+    }
+
+    #[staticmethod]
+    fn convert(obj: &Bound<'_, PyAny>) -> PyResult<Py<Self>> {
+        let py = obj.py();
+        if let Ok(slf) = obj.extract() {
+            return Ok(slf);
+        }
+        if let Ok(element) = obj.extract() {
+            return Py::new(py, GridEntry::new(element, 0, 1));
+        }
+        if let Ok((element, column)) = obj.extract() {
+            return Py::new(py, GridEntry::new(element, column, 1));
+        }
+        if let Ok((element, column, span)) = obj.extract() {
+            return Py::new(py, GridEntry::new(element, column, span));
+        }
+        Err(PyValueError::new_err(
+            "Failed to convert the value to GridEntry.",
+        ))
+    }
+}
+
+fn extract_grid_entry(obj: &Bound<'_, PyAny>) -> PyResult<GridEntry> {
+    GridEntry::convert(obj).and_then(|x| x.extract(obj.py()))
+}
+
+#[pyclass(extends=Element, get_all)]
+#[derive(Clone, Debug)]
+struct Grid {
+    children: Vec<GridEntry>,
+    columns: Vec<GridLength>,
+}
+
+#[pymethods]
+impl Grid {
+    #[new]
+    #[pyo3(signature = (
+        *children,
+        columns=vec![],
+        margin=(0.0, 0.0),
+        alignment=None,
+        phantom=false,
+        duration=None,
+        max_duration=f64::INFINITY,
+        min_duration=0.0,
+    ))]
+    #[allow(clippy::too_many_arguments)]
+    fn new(
+        py: Python<'_>,
+        children: Vec<Py<PyAny>>,
+        columns: Vec<Py<PyAny>>,
+        margin: (f64, f64),
+        alignment: Option<&Bound<'_, PyAny>>,
+        phantom: bool,
+        duration: Option<f64>,
+        max_duration: f64,
+        min_duration: f64,
+    ) -> PyResult<(Self, Element)> {
+        let element = Element::new(
+            margin,
+            alignment,
+            phantom,
+            duration,
+            max_duration,
+            min_duration,
+        )?;
+        let children = children
+            .into_iter()
+            .map(|x| extract_grid_entry(&x.into_bound(py)))
+            .collect::<PyResult<_>>()?;
+        let columns = columns
+            .into_iter()
+            .map(|x| extract_grid_length(&x.into_bound(py)))
+            .collect::<PyResult<_>>()?;
+        Ok((Self { children, columns }, element))
+    }
+
+    #[pyo3(signature=(*children))]
+    fn with_children(slf: &Bound<'_, Self>, children: Vec<Py<PyAny>>) -> PyResult<Py<Self>> {
+        let py = slf.py();
+        let children = children
+            .into_iter()
+            .map(|x| extract_grid_entry(&x.into_bound(py)))
+            .collect::<PyResult<_>>()?;
+        let new = Self {
+            children,
+            columns: slf.borrow().columns.clone(),
+        };
+        let base = slf.downcast::<Element>()?.borrow().clone();
+        Py::new(py, (new, base))
+    }
+}
+
 #[pyfunction]
-fn add(a: i32, b: i32) -> i32 {
-    a + b
+fn generate_waveforms(
+    channels: Vec<Channel>,
+    shapes: Vec<Shape>,
+    schedule: &Bound<'_, Element>,
+    options: Option<Options>,
+) -> PyResult<Py<PyDict>> {
+    let _ = channels;
+    let _ = shapes;
+    let _ = schedule;
+    let _ = options;
+    todo!()
 }
 
 /// A Python module implemented in Rust.
 #[pymodule]
-fn bosing_rs(_py: Python, m: &Bound<PyModule>) -> PyResult<()> {
-    m.add_class::<Biquad>()?;
-    m.add_class::<IqCalibration>()?;
+fn bosing(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
+    m.add_class::<Absolute>()?;
+    m.add_class::<AbsoluteEntry>()?;
+    m.add_class::<Alignment>()?;
+    m.add_class::<Barrier>()?;
     m.add_class::<Channel>()?;
-    m.add_class::<Options>()?;
+    m.add_class::<Direction>()?;
+    m.add_class::<Element>()?;
+    m.add_class::<Grid>()?;
+    m.add_class::<GridEntry>()?;
+    m.add_class::<GridLength>()?;
+    m.add_class::<GridLengthUnit>()?;
     m.add_class::<Hann>()?;
     m.add_class::<Interp>()?;
+    m.add_class::<Options>()?;
     m.add_class::<Play>()?;
-    m.add_class::<ShiftPhase>()?;
+    m.add_class::<Repeat>()?;
+    m.add_class::<SetFreq>()?;
     m.add_class::<SetPhase>()?;
     m.add_class::<ShiftFreq>()?;
-    m.add_class::<SetFreq>()?;
-    m.add_class::<SwapPhase>()?;
-    m.add_class::<Barrier>()?;
-    m.add_class::<Repeat>()?;
+    m.add_class::<ShiftPhase>()?;
+    m.add_class::<Shape>()?;
     m.add_class::<Stack>()?;
-    m.add_class::<AbsoluteEntry>()?;
-    m.add_class::<Absolute>()?;
-    m.add_class::<Request>()?;
-    m.add_class::<ShapeInfo>()?;
-    m.add_class::<Element>()?;
-    m.add_function(wrap_pyfunction!(add, m)?)?;
+    m.add_class::<SwapPhase>()?;
+    m.add_function(wrap_pyfunction!(generate_waveforms, m)?)?;
     Ok(())
 }

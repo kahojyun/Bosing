@@ -1,11 +1,12 @@
 [package]
-name = "bosing-rs"
+name = "bosing"
 version = "0.0.0-dev"
 edition = "2021"
+license = "MIT"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [lib]
-name = "bosing_rs"
+name = "bosing"
 crate-type = ["cdylib"]
 
 [dependencies]
