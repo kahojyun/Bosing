@@ -10,4 +10,9 @@ name = "bosing"
 crate-type = ["cdylib"]
 
 [dependencies]
+bspline = "1.1.0"
+float-cmp = "0.9.0"
+ndarray = "0.15.6"
+num = "0.4.1"
+numpy = "0.21.0"
 pyo3 = "0.21.0"

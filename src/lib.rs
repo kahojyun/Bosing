@@ -2,6 +2,8 @@
 //! possible to create cyclic references because we don't allow mutate the
 //! children after creation.
 
+mod shape;
+
 use pyo3::{exceptions::PyValueError, prelude::*, types::PyDict};
 
 #[pyclass(get_all)]
@@ -131,18 +133,23 @@ impl Hann {
 #[pyclass(extends=Shape, get_all)]
 #[derive(Clone, Debug)]
 struct Interp {
-    xs: Vec<f64>,
-    ys: Vec<f64>,
+    knots: Vec<f64>,
+    controls: Vec<f64>,
+    degree: usize,
 }
 
 #[pymethods]
 impl Interp {
     #[new]
-    fn new(xs: Vec<f64>, ys: Vec<f64>) -> PyResult<(Self, Shape)> {
-        if xs.len() != ys.len() {
-            return Err(PyValueError::new_err("Length of xs and ys must be equal"));
-        }
-        Ok((Self { xs, ys }, Shape))
+    fn new(knots: Vec<f64>, controls: Vec<f64>, degree: usize) -> PyResult<(Self, Shape)> {
+        Ok((
+            Self {
+                knots,
+                controls,
+                degree,
+            },
+            Shape,
+        ))
     }
 }
 
