@@ -2,6 +2,7 @@
 //! possible to create cyclic references because we don't allow mutate the
 //! children after creation.
 
+mod schedule;
 mod shape;
 
 use pyo3::{exceptions::PyValueError, prelude::*, types::PyDict};
@@ -153,6 +154,17 @@ impl Interp {
     }
 }
 
+fn extract_margin(obj: &Bound<'_, PyAny>) -> PyResult<(f64, f64)> {
+    if let Ok(v) = obj.extract() {
+        return Ok((v, v));
+    }
+    if let Ok((v1, v2)) = obj.extract() {
+        return Ok((v1, v2));
+    }
+    let msg = "Failed to convert the value to (f64, f64).";
+    Err(PyValueError::new_err(msg))
+}
+
 #[pyclass(subclass, get_all)]
 #[derive(Clone, Debug)]
 struct Element {
@@ -166,13 +178,17 @@ struct Element {
 
 impl Element {
     fn new(
-        margin: (f64, f64),
+        margin: Option<&Bound<'_, PyAny>>,
         alignment: Option<&Bound<'_, PyAny>>,
         phantom: bool,
         duration: Option<f64>,
         max_duration: f64,
         min_duration: f64,
     ) -> PyResult<Self> {
+        let margin = match margin {
+            Some(margin) => extract_margin(margin)?,
+            None => (0.0, 0.0),
+        };
         let alignment = match alignment {
             Some(alignment) => extract_alignment(alignment)?,
             None => Alignment::End,
@@ -216,7 +232,7 @@ impl Play {
         frequency=0.0,
         phase=0.0,
         flexible=false,
-        margin=(0.0, 0.0),
+        margin=None,
         alignment=None,
         phantom=false,
         duration=None,
@@ -234,7 +250,7 @@ impl Play {
         frequency: f64,
         phase: f64,
         flexible: bool,
-        margin: (f64, f64),
+        margin: Option<&Bound<'_, PyAny>>,
         alignment: Option<&Bound<'_, PyAny>>,
         phantom: bool,
         duration: Option<f64>,
@@ -280,7 +296,7 @@ impl ShiftPhase {
         channel_id,
         phase,
         *,
-        margin=(0.0, 0.0),
+        margin=None,
         alignment=None,
         phantom=false,
         duration=None,
@@ -291,7 +307,7 @@ impl ShiftPhase {
     fn new(
         channel_id: usize,
         phase: f64,
-        margin: (f64, f64),
+        margin: Option<&Bound<'_, PyAny>>,
         alignment: Option<&Bound<'_, PyAny>>,
         phantom: bool,
         duration: Option<f64>,
@@ -324,7 +340,7 @@ impl SetPhase {
         channel_id,
         phase,
         *,
-        margin=(0.0, 0.0),
+        margin=None,
         alignment=None,
         phantom=false,
         duration=None,
@@ -335,7 +351,7 @@ impl SetPhase {
     fn new(
         channel_id: usize,
         phase: f64,
-        margin: (f64, f64),
+        margin: Option<&Bound<'_, PyAny>>,
         alignment: Option<&Bound<'_, PyAny>>,
         phantom: bool,
         duration: Option<f64>,
@@ -368,7 +384,7 @@ impl ShiftFreq {
         channel_id,
         frequency,
         *,
-        margin=(0.0, 0.0),
+        margin=None,
         alignment=None,
         phantom=false,
         duration=None,
@@ -379,7 +395,7 @@ impl ShiftFreq {
     fn new(
         channel_id: usize,
         frequency: f64,
-        margin: (f64, f64),
+        margin: Option<&Bound<'_, PyAny>>,
         alignment: Option<&Bound<'_, PyAny>>,
         phantom: bool,
         duration: Option<f64>,
@@ -418,7 +434,7 @@ impl SetFreq {
         channel_id,
         frequency,
         *,
-        margin=(0.0, 0.0),
+        margin=None,
         alignment=None,
         phantom=false,
         duration=None,
@@ -429,7 +445,7 @@ impl SetFreq {
     fn new(
         channel_id: usize,
         frequency: f64,
-        margin: (f64, f64),
+        margin: Option<&Bound<'_, PyAny>>,
         alignment: Option<&Bound<'_, PyAny>>,
         phantom: bool,
         duration: Option<f64>,
@@ -468,7 +484,7 @@ impl SwapPhase {
         channel_id1,
         channel_id2,
         *,
-        margin=(0.0, 0.0),
+        margin=None,
         alignment=None,
         phantom=false,
         duration=None,
@@ -479,7 +495,7 @@ impl SwapPhase {
     fn new(
         channel_id1: usize,
         channel_id2: usize,
-        margin: (f64, f64),
+        margin: Option<&Bound<'_, PyAny>>,
         alignment: Option<&Bound<'_, PyAny>>,
         phantom: bool,
         duration: Option<f64>,
@@ -515,7 +531,7 @@ impl Barrier {
     #[new]
     #[pyo3(signature = (
         *channel_ids,
-        margin=(0.0, 0.0),
+        margin=None,
         alignment=None,
         phantom=false,
         duration=None,
@@ -524,7 +540,7 @@ impl Barrier {
     ))]
     fn new(
         channel_ids: Vec<usize>,
-        margin: (f64, f64),
+        margin: Option<&Bound<'_, PyAny>>,
         alignment: Option<&Bound<'_, PyAny>>,
         phantom: bool,
         duration: Option<f64>,
@@ -559,7 +575,7 @@ impl Repeat {
         count,
         spacing=0.0,
         *,
-        margin=(0.0, 0.0),
+        margin=None,
         alignment=None,
         phantom=false,
         duration=None,
@@ -571,7 +587,7 @@ impl Repeat {
         child: Py<Element>,
         count: usize,
         spacing: f64,
-        margin: (f64, f64),
+        margin: Option<&Bound<'_, PyAny>>,
         alignment: Option<&Bound<'_, PyAny>>,
         phantom: bool,
         duration: Option<f64>,
@@ -646,7 +662,7 @@ impl Stack {
     #[pyo3(signature = (
         *children,
         direction=None,
-        margin=(0.0, 0.0),
+        margin=None,
         alignment=None,
         phantom=false,
         duration=None,
@@ -657,7 +673,7 @@ impl Stack {
     fn new(
         children: Vec<Py<Element>>,
         direction: Option<&Bound<'_, PyAny>>,
-        margin: (f64, f64),
+        margin: Option<&Bound<'_, PyAny>>,
         alignment: Option<&Bound<'_, PyAny>>,
         phantom: bool,
         duration: Option<f64>,
@@ -744,7 +760,7 @@ impl Absolute {
     #[new]
     #[pyo3(signature = (
         *children,
-        margin=(0.0, 0.0),
+        margin=None,
         alignment=None,
         phantom=false,
         duration=None,
@@ -755,7 +771,7 @@ impl Absolute {
     fn new(
         py: Python<'_>,
         children: Vec<Py<PyAny>>,
-        margin: (f64, f64),
+        margin: Option<&Bound<'_, PyAny>>,
         alignment: Option<&Bound<'_, PyAny>>,
         phantom: bool,
         duration: Option<f64>,
@@ -924,7 +940,7 @@ impl Grid {
     #[pyo3(signature = (
         *children,
         columns=vec![],
-        margin=(0.0, 0.0),
+        margin=None,
         alignment=None,
         phantom=false,
         duration=None,
@@ -936,7 +952,7 @@ impl Grid {
         py: Python<'_>,
         children: Vec<Py<PyAny>>,
         columns: Vec<Py<PyAny>>,
-        margin: (f64, f64),
+        margin: Option<&Bound<'_, PyAny>>,
         alignment: Option<&Bound<'_, PyAny>>,
         phantom: bool,
         duration: Option<f64>,

@@ -1,4 +1,5 @@
 use bspline::BSpline;
+use enum_dispatch::enum_dispatch;
 
 pub struct Shape(ShapeVariant);
 
@@ -12,25 +13,21 @@ impl Shape {
     }
 
     pub fn sample(&self, x: f64) -> f64 {
-        match &self.0 {
-            ShapeVariant::Hann(hann) => hann.sample(x),
-            ShapeVariant::Interp(interp) => interp.sample(x),
-        }
+        self.0.sample(x)
     }
 
     pub fn sample_array(&self, x0: f64, dx: f64, array: &mut [f64]) {
-        match &self.0 {
-            ShapeVariant::Hann(hann) => hann.sample_array(x0, dx, array),
-            ShapeVariant::Interp(interp) => interp.sample_array(x0, dx, array),
-        }
+        self.0.sample_array(x0, dx, array);
     }
 }
 
+#[enum_dispatch(ShapeTrait)]
 enum ShapeVariant {
-    Hann(Hann),
-    Interp(Interp),
+    Hann,
+    Interp,
 }
 
+#[enum_dispatch]
 trait ShapeTrait {
     /// Sample the shape at a given position x in the range \[-0.5, 0.5\].
     fn sample(&self, x: f64) -> f64;
@@ -49,25 +46,21 @@ impl ShapeTrait for Hann {
     }
 }
 
-struct Interp {
-    spline: BSpline<f64, f64>,
-}
+struct Interp(BSpline<f64, f64>);
 
 impl Interp {
     fn new(knots: Vec<f64>, controls: Vec<f64>, degree: usize) -> Self {
-        Self {
-            spline: BSpline::new(degree, controls, knots),
-        }
+        Self(BSpline::new(degree, controls, knots))
     }
 }
 
 impl ShapeTrait for Interp {
     fn sample(&self, x: f64) -> f64 {
-        let (min, max) = self.spline.knot_domain();
+        let (min, max) = self.0.knot_domain();
         if x < min || x > max {
             return 0.0;
         }
-        self.spline.point(x)
+        self.0.point(x)
     }
 }
 
@@ -79,7 +72,7 @@ mod tests {
 
     #[test]
     fn test_hann() {
-        let hann = Hann;
+        let hann = Shape::new_hann();
         assert_approx_eq!(f64, hann.sample(-0.5), 0.0);
         assert_approx_eq!(f64, hann.sample(-0.25), 0.5);
         assert_approx_eq!(f64, hann.sample(0.0), 1.0);
@@ -151,7 +144,7 @@ mod tests {
             0.3427520927181801,
             6.123233995736766e-17,
         ];
-        let interp = Interp::new(knots, controls, 3);
+        let interp = Shape::new_interp(knots, controls, 3);
         for (&x, &y) in test_x.iter().zip(test_y.iter()) {
             assert_approx_eq!(f64, interp.sample(x), y);
         }
