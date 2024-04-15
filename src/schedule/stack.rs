@@ -1,11 +1,11 @@
-use anyhow::{Ok, Result};
+use anyhow::{bail, Result};
 use itertools::Either;
 
 use crate::schedule::{arrange, measure};
 
 use super::{
-    ArrangeResult, Element, ElementCommon, MeasureResult, MeasuredElement, Schedule,
-    ScheduleOptions,
+    ArrangeContext, ArrangeResult, ArrangeResultVariant, Element, MeasureContext, MeasureResult,
+    MeasureResultVariant, Schedule,
 };
 
 use std::{collections::HashMap, rc::Rc};
@@ -24,7 +24,7 @@ pub struct Stack {
 }
 
 impl Schedule for Stack {
-    fn measure(&self, common: &ElementCommon, max_duration: f64) -> MeasureResult {
+    fn measure(&self, context: &MeasureContext) -> MeasureResult {
         let mut used_duration = if self.channel_ids.is_empty() {
             Either::Left(0.0)
         } else {
@@ -38,7 +38,7 @@ impl Schedule for Stack {
         for child in it {
             let child_channels = child.variant.channels();
             let channel_used_duration = get_channel_usage(&used_duration, child_channels);
-            let child_available_duration = max_duration - channel_used_duration;
+            let child_available_duration = context.max_duration - channel_used_duration;
             let measured_child = measure(child.clone(), child_available_duration);
             let channel_used_duration = channel_used_duration + measured_child.duration;
             measured_children.push(measured_child);
@@ -56,23 +56,23 @@ impl Schedule for Stack {
                 .max_by(|a, b| a.total_cmp(b))
                 .unwrap_or_default(),
         };
-        (total_used_duration, measured_children)
+        MeasureResult(
+            total_used_duration,
+            super::MeasureResultVariant::Multiple(measured_children),
+        )
     }
 
-    fn arrange(
-        &self,
-        common: &ElementCommon,
-        measured_children: &[MeasuredElement],
-        time: f64,
-        final_duration: f64,
-        options: &ScheduleOptions,
-    ) -> Result<ArrangeResult> {
+    fn arrange(&self, context: &ArrangeContext) -> Result<ArrangeResult> {
         let mut used_duration = if self.channel_ids.is_empty() {
             Either::Left(0.0)
         } else {
             Either::Right(HashMap::<usize, f64>::new())
         };
         let mut arranged_children = vec![];
+        let measured_children = match &context.measured_self.data {
+            MeasureResultVariant::Multiple(v) => v,
+            _ => bail!("Invalid measure data"),
+        };
         let it = match self.direction {
             Direction::Forward => Either::Left(measured_children.iter()),
             Direction::Backward => Either::Right(measured_children.iter().rev()),
@@ -83,9 +83,11 @@ impl Schedule for Stack {
             let measured_duration = child.duration;
             let inner_time = match self.direction {
                 Direction::Forward => channel_used_duration,
-                Direction::Backward => final_duration - channel_used_duration - measured_duration,
+                Direction::Backward => {
+                    context.final_duration - channel_used_duration - measured_duration
+                }
             };
-            let arranged_child = arrange(child, inner_time, measured_duration, options)?;
+            let arranged_child = arrange(child, inner_time, measured_duration, context.options)?;
             let channel_used_duration = channel_used_duration + measured_duration;
             arranged_children.push(arranged_child);
             let channels = if child_channels.is_empty() {
@@ -95,7 +97,10 @@ impl Schedule for Stack {
             };
             update_channel_usage(&mut used_duration, channel_used_duration, channels);
         }
-        Ok((final_duration, arranged_children))
+        Ok(ArrangeResult(
+            context.final_duration,
+            ArrangeResultVariant::Multiple(arranged_children),
+        ))
     }
 
     fn channels(&self) -> &[usize] {
@@ -129,7 +134,6 @@ fn get_channel_usage(used_duration: &Either<f64, HashMap<usize, f64>>, channels:
                 .map(|i| d.get(i).copied().unwrap_or_default())
                 .max_by(|a, b| a.total_cmp(b))
         })
-        .unwrap_or_default()
-        .into(),
+        .unwrap_or_default(),
     }
 }

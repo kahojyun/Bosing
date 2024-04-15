@@ -1,60 +1,82 @@
-use anyhow::Result;
-use stack::Stack;
+use anyhow::{bail, Result};
+use enum_dispatch::enum_dispatch;
 use std::rc::Rc;
 
-use enum_dispatch::enum_dispatch;
-
+mod grid;
 mod stack;
 
+use grid::Grid;
+use stack::Stack;
+
 #[derive(Debug, Clone)]
-struct Element {
+pub struct Element {
     common: ElementCommon,
     variant: ElementVariant,
 }
 
 #[derive(Debug, Clone)]
-struct MeasuredElement {
+pub struct MeasuredElement {
     element: Rc<Element>,
     /// Desired duration without clipping. Doesn't include margin.
     unclipped_duration: f64,
     /// Clipped desired duration. Used by scheduling system.
     duration: f64,
-    children: Vec<MeasuredElement>,
+    data: MeasureResultVariant,
 }
 
 #[derive(Debug, Clone)]
-struct ArrangedElement {
+pub struct ArrangedElement {
     element: Rc<Element>,
     /// Start time of the inner block without margin relative to its parent.
     inner_time: f64,
     /// Duration of the inner block without margin.
     inner_duration: f64,
-    children: Vec<ArrangedElement>,
+    data: ArrangeResultVariant,
 }
 
 #[derive(Debug, Clone)]
-struct ScheduleOptions {
+pub struct ScheduleOptions {
     time_tolerance: f64,
     allow_oversize: bool,
 }
 
-type MeasureResult = (f64, Vec<MeasuredElement>);
+#[derive(Debug, Clone)]
+enum MeasureResultVariant {
+    Simple,
+    Multiple(Vec<MeasuredElement>),
+    Grid(Vec<MeasuredElement>, Vec<f64>),
+}
 
-type ArrangeResult = (f64, Vec<ArrangedElement>);
+#[derive(Debug, Clone)]
+struct MeasureResult(f64, MeasureResultVariant);
+
+#[derive(Debug, Clone)]
+enum ArrangeResultVariant {
+    Simple,
+    Multiple(Vec<ArrangedElement>),
+}
+
+#[derive(Debug, Clone)]
+struct ArrangeResult(f64, ArrangeResultVariant);
+
+#[derive(Debug, Clone)]
+struct MeasureContext {
+    max_duration: f64,
+}
+
+#[derive(Debug, Clone)]
+struct ArrangeContext<'a> {
+    final_duration: f64,
+    options: &'a ScheduleOptions,
+    measured_self: &'a MeasuredElement,
+}
 
 #[enum_dispatch]
 trait Schedule {
     /// Measure the element and return desired inner size and measured children.
-    fn measure(&self, common: &ElementCommon, max_duration: f64) -> MeasureResult;
+    fn measure(&self, context: &MeasureContext) -> MeasureResult;
     /// Arrange the element and return final inner size and arranged children.
-    fn arrange(
-        &self,
-        common: &ElementCommon,
-        measured_children: &[MeasuredElement],
-        time: f64,
-        final_duration: f64,
-        options: &ScheduleOptions,
-    ) -> Result<ArrangeResult>;
+    fn arrange(&self, context: &ArrangeContext) -> Result<ArrangeResult>;
     /// Channels used by this element. Empty means all of parent's channels.
     fn channels(&self) -> &[usize];
 }
@@ -67,19 +89,12 @@ impl<T> Schedule for T
 where
     T: SimpleElement,
 {
-    fn measure(&self, common: &ElementCommon, max_duration: f64) -> MeasureResult {
-        (0.0, vec![])
+    fn measure(&self, _context: &MeasureContext) -> MeasureResult {
+        MeasureResult(0.0, MeasureResultVariant::Simple)
     }
 
-    fn arrange(
-        &self,
-        common: &ElementCommon,
-        measured_children: &[MeasuredElement],
-        time: f64,
-        final_duration: f64,
-        options: &ScheduleOptions,
-    ) -> Result<ArrangeResult> {
-        Ok((0.0, vec![]))
+    fn arrange(&self, _context: &ArrangeContext) -> Result<ArrangeResult> {
+        Ok(ArrangeResult(0.0, ArrangeResultVariant::Simple))
     }
 
     fn channels(&self) -> &[usize] {
@@ -91,11 +106,11 @@ fn clamp_duration(duration: f64, min_duration: f64, max_duration: f64) -> f64 {
     duration.min(max_duration).max(min_duration)
 }
 
-fn measure(element: Rc<Element>, available_duration: f64) -> MeasuredElement {
-    debug_assert!(available_duration >= 0.0 || available_duration.is_infinite());
+pub fn measure(element: Rc<Element>, available_duration: f64) -> MeasuredElement {
+    assert!(available_duration >= 0.0 || available_duration.is_infinite());
     let common = &element.common;
     let total_margin = common.margin.0 + common.margin.1;
-    debug_assert!(total_margin.is_finite());
+    assert!(total_margin.is_finite());
     let max_duration = clamp_duration(
         common.duration.unwrap_or(f64::INFINITY),
         common.min_duration,
@@ -108,20 +123,22 @@ fn measure(element: Rc<Element>, available_duration: f64) -> MeasuredElement {
     );
     let inner_duration = (available_duration - total_margin).max(0.0);
     let inner_duration = clamp_duration(inner_duration, min_duration, max_duration);
-    let (measured, children) = element.variant.measure(common, inner_duration);
-    let unclipped_duration = (measured + total_margin).max(0.0);
+    let result = element.variant.measure(&MeasureContext {
+        max_duration: inner_duration,
+    });
+    let unclipped_duration = (result.0 + total_margin).max(0.0);
     let duration = clamp_duration(unclipped_duration, min_duration, max_duration) + total_margin;
     let duration = clamp_duration(duration, 0.0, available_duration);
     MeasuredElement {
         element,
         unclipped_duration,
         duration,
-        children,
+        data: result.1,
     }
 }
 
-fn arrange(
-    element: &MeasuredElement,
+pub fn arrange(
+    measured: &MeasuredElement,
     time: f64,
     duration: f64,
     options: &ScheduleOptions,
@@ -129,19 +146,18 @@ fn arrange(
     let MeasuredElement {
         element,
         unclipped_duration,
-        children: measured_children,
         ..
-    } = element;
+    } = measured;
     let common = &element.common;
     if duration < unclipped_duration - options.time_tolerance && !options.allow_oversize {
-        anyhow::bail!(
+        bail!(
             "Oversizing is configured to be disallowed: available duration {} < measured duration {}",
             duration,
             unclipped_duration
         );
     }
     let inner_time = time + common.margin.0;
-    debug_assert!(inner_time.is_finite());
+    assert!(inner_time.is_finite());
     let max_duration = clamp_duration(
         common.duration.unwrap_or(f64::INFINITY),
         common.min_duration,
@@ -158,30 +174,27 @@ fn arrange(
     if inner_duration + total_margin < unclipped_duration - options.time_tolerance
         && !options.allow_oversize
     {
-        anyhow::bail!(
+        bail!(
             "Oversizing is configured to be disallowed: user requested duration {} < measured duration {}",
             inner_duration + total_margin,
             unclipped_duration
         );
     }
-    let (arranged, children) = element.variant.arrange(
-        common,
-        measured_children,
-        inner_time,
-        inner_duration,
+    let result = element.variant.arrange(&ArrangeContext {
+        final_duration: inner_duration,
         options,
-    )?;
-    debug_assert!(arranged.is_finite());
+        measured_self: measured,
+    })?;
     Ok(ArrangedElement {
         element: element.clone(),
         inner_time,
-        inner_duration: arranged,
-        children,
+        inner_duration: result.0,
+        data: result.1,
     })
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Alignment {
+pub enum Alignment {
     End,
     Start,
     Center,
@@ -228,29 +241,22 @@ struct Play {
 }
 
 impl Schedule for Play {
-    fn measure(&self, common: &ElementCommon, max_duration: f64) -> MeasureResult {
+    fn measure(&self, _context: &MeasureContext) -> MeasureResult {
         let wanted_duration = if self.flexible {
             self.width
         } else {
             self.width + self.plateau
         };
-        (wanted_duration, vec![])
+        MeasureResult(wanted_duration, MeasureResultVariant::Simple)
     }
 
-    fn arrange(
-        &self,
-        common: &ElementCommon,
-        measured_children: &[MeasuredElement],
-        time: f64,
-        final_duration: f64,
-        options: &ScheduleOptions,
-    ) -> Result<ArrangeResult> {
+    fn arrange(&self, context: &ArrangeContext) -> Result<ArrangeResult> {
         let arranged = if self.flexible {
-            final_duration
+            context.final_duration
         } else {
             self.width + self.plateau
         };
-        Ok((arranged, vec![]))
+        Ok(ArrangeResult(arranged, ArrangeResultVariant::Simple))
     }
 
     fn channels(&self) -> &[usize] {
@@ -336,33 +342,36 @@ struct Repeat {
 }
 
 impl Schedule for Repeat {
-    fn measure(&self, common: &ElementCommon, max_duration: f64) -> MeasureResult {
+    fn measure(&self, context: &MeasureContext) -> MeasureResult {
         if self.count == 0 {
-            return (0.0, vec![]);
+            return MeasureResult(0.0, MeasureResultVariant::Simple);
         }
         let n = self.count as f64;
-        let duration_per_repeat = (max_duration - self.spacing * (n - 1.0)) / n;
+        let duration_per_repeat = (context.max_duration - self.spacing * (n - 1.0)) / n;
         let measured_child = measure(self.child.clone(), duration_per_repeat);
         let wanted_duration = measured_child.duration * n + self.spacing * (n - 1.0);
-        (wanted_duration, vec![measured_child])
+        MeasureResult(
+            wanted_duration,
+            MeasureResultVariant::Multiple(vec![measured_child]),
+        )
     }
 
-    fn arrange(
-        &self,
-        common: &ElementCommon,
-        measured_children: &[MeasuredElement],
-        time: f64,
-        final_duration: f64,
-        options: &ScheduleOptions,
-    ) -> Result<ArrangeResult> {
+    fn arrange(&self, context: &ArrangeContext) -> Result<ArrangeResult> {
         if self.count == 0 {
-            return Ok((0.0, vec![]));
+            return Ok(ArrangeResult(0.0, ArrangeResultVariant::Simple));
         }
         let n = self.count as f64;
-        let duration_per_repeat = (final_duration - self.spacing * (n - 1.0)) / n;
-        let arranged_child = arrange(&measured_children[0], 0.0, duration_per_repeat, options)?;
+        let duration_per_repeat = (context.final_duration - self.spacing * (n - 1.0)) / n;
+        let measured_child = match &context.measured_self.data {
+            MeasureResultVariant::Multiple(c) if c.len() == 1 => &c[0],
+            _ => bail!("Invalid measure data"),
+        };
+        let arranged_child = arrange(measured_child, 0.0, duration_per_repeat, context.options)?;
         let arranged = arranged_child.inner_duration * n + self.spacing * (n - 1.0);
-        Ok((arranged, vec![arranged_child]))
+        Ok(ArrangeResult(
+            arranged,
+            ArrangeResultVariant::Multiple(vec![arranged_child]),
+        ))
     }
 
     fn channels(&self) -> &[usize] {
@@ -383,67 +392,33 @@ struct Absolute {
 }
 
 impl Schedule for Absolute {
-    fn measure(&self, common: &ElementCommon, max_duration: f64) -> MeasureResult {
-        todo!()
+    fn measure(&self, context: &MeasureContext) -> MeasureResult {
+        let mut max_time: f64 = 0.0;
+        let mut measured_children = vec![];
+        for e in &self.children {
+            let measured_child = measure(e.element.clone(), context.max_duration);
+            max_time = max_time.max(e.time + measured_child.duration);
+            measured_children.push(measured_child);
+        }
+        MeasureResult(max_time, MeasureResultVariant::Multiple(measured_children))
     }
 
-    fn arrange(
-        &self,
-        common: &ElementCommon,
-        measured_children: &[MeasuredElement],
-        time: f64,
-        final_duration: f64,
-        options: &ScheduleOptions,
-    ) -> Result<ArrangeResult> {
-        todo!()
-    }
-
-    fn channels(&self) -> &[usize] {
-        &self.channel_ids
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum GridLengthUnit {
-    Seconds,
-    Auto,
-    Star,
-}
-
-#[derive(Debug, Clone)]
-struct GridLength {
-    value: f64,
-    unit: GridLengthUnit,
-}
-
-#[derive(Debug, Clone)]
-struct GridEntry {
-    element: Rc<Element>,
-    column: usize,
-    span: usize,
-}
-
-#[derive(Debug, Clone)]
-struct Grid {
-    children: Vec<GridEntry>,
-    columns: Vec<GridLength>,
-    channel_ids: Vec<usize>,
-}
-
-impl Schedule for Grid {
-    fn measure(&self, common: &ElementCommon, max_duration: f64) -> MeasureResult {
-        todo!()
-    }
-
-    fn arrange(
-        &self,
-        common: &ElementCommon,
-        measured_children: &[MeasuredElement],
-        time: f64,
-        final_duration: f64,
-        options: &ScheduleOptions,
-    ) -> Result<ArrangeResult> {
-        todo!()
+    fn arrange(&self, context: &ArrangeContext) -> Result<ArrangeResult> {
+        let measured_children = match &context.measured_self.data {
+            MeasureResultVariant::Multiple(v) => v,
+            _ => bail!("Invalid measure data"),
+        };
+        let arranged_children = self
+            .children
+            .iter()
+            .map(|e| e.time)
+            .zip(measured_children.iter())
+            .map(|(t, mc)| arrange(mc, t, mc.duration, context.options))
+            .collect::<Result<_>>()?;
+        Ok(ArrangeResult(
+            context.final_duration,
+            ArrangeResultVariant::Multiple(arranged_children),
+        ))
     }
 
     fn channels(&self) -> &[usize] {
