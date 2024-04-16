@@ -20,18 +20,41 @@ pub struct GridLength {
     unit: GridLengthUnit,
 }
 
+impl GridLength {
+    pub fn seconds(value: f64) -> Self {
+        Self {
+            value,
+            unit: GridLengthUnit::Seconds,
+        }
+    }
+
+    pub fn auto() -> Self {
+        Self {
+            value: 0.0,
+            unit: GridLengthUnit::Auto,
+        }
+    }
+
+    pub fn star(value: f64) -> Self {
+        Self {
+            value,
+            unit: GridLengthUnit::Star,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct GridEntry {
-    element: Rc<Element>,
+    pub(super) element: Rc<Element>,
     column: usize,
     span: usize,
 }
 
 #[derive(Debug, Clone)]
 pub struct Grid {
-    children: Vec<GridEntry>,
-    columns: Vec<GridLength>,
-    channel_ids: Vec<usize>,
+    pub(super) children: Vec<GridEntry>,
+    pub(super) columns: Vec<GridLength>,
+    pub(super) channel_ids: Vec<usize>,
 }
 
 impl Schedule for Grid {

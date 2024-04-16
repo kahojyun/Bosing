@@ -2,6 +2,7 @@ use anyhow::{bail, Result};
 use enum_dispatch::enum_dispatch;
 use std::rc::Rc;
 
+mod builder;
 mod grid;
 mod stack;
 
@@ -230,8 +231,8 @@ enum ElementVariant {
 #[derive(Debug, Clone)]
 struct Play {
     channel_id: [usize; 1],
+    shape_id: Option<usize>,
     amplitude: f64,
-    shape_id: usize,
     width: f64,
     plateau: f64,
     drag_coef: f64,

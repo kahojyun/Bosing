@@ -91,8 +91,8 @@ class Play(Element):
     def __new__(
         cls,
         channel_id: int,
-        amplitude: float,
         shape_id: int | None,
+        amplitude: float,
         width: float,
         *,
         plateau: float = ...,
@@ -110,9 +110,9 @@ class Play(Element):
     @property
     def channel_id(self) -> int: ...
     @property
-    def amplitude(self) -> float: ...
-    @property
     def shape_id(self) -> int | None: ...
+    @property
+    def amplitude(self) -> float: ...
     @property
     def width(self) -> float: ...
     @property

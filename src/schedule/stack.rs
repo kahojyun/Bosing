@@ -18,9 +18,9 @@ pub enum Direction {
 
 #[derive(Debug, Clone)]
 pub struct Stack {
-    children: Vec<Rc<Element>>,
-    direction: Direction,
-    channel_ids: Vec<usize>,
+    pub(super) children: Vec<Rc<Element>>,
+    pub(super) direction: Direction,
+    pub(super) channel_ids: Vec<usize>,
 }
 
 impl Schedule for Stack {

@@ -208,8 +208,8 @@ impl Element {
 #[derive(Clone, Debug)]
 struct Play {
     channel_id: usize,
+    shape_id: Option<usize>,
     amplitude: f64,
-    shape_id: usize,
     width: f64,
     plateau: f64,
     drag_coef: f64,
@@ -223,8 +223,8 @@ impl Play {
     #[new]
     #[pyo3(signature = (
         channel_id,
-        amplitude,
         shape_id,
+        amplitude,
         width,
         *,
         plateau=0.0,
@@ -242,8 +242,8 @@ impl Play {
     #[allow(clippy::too_many_arguments)]
     fn new(
         channel_id: usize,
+        shape_id: Option<usize>,
         amplitude: f64,
-        shape_id: usize,
         width: f64,
         plateau: f64,
         drag_coef: f64,
@@ -268,8 +268,8 @@ impl Play {
         Ok((
             Self {
                 channel_id,
-                amplitude,
                 shape_id,
+                amplitude,
                 width,
                 plateau,
                 drag_coef,
