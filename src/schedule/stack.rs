@@ -1,26 +1,53 @@
 use anyhow::{bail, Result};
-use itertools::Either;
-
-use crate::schedule::{arrange, measure};
+use itertools::{Either, Itertools as _};
+use std::collections::HashMap;
 
 use super::{
-    ArrangeContext, ArrangeResult, ArrangeResultVariant, Element, MeasureContext, MeasureResult,
-    MeasureResultVariant, Schedule,
+    arrange, measure, ArrangeContext, ArrangeResult, ArrangeResultVariant, ElementRef,
+    MeasureContext, MeasureResult, MeasureResultVariant, Schedule,
 };
-
-use std::{collections::HashMap, rc::Rc};
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Direction {
-    Backward,
-    Forward,
-}
+use crate::Direction;
 
 #[derive(Debug, Clone)]
 pub struct Stack {
-    pub(super) children: Vec<Rc<Element>>,
-    pub(super) direction: Direction,
-    pub(super) channel_ids: Vec<usize>,
+    children: Vec<ElementRef>,
+    direction: Direction,
+    channel_ids: Vec<usize>,
+}
+
+impl Stack {
+    pub fn new() -> Self {
+        Self {
+            children: vec![],
+            direction: Direction::Backward,
+            channel_ids: vec![],
+        }
+    }
+
+    pub fn with_direction(mut self, direction: Direction) -> Self {
+        self.direction = direction;
+        self
+    }
+
+    pub fn with_children(mut self, children: Vec<ElementRef>) -> Self {
+        let channel_ids = children
+            .iter()
+            .flat_map(|e| e.variant.channels())
+            .copied()
+            .unique()
+            .collect();
+        self.children = children;
+        self.channel_ids = channel_ids;
+        self
+    }
+
+    pub fn children(&self) -> &[ElementRef] {
+        &self.children
+    }
+
+    pub fn direction(&self) -> &Direction {
+        &self.direction
+    }
 }
 
 impl Schedule for Stack {

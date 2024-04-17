@@ -2,13 +2,15 @@
 //! possible to create cyclic references because we don't allow mutate the
 //! children after creation.
 
+use pyo3::{exceptions::PyValueError, prelude::*, types::PyDict};
+use schedule::ElementCommonBuilder;
+use std::sync::Arc;
+
 mod schedule;
 mod shape;
 
-use pyo3::{exceptions::PyValueError, prelude::*, types::PyDict};
-
-#[pyclass(get_all)]
-#[derive(Clone, Debug)]
+#[pyclass(get_all, frozen)]
+#[derive(Debug, Clone)]
 struct Channel {
     name: String,
     base_freq: f64,
@@ -41,8 +43,8 @@ impl Channel {
     }
 }
 
-#[pyclass(get_all)]
-#[derive(Clone, Debug)]
+#[pyclass(get_all, frozen)]
+#[derive(Debug, Clone)]
 struct Options {
     time_tolerance: f64,
     amp_tolerance: f64,
@@ -75,8 +77,8 @@ impl Options {
     }
 }
 
-#[pyclass]
-#[derive(Clone, Debug)]
+#[pyclass(frozen)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Alignment {
     End,
     Start,
@@ -115,12 +117,12 @@ fn extract_alignment(obj: &Bound<'_, PyAny>) -> PyResult<Alignment> {
     Alignment::convert(obj).and_then(|x| x.extract(obj.py()))
 }
 
-#[pyclass(subclass)]
-#[derive(Clone, Debug)]
+#[pyclass(subclass, frozen)]
+#[derive(Debug, Clone)]
 struct Shape;
 
-#[pyclass(extends=Shape)]
-#[derive(Clone, Debug)]
+#[pyclass(extends=Shape, frozen)]
+#[derive(Debug, Clone)]
 struct Hann;
 
 #[pymethods]
@@ -131,8 +133,8 @@ impl Hann {
     }
 }
 
-#[pyclass(extends=Shape, get_all)]
-#[derive(Clone, Debug)]
+#[pyclass(extends=Shape, get_all, frozen)]
+#[derive(Debug, Clone)]
 struct Interp {
     knots: Vec<f64>,
     controls: Vec<f64>,
@@ -165,58 +167,73 @@ fn extract_margin(obj: &Bound<'_, PyAny>) -> PyResult<(f64, f64)> {
     Err(PyValueError::new_err(msg))
 }
 
-#[pyclass(subclass, get_all)]
-#[derive(Clone, Debug)]
-struct Element {
-    margin: (f64, f64),
-    alignment: Alignment,
+#[pyclass(subclass, frozen)]
+#[derive(Debug, Clone)]
+struct Element(Arc<schedule::Element>);
+
+#[pymethods]
+impl Element {
+    #[getter]
+    fn margin(&self) -> (f64, f64) {
+        *self.0.margin()
+    }
+
+    #[getter]
+    fn alignment(&self) -> Alignment {
+        *self.0.alignment()
+    }
+
+    #[getter]
+    fn phantom(&self) -> bool {
+        *self.0.phantom()
+    }
+
+    #[getter]
+    fn duration(&self) -> Option<f64> {
+        *self.0.duration()
+    }
+
+    #[getter]
+    fn max_duration(&self) -> f64 {
+        *self.0.max_duration()
+    }
+
+    #[getter]
+    fn min_duration(&self) -> f64 {
+        *self.0.min_duration()
+    }
+}
+
+fn build_element(
+    variant: impl Into<schedule::ElementVariant>,
+    margin: Option<&Bound<'_, PyAny>>,
+    alignment: Option<&Bound<'_, PyAny>>,
     phantom: bool,
     duration: Option<f64>,
     max_duration: f64,
     min_duration: f64,
-}
-
-impl Element {
-    fn new(
-        margin: Option<&Bound<'_, PyAny>>,
-        alignment: Option<&Bound<'_, PyAny>>,
-        phantom: bool,
-        duration: Option<f64>,
-        max_duration: f64,
-        min_duration: f64,
-    ) -> PyResult<Self> {
-        let margin = match margin {
-            Some(margin) => extract_margin(margin)?,
-            None => (0.0, 0.0),
-        };
-        let alignment = match alignment {
-            Some(alignment) => extract_alignment(alignment)?,
-            None => Alignment::End,
-        };
-        Ok(Element {
-            margin,
-            alignment,
-            phantom,
-            duration,
-            max_duration,
-            min_duration,
-        })
+) -> PyResult<Element> {
+    let mut builder = ElementCommonBuilder::new();
+    if let Some(obj) = margin {
+        builder.margin(extract_margin(obj)?);
     }
+    if let Some(obj) = alignment {
+        builder.alignment(extract_alignment(obj)?);
+    }
+    builder
+        .phantom(phantom)
+        .duration(duration)
+        .max_duration(max_duration)
+        .min_duration(min_duration);
+    let common = builder
+        .build()
+        .map_err(|e| PyValueError::new_err(e.to_string()))?;
+    Ok(Element(Arc::new(schedule::Element::new(common, variant))))
 }
 
-#[pyclass(extends=Element, get_all)]
-#[derive(Clone, Debug)]
-struct Play {
-    channel_id: usize,
-    shape_id: Option<usize>,
-    amplitude: f64,
-    width: f64,
-    plateau: f64,
-    drag_coef: f64,
-    frequency: f64,
-    phase: f64,
-    flexible: bool,
-}
+#[pyclass(extends=Element, frozen)]
+#[derive(Debug, Clone)]
+struct Play;
 
 #[pymethods]
 impl Play {
@@ -257,37 +274,165 @@ impl Play {
         max_duration: f64,
         min_duration: f64,
     ) -> PyResult<(Self, Element)> {
-        let element = Element::new(
-            margin,
-            alignment,
-            phantom,
-            duration,
-            max_duration,
-            min_duration,
-        )?;
+        let variant = schedule::Play::new(channel_id, shape_id, amplitude, width)
+            .map_err(|e| PyValueError::new_err(e.to_string()))?;
+        let variant = variant
+            .with_plateau(plateau)
+            .map_err(|e| PyValueError::new_err(e.to_string()))?;
+        let variant = variant
+            .with_drag_coef(drag_coef)
+            .map_err(|e| PyValueError::new_err(e.to_string()))?;
+        let variant = variant
+            .with_frequency(frequency)
+            .map_err(|e| PyValueError::new_err(e.to_string()))?;
+        let variant = variant
+            .with_phase(phase)
+            .map_err(|e| PyValueError::new_err(e.to_string()))?;
+        let variant = variant.with_flexible(flexible);
         Ok((
-            Self {
-                channel_id,
-                shape_id,
-                amplitude,
-                width,
-                plateau,
-                drag_coef,
-                frequency,
-                phase,
-                flexible,
-            },
-            element,
+            Self,
+            build_element(
+                variant,
+                margin,
+                alignment,
+                phantom,
+                duration,
+                max_duration,
+                min_duration,
+            )?,
         ))
+    }
+
+    #[getter]
+    fn channel_id(slf: &Bound<'_, Self>) -> PyResult<usize> {
+        let ret = *slf
+            .downcast::<Element>()?
+            .get()
+            .0
+            .try_get_play()
+            .ok_or(PyValueError::new_err(
+                "Failed to get the play variant from the element.",
+            ))?
+            .channel_id();
+        Ok(ret)
+    }
+
+    #[getter]
+    fn shape_id(slf: &Bound<'_, Self>) -> PyResult<Option<usize>> {
+        let ret = *slf
+            .downcast::<Element>()?
+            .get()
+            .0
+            .try_get_play()
+            .ok_or(PyValueError::new_err(
+                "Failed to get the play variant from the element.",
+            ))?
+            .shape_id();
+        Ok(ret)
+    }
+
+    #[getter]
+    fn amplitude(slf: &Bound<'_, Self>) -> PyResult<f64> {
+        let ret = *slf
+            .downcast::<Element>()?
+            .get()
+            .0
+            .try_get_play()
+            .ok_or(PyValueError::new_err(
+                "Failed to get the play variant from the element.",
+            ))?
+            .amplitude();
+        Ok(ret)
+    }
+
+    #[getter]
+    fn width(slf: &Bound<'_, Self>) -> PyResult<f64> {
+        let ret = *slf
+            .downcast::<Element>()?
+            .get()
+            .0
+            .try_get_play()
+            .ok_or(PyValueError::new_err(
+                "Failed to get the play variant from the element.",
+            ))?
+            .width();
+        Ok(ret)
+    }
+
+    #[getter]
+    fn plateau(slf: &Bound<'_, Self>) -> PyResult<f64> {
+        let ret = *slf
+            .downcast::<Element>()?
+            .get()
+            .0
+            .try_get_play()
+            .ok_or(PyValueError::new_err(
+                "Failed to get the play variant from the element.",
+            ))?
+            .plateau();
+        Ok(ret)
+    }
+
+    #[getter]
+    fn drag_coef(slf: &Bound<'_, Self>) -> PyResult<f64> {
+        let ret = *slf
+            .downcast::<Element>()?
+            .get()
+            .0
+            .try_get_play()
+            .ok_or(PyValueError::new_err(
+                "Failed to get the play variant from the element.",
+            ))?
+            .drag_coef();
+        Ok(ret)
+    }
+
+    #[getter]
+    fn frequency(slf: &Bound<'_, Self>) -> PyResult<f64> {
+        let ret = *slf
+            .downcast::<Element>()?
+            .get()
+            .0
+            .try_get_play()
+            .ok_or(PyValueError::new_err(
+                "Failed to get the play variant from the element.",
+            ))?
+            .frequency();
+        Ok(ret)
+    }
+
+    #[getter]
+    fn phase(slf: &Bound<'_, Self>) -> PyResult<f64> {
+        let ret = *slf
+            .downcast::<Element>()?
+            .get()
+            .0
+            .try_get_play()
+            .ok_or(PyValueError::new_err(
+                "Failed to get the play variant from the element.",
+            ))?
+            .phase();
+        Ok(ret)
+    }
+
+    #[getter]
+    fn flexible(slf: &Bound<'_, Self>) -> PyResult<bool> {
+        let ret = *slf
+            .downcast::<Element>()?
+            .get()
+            .0
+            .try_get_play()
+            .ok_or(PyValueError::new_err(
+                "Failed to get the play variant from the element.",
+            ))?
+            .flexible();
+        Ok(ret)
     }
 }
 
-#[pyclass(extends=Element, get_all)]
-#[derive(Clone, Debug)]
-struct ShiftPhase {
-    channel_id: usize,
-    phase: f64,
-}
+#[pyclass(extends=Element, frozen)]
+#[derive(Debug, Clone)]
+struct ShiftPhase;
 
 #[pymethods]
 impl ShiftPhase {
@@ -314,24 +459,54 @@ impl ShiftPhase {
         max_duration: f64,
         min_duration: f64,
     ) -> PyResult<(Self, Element)> {
-        let element = Element::new(
-            margin,
-            alignment,
-            phantom,
-            duration,
-            max_duration,
-            min_duration,
-        )?;
-        Ok((Self { channel_id, phase }, element))
+        let variant = schedule::ShiftPhase::new(channel_id, phase)
+            .map_err(|e| PyValueError::new_err(e.to_string()))?;
+        Ok((
+            Self,
+            build_element(
+                variant,
+                margin,
+                alignment,
+                phantom,
+                duration,
+                max_duration,
+                min_duration,
+            )?,
+        ))
+    }
+
+    #[getter]
+    fn channel_id(slf: &Bound<'_, Self>) -> PyResult<usize> {
+        let ret = *slf
+            .downcast::<Element>()?
+            .get()
+            .0
+            .try_get_shift_phase()
+            .ok_or(PyValueError::new_err(
+                "Failed to get the shift_phase variant from the element.",
+            ))?
+            .channel_id();
+        Ok(ret)
+    }
+
+    #[getter]
+    fn phase(slf: &Bound<'_, Self>) -> PyResult<f64> {
+        let ret = *slf
+            .downcast::<Element>()?
+            .get()
+            .0
+            .try_get_shift_phase()
+            .ok_or(PyValueError::new_err(
+                "Failed to get the shift_phase variant from the element.",
+            ))?
+            .phase();
+        Ok(ret)
     }
 }
 
-#[pyclass(extends=Element, get_all)]
-#[derive(Clone, Debug)]
-struct SetPhase {
-    channel_id: usize,
-    phase: f64,
-}
+#[pyclass(extends=Element, frozen)]
+#[derive(Debug, Clone)]
+struct SetPhase;
 
 #[pymethods]
 impl SetPhase {
@@ -358,24 +533,54 @@ impl SetPhase {
         max_duration: f64,
         min_duration: f64,
     ) -> PyResult<(Self, Element)> {
-        let element = Element::new(
-            margin,
-            alignment,
-            phantom,
-            duration,
-            max_duration,
-            min_duration,
-        )?;
-        Ok((Self { channel_id, phase }, element))
+        let variant = schedule::SetPhase::new(channel_id, phase)
+            .map_err(|e| PyValueError::new_err(e.to_string()))?;
+        Ok((
+            Self,
+            build_element(
+                variant,
+                margin,
+                alignment,
+                phantom,
+                duration,
+                max_duration,
+                min_duration,
+            )?,
+        ))
+    }
+
+    #[getter]
+    fn channel_id(slf: &Bound<'_, Self>) -> PyResult<usize> {
+        let ret = *slf
+            .downcast::<Element>()?
+            .get()
+            .0
+            .try_get_set_phase()
+            .ok_or(PyValueError::new_err(
+                "Failed to get the set_phase variant from the element.",
+            ))?
+            .channel_id();
+        Ok(ret)
+    }
+
+    #[getter]
+    fn phase(slf: &Bound<'_, Self>) -> PyResult<f64> {
+        let ret = *slf
+            .downcast::<Element>()?
+            .get()
+            .0
+            .try_get_set_phase()
+            .ok_or(PyValueError::new_err(
+                "Failed to get the set_phase variant from the element.",
+            ))?
+            .phase();
+        Ok(ret)
     }
 }
 
-#[pyclass(extends=Element, get_all)]
-#[derive(Clone, Debug)]
-struct ShiftFreq {
-    channel_id: usize,
-    frequency: f64,
-}
+#[pyclass(extends=Element, frozen)]
+#[derive(Debug, Clone)]
+struct ShiftFreq;
 
 #[pymethods]
 impl ShiftFreq {
@@ -402,30 +607,54 @@ impl ShiftFreq {
         max_duration: f64,
         min_duration: f64,
     ) -> PyResult<(Self, Element)> {
-        let element = Element::new(
-            margin,
-            alignment,
-            phantom,
-            duration,
-            max_duration,
-            min_duration,
-        )?;
+        let variant = schedule::ShiftFreq::new(channel_id, frequency)
+            .map_err(|e| PyValueError::new_err(e.to_string()))?;
         Ok((
-            Self {
-                channel_id,
-                frequency,
-            },
-            element,
+            Self,
+            build_element(
+                variant,
+                margin,
+                alignment,
+                phantom,
+                duration,
+                max_duration,
+                min_duration,
+            )?,
         ))
+    }
+
+    #[getter]
+    fn channel_id(slf: &Bound<'_, Self>) -> PyResult<usize> {
+        let ret = *slf
+            .downcast::<Element>()?
+            .get()
+            .0
+            .try_get_shift_freq()
+            .ok_or(PyValueError::new_err(
+                "Failed to get the shift_freq variant from the element.",
+            ))?
+            .channel_id();
+        Ok(ret)
+    }
+
+    #[getter]
+    fn frequency(slf: &Bound<'_, Self>) -> PyResult<f64> {
+        let ret = *slf
+            .downcast::<Element>()?
+            .get()
+            .0
+            .try_get_shift_freq()
+            .ok_or(PyValueError::new_err(
+                "Failed to get the shift_freq variant from the element.",
+            ))?
+            .frequency();
+        Ok(ret)
     }
 }
 
-#[pyclass(extends=Element, get_all)]
-#[derive(Clone, Debug)]
-struct SetFreq {
-    channel_id: usize,
-    frequency: f64,
-}
+#[pyclass(extends=Element, frozen)]
+#[derive(Debug, Clone)]
+struct SetFreq;
 
 #[pymethods]
 impl SetFreq {
@@ -452,30 +681,54 @@ impl SetFreq {
         max_duration: f64,
         min_duration: f64,
     ) -> PyResult<(Self, Element)> {
-        let element = Element::new(
-            margin,
-            alignment,
-            phantom,
-            duration,
-            max_duration,
-            min_duration,
-        )?;
+        let variant = schedule::SetFreq::new(channel_id, frequency)
+            .map_err(|e| PyValueError::new_err(e.to_string()))?;
         Ok((
-            Self {
-                channel_id,
-                frequency,
-            },
-            element,
+            Self,
+            build_element(
+                variant,
+                margin,
+                alignment,
+                phantom,
+                duration,
+                max_duration,
+                min_duration,
+            )?,
         ))
+    }
+
+    #[getter]
+    fn channel_id(slf: &Bound<'_, Self>) -> PyResult<usize> {
+        let ret = *slf
+            .downcast::<Element>()?
+            .get()
+            .0
+            .try_get_set_freq()
+            .ok_or(PyValueError::new_err(
+                "Failed to get the set_freq variant from the element.",
+            ))?
+            .channel_id();
+        Ok(ret)
+    }
+
+    #[getter]
+    fn frequency(slf: &Bound<'_, Self>) -> PyResult<f64> {
+        let ret = *slf
+            .downcast::<Element>()?
+            .get()
+            .0
+            .try_get_set_freq()
+            .ok_or(PyValueError::new_err(
+                "Failed to get the set_freq variant from the element.",
+            ))?
+            .frequency();
+        Ok(ret)
     }
 }
 
-#[pyclass(extends=Element, get_all)]
-#[derive(Clone, Debug)]
-struct SwapPhase {
-    channel_id1: usize,
-    channel_id2: usize,
-}
+#[pyclass(extends=Element, frozen)]
+#[derive(Debug, Clone)]
+struct SwapPhase;
 
 #[pymethods]
 impl SwapPhase {
@@ -502,29 +755,53 @@ impl SwapPhase {
         max_duration: f64,
         min_duration: f64,
     ) -> PyResult<(Self, Element)> {
-        let element = Element::new(
-            margin,
-            alignment,
-            phantom,
-            duration,
-            max_duration,
-            min_duration,
-        )?;
+        let variant = schedule::SwapPhase::new(channel_id1, channel_id2);
         Ok((
-            Self {
-                channel_id1,
-                channel_id2,
-            },
-            element,
+            Self,
+            build_element(
+                variant,
+                margin,
+                alignment,
+                phantom,
+                duration,
+                max_duration,
+                min_duration,
+            )?,
         ))
+    }
+
+    #[getter]
+    fn channel_id1(slf: &Bound<'_, Self>) -> PyResult<usize> {
+        let ret = *slf
+            .downcast::<Element>()?
+            .get()
+            .0
+            .try_get_swap_phase()
+            .ok_or(PyValueError::new_err(
+                "Failed to get the swap_phase variant from the element.",
+            ))?
+            .channel_id1();
+        Ok(ret)
+    }
+
+    #[getter]
+    fn channel_id2(slf: &Bound<'_, Self>) -> PyResult<usize> {
+        let ret = *slf
+            .downcast::<Element>()?
+            .get()
+            .0
+            .try_get_swap_phase()
+            .ok_or(PyValueError::new_err(
+                "Failed to get the swap_phase variant from the element.",
+            ))?
+            .channel_id2();
+        Ok(ret)
     }
 }
 
-#[pyclass(extends=Element, get_all)]
-#[derive(Clone, Debug)]
-struct Barrier {
-    channel_ids: Vec<usize>,
-}
+#[pyclass(extends=Element, frozen)]
+#[derive(Debug, Clone)]
+struct Barrier;
 
 #[pymethods]
 impl Barrier {
@@ -547,24 +824,41 @@ impl Barrier {
         max_duration: f64,
         min_duration: f64,
     ) -> PyResult<(Self, Element)> {
-        let element = Element::new(
-            margin,
-            alignment,
-            phantom,
-            duration,
-            max_duration,
-            min_duration,
-        )?;
-        Ok((Self { channel_ids }, element))
+        let variant = schedule::Barrier::from_channel_ids(channel_ids);
+        Ok((
+            Self,
+            build_element(
+                variant,
+                margin,
+                alignment,
+                phantom,
+                duration,
+                max_duration,
+                min_duration,
+            )?,
+        ))
+    }
+
+    #[getter]
+    fn channel_ids(slf: &Bound<'_, Self>) -> PyResult<Vec<usize>> {
+        let ret = slf
+            .downcast::<Element>()?
+            .get()
+            .0
+            .try_get_barrier()
+            .ok_or(PyValueError::new_err(
+                "Failed to get the barrier variant from the element.",
+            ))?
+            .channel_ids()
+            .to_vec();
+        Ok(ret)
     }
 }
 
-#[pyclass(extends=Element, get_all)]
-#[derive(Clone, Debug)]
+#[pyclass(extends=Element, get_all, frozen)]
+#[derive(Debug, Clone)]
 struct Repeat {
     child: Py<Element>,
-    count: usize,
-    spacing: f64,
 }
 
 #[pymethods]
@@ -594,27 +888,55 @@ impl Repeat {
         max_duration: f64,
         min_duration: f64,
     ) -> PyResult<(Self, Element)> {
-        let element = Element::new(
-            margin,
-            alignment,
-            phantom,
-            duration,
-            max_duration,
-            min_duration,
-        )?;
+        let rust_child = child.get().0.clone();
+        let variant = schedule::Repeat::new(rust_child, count)
+            .with_spacing(spacing)
+            .map_err(|e| PyValueError::new_err(e.to_string()))?;
         Ok((
-            Self {
-                child,
-                count,
-                spacing,
-            },
-            element,
+            Self { child },
+            build_element(
+                variant,
+                margin,
+                alignment,
+                phantom,
+                duration,
+                max_duration,
+                min_duration,
+            )?,
         ))
+    }
+
+    #[getter]
+    fn count(slf: &Bound<'_, Self>) -> PyResult<usize> {
+        let ret = *slf
+            .downcast::<Element>()?
+            .get()
+            .0
+            .try_get_repeat()
+            .ok_or(PyValueError::new_err(
+                "Failed to get the repeat variant from the element.",
+            ))?
+            .count();
+        Ok(ret)
+    }
+
+    #[getter]
+    fn spacing(slf: &Bound<'_, Self>) -> PyResult<f64> {
+        let ret = *slf
+            .downcast::<Element>()?
+            .get()
+            .0
+            .try_get_repeat()
+            .ok_or(PyValueError::new_err(
+                "Failed to get the repeat variant from the element.",
+            ))?
+            .spacing();
+        Ok(ret)
     }
 }
 
-#[pyclass]
-#[derive(Clone, Debug)]
+#[pyclass(frozen)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Direction {
     Backward,
     Forward,
@@ -649,11 +971,10 @@ fn extract_direction(obj: &Bound<'_, PyAny>) -> PyResult<Direction> {
     Direction::convert(obj).and_then(|x| x.extract(obj.py()))
 }
 
-#[pyclass(extends=Element, get_all)]
-#[derive(Clone, Debug)]
+#[pyclass(extends=Element, get_all, frozen)]
+#[derive(Debug, Clone)]
 struct Stack {
     children: Vec<Py<Element>>,
-    direction: Direction,
 }
 
 #[pymethods]
@@ -680,41 +1001,66 @@ impl Stack {
         max_duration: f64,
         min_duration: f64,
     ) -> PyResult<(Self, Element)> {
-        let element = Element::new(
-            margin,
-            alignment,
-            phantom,
-            duration,
-            max_duration,
-            min_duration,
-        )?;
-        let direction = match direction {
-            Some(direction) => extract_direction(direction)?,
-            None => Direction::Backward,
+        let rust_children = children.iter().map(|x| x.get().0.clone()).collect();
+        let variant = schedule::Stack::new().with_children(rust_children);
+        let variant = if let Some(obj) = direction {
+            variant.with_direction(extract_direction(obj)?)
+        } else {
+            variant
         };
         Ok((
-            Self {
-                children,
-                direction,
-            },
-            element,
+            Self { children },
+            build_element(
+                variant,
+                margin,
+                alignment,
+                phantom,
+                duration,
+                max_duration,
+                min_duration,
+            )?,
         ))
     }
 
     #[pyo3(signature=(*children))]
     fn with_children(slf: &Bound<'_, Self>, children: Vec<Py<Element>>) -> PyResult<Py<Self>> {
-        let new = Self {
-            children,
-            direction: slf.borrow().direction.clone(),
-        };
-        let base = slf.downcast::<Element>()?.borrow().clone();
         let py = slf.py();
-        Py::new(py, (new, base))
+        let rust_children = children.iter().map(|x| x.get().0.clone()).collect();
+        let rust_base = &slf.downcast::<Element>()?.get().0;
+        let common = rust_base.common().clone();
+        let variant = rust_base
+            .try_get_stack()
+            .ok_or(PyValueError::new_err(
+                "Failed to get the stack variant from the element.",
+            ))?
+            .clone()
+            .with_children(rust_children);
+        Py::new(
+            py,
+            (
+                Self { children },
+                Element(Arc::new(schedule::Element::new(common, variant))),
+            ),
+        )
+    }
+
+    #[getter]
+    fn direction(slf: &Bound<'_, Self>) -> PyResult<Direction> {
+        let ret = *slf
+            .downcast::<Element>()?
+            .get()
+            .0
+            .try_get_stack()
+            .ok_or(PyValueError::new_err(
+                "Failed to get the stack variant from the element.",
+            ))?
+            .direction();
+        Ok(ret)
     }
 }
 
-#[pyclass(get_all)]
-#[derive(Clone, Debug)]
+#[pyclass(get_all, frozen)]
+#[derive(Debug, Clone)]
 struct AbsoluteEntry {
     time: f64,
     element: Py<Element>,
@@ -749,8 +1095,8 @@ fn extract_absolute_entry(obj: &Bound<'_, PyAny>) -> PyResult<AbsoluteEntry> {
     AbsoluteEntry::convert(obj).and_then(|x| x.extract(obj.py()))
 }
 
-#[pyclass(extends=Element, get_all)]
-#[derive(Clone, Debug)]
+#[pyclass(extends=Element, get_all, frozen)]
+#[derive(Debug, Clone)]
 struct Absolute {
     children: Vec<AbsoluteEntry>,
 }
@@ -778,44 +1124,79 @@ impl Absolute {
         max_duration: f64,
         min_duration: f64,
     ) -> PyResult<(Self, Element)> {
-        let element = Element::new(
-            margin,
-            alignment,
-            phantom,
-            duration,
-            max_duration,
-            min_duration,
-        )?;
-        let children = children
+        let children: Vec<AbsoluteEntry> = children
             .into_iter()
             .map(|x| extract_absolute_entry(&x.into_bound(py)))
             .collect::<PyResult<_>>()?;
-        Ok((Self { children }, element))
+        let rust_children = children
+            .iter()
+            .map(|x| {
+                let element = x.element.get().0.clone();
+                schedule::AbsoluteEntry::new(element)
+                    .with_time(x.time)
+                    .map_err(|e| PyValueError::new_err(e.to_string()))
+            })
+            .collect::<PyResult<_>>()?;
+        let variant = schedule::Absolute::new().with_children(rust_children);
+        Ok((
+            Self { children },
+            build_element(
+                variant,
+                margin,
+                alignment,
+                phantom,
+                duration,
+                max_duration,
+                min_duration,
+            )?,
+        ))
     }
 
     #[pyo3(signature=(*children))]
     fn with_children(slf: &Bound<'_, Self>, children: Vec<Py<PyAny>>) -> PyResult<Py<Self>> {
         let py = slf.py();
-        let children = children
+        let children: Vec<_> = children
             .into_iter()
             .map(|x| extract_absolute_entry(&x.into_bound(py)))
             .collect::<PyResult<_>>()?;
-        let new = Self { children };
-        let base = slf.downcast::<Element>()?.borrow().clone();
-        Py::new(py, (new, base))
+        let rust_children = children
+            .iter()
+            .map(|x| {
+                let element = x.element.get().0.clone();
+                schedule::AbsoluteEntry::new(element)
+                    .with_time(x.time)
+                    .map_err(|e| PyValueError::new_err(e.to_string()))
+            })
+            .collect::<PyResult<_>>()?;
+        let rust_base = &slf.downcast::<Element>()?.get().0;
+        let common = rust_base.common().clone();
+        let variant = rust_base
+            .try_get_absolute()
+            .ok_or(PyValueError::new_err(
+                "Failed to get the absolute variant from the element.",
+            ))?
+            .clone()
+            .with_children(rust_children);
+        Py::new(
+            py,
+            (
+                Self { children },
+                Element(Arc::new(schedule::Element::new(common, variant))),
+            ),
+        )
     }
 }
 
-#[pyclass]
-#[derive(Clone, Debug)]
+#[pyclass(frozen)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum GridLengthUnit {
     Seconds,
     Auto,
     Star,
 }
 
-#[pyclass(get_all)]
-#[derive(Clone, Debug)]
+#[pyclass(get_all, frozen)]
+#[derive(Debug, Clone)]
 struct GridLength {
     value: f64,
     unit: GridLengthUnit,
@@ -837,19 +1218,27 @@ impl GridLength {
     }
 
     #[staticmethod]
-    fn star(value: f64) -> Self {
-        GridLength {
+    fn star(value: f64) -> PyResult<Self> {
+        if !value.is_finite() || value <= 0.0 {
+            return Err(PyValueError::new_err("The value must be greater than 0."));
+        }
+        Ok(GridLength {
             value,
             unit: GridLengthUnit::Star,
-        }
+        })
     }
 
     #[staticmethod]
-    fn fixed(value: f64) -> Self {
-        GridLength {
+    fn fixed(value: f64) -> PyResult<Self> {
+        if !value.is_finite() || value < 0.0 {
+            return Err(PyValueError::new_err(
+                "The value must be greater than or equal to 0.",
+            ));
+        }
+        Ok(GridLength {
             value,
             unit: GridLengthUnit::Seconds,
-        }
+        })
     }
 
     #[staticmethod]
@@ -859,17 +1248,17 @@ impl GridLength {
             return Ok(slf);
         }
         if let Ok(v) = obj.extract() {
-            return Py::new(py, GridLength::fixed(v));
+            return Py::new(py, GridLength::fixed(v)?);
         }
         if let Ok(s) = obj.extract::<&str>() {
             if s == "auto" {
                 return Py::new(py, GridLength::auto());
             }
             if let Some(v) = s.strip_suffix('*').and_then(|x| x.parse().ok()) {
-                return Py::new(py, GridLength::star(v));
+                return Py::new(py, GridLength::star(v)?);
             }
             if let Ok(v) = s.parse() {
-                return Py::new(py, GridLength::fixed(v));
+                return Py::new(py, GridLength::fixed(v)?);
             }
         }
         Err(PyValueError::new_err(
@@ -882,7 +1271,7 @@ fn extract_grid_length(obj: &Bound<'_, PyAny>) -> PyResult<GridLength> {
     GridLength::convert(obj).and_then(|x| x.extract(obj.py()))
 }
 
-#[pyclass(get_all)]
+#[pyclass(get_all, frozen)]
 #[derive(Debug, Clone)]
 struct GridEntry {
     element: Py<Element>,
@@ -927,11 +1316,10 @@ fn extract_grid_entry(obj: &Bound<'_, PyAny>) -> PyResult<GridEntry> {
     GridEntry::convert(obj).and_then(|x| x.extract(obj.py()))
 }
 
-#[pyclass(extends=Element, get_all)]
-#[derive(Clone, Debug)]
+#[pyclass(extends=Element, get_all, frozen)]
+#[derive(Debug, Clone)]
 struct Grid {
     children: Vec<GridEntry>,
-    columns: Vec<GridLength>,
 }
 
 #[pymethods]
@@ -959,38 +1347,87 @@ impl Grid {
         max_duration: f64,
         min_duration: f64,
     ) -> PyResult<(Self, Element)> {
-        let element = Element::new(
-            margin,
-            alignment,
-            phantom,
-            duration,
-            max_duration,
-            min_duration,
-        )?;
-        let children = children
+        let children: Vec<_> = children
             .into_iter()
             .map(|x| extract_grid_entry(&x.into_bound(py)))
             .collect::<PyResult<_>>()?;
-        let columns = columns
+        let columns: Vec<_> = columns
             .into_iter()
             .map(|x| extract_grid_length(&x.into_bound(py)))
             .collect::<PyResult<_>>()?;
-        Ok((Self { children, columns }, element))
+        let rust_children = children
+            .iter()
+            .map(|x| {
+                let element = x.element.get().0.clone();
+                schedule::GridEntry::new(element)
+                    .with_column(x.column)
+                    .with_span(x.span)
+            })
+            .collect();
+        let variant = schedule::Grid::new()
+            .with_children(rust_children)
+            .with_columns(columns);
+        Ok((
+            Self { children },
+            build_element(
+                variant,
+                margin,
+                alignment,
+                phantom,
+                duration,
+                max_duration,
+                min_duration,
+            )?,
+        ))
     }
 
     #[pyo3(signature=(*children))]
     fn with_children(slf: &Bound<'_, Self>, children: Vec<Py<PyAny>>) -> PyResult<Py<Self>> {
         let py = slf.py();
-        let children = children
+        let children: Vec<_> = children
             .into_iter()
             .map(|x| extract_grid_entry(&x.into_bound(py)))
             .collect::<PyResult<_>>()?;
-        let new = Self {
-            children,
-            columns: slf.borrow().columns.clone(),
-        };
-        let base = slf.downcast::<Element>()?.borrow().clone();
-        Py::new(py, (new, base))
+        let rust_children = children
+            .iter()
+            .map(|x| {
+                let element = x.element.get().0.clone();
+                schedule::GridEntry::new(element)
+                    .with_column(x.column)
+                    .with_span(x.span)
+            })
+            .collect();
+        let rust_base = &slf.downcast::<Element>()?.get().0;
+        let common = rust_base.common().clone();
+        let variant = rust_base
+            .try_get_grid()
+            .ok_or(PyValueError::new_err(
+                "Failed to get the grid variant from the element.",
+            ))?
+            .clone()
+            .with_children(rust_children);
+        Py::new(
+            py,
+            (
+                Self { children },
+                Element(Arc::new(schedule::Element::new(common, variant))),
+            ),
+        )
+    }
+
+    #[getter]
+    fn columns(slf: &Bound<'_, Self>) -> PyResult<Vec<GridLength>> {
+        let ret = slf
+            .downcast::<Element>()?
+            .get()
+            .0
+            .try_get_grid()
+            .ok_or(PyValueError::new_err(
+                "Failed to get the grid variant from the element.",
+            ))?
+            .columns()
+            .to_vec();
+        Ok(ret)
     }
 }
 

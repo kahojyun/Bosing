@@ -1,60 +1,96 @@
+use anyhow::{bail, Result};
+use itertools::Itertools as _;
+use ordered_float::OrderedFloat;
+
 use super::{
-    arrange, measure, Alignment, ArrangeContext, ArrangeResult, ArrangeResultVariant, Element,
+    arrange, measure, Alignment, ArrangeContext, ArrangeResult, ArrangeResultVariant, ElementRef,
     MeasureContext, MeasureResult, MeasureResultVariant, Schedule,
 };
-use anyhow::{bail, Result};
-use itertools::Itertools;
-use ordered_float::OrderedFloat;
-use std::rc::Rc;
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum GridLengthUnit {
-    Seconds,
-    Auto,
-    Star,
-}
-
-#[derive(Debug, Clone)]
-pub struct GridLength {
-    value: f64,
-    unit: GridLengthUnit,
-}
-
-impl GridLength {
-    pub fn seconds(value: f64) -> Self {
-        Self {
-            value,
-            unit: GridLengthUnit::Seconds,
-        }
-    }
-
-    pub fn auto() -> Self {
-        Self {
-            value: 0.0,
-            unit: GridLengthUnit::Auto,
-        }
-    }
-
-    pub fn star(value: f64) -> Self {
-        Self {
-            value,
-            unit: GridLengthUnit::Star,
-        }
-    }
-}
+use crate::{GridLength, GridLengthUnit};
 
 #[derive(Debug, Clone)]
 pub struct GridEntry {
-    pub(super) element: Rc<Element>,
+    element: ElementRef,
     column: usize,
     span: usize,
 }
 
+impl GridEntry {
+    pub fn new(element: ElementRef) -> Self {
+        Self {
+            element,
+            column: 0,
+            span: 1,
+        }
+    }
+
+    pub fn with_column(mut self, column: usize) -> Self {
+        self.column = column;
+        self
+    }
+
+    pub fn with_span(mut self, span: usize) -> Self {
+        self.span = span;
+        self
+    }
+
+    pub fn element(&self) -> &ElementRef {
+        &self.element
+    }
+
+    pub fn column(&self) -> usize {
+        self.column
+    }
+
+    pub fn span(&self) -> usize {
+        self.span
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Grid {
-    pub(super) children: Vec<GridEntry>,
-    pub(super) columns: Vec<GridLength>,
-    pub(super) channel_ids: Vec<usize>,
+    children: Vec<GridEntry>,
+    columns: Vec<GridLength>,
+    channel_ids: Vec<usize>,
+}
+
+impl Grid {
+    pub fn new() -> Self {
+        Self {
+            children: vec![],
+            columns: vec![GridLength::star(1.0).unwrap()],
+            channel_ids: vec![],
+        }
+    }
+
+    pub fn with_columns(mut self, columns: Vec<GridLength>) -> Self {
+        if columns.is_empty() {
+            self.columns = vec![GridLength::star(1.0).unwrap()];
+        } else {
+            self.columns = columns;
+        }
+        self
+    }
+
+    pub fn with_children(mut self, children: Vec<GridEntry>) -> Self {
+        let channel_ids = children
+            .iter()
+            .flat_map(|e| e.element.variant.channels())
+            .copied()
+            .unique()
+            .collect();
+        self.children = children;
+        self.channel_ids = channel_ids;
+        self
+    }
+
+    pub fn children(&self) -> &[GridEntry] {
+        &self.children
+    }
+
+    pub fn columns(&self) -> &[GridLength] {
+        &self.columns
+    }
 }
 
 impl Schedule for Grid {

@@ -1,13 +1,23 @@
 use anyhow::{bail, Result};
 use enum_dispatch::enum_dispatch;
-use std::rc::Rc;
+use std::sync::Arc;
 
-mod builder;
+use crate::Alignment;
+pub use absolute::{Absolute, AbsoluteEntry};
+pub use grid::{Grid, GridEntry};
+pub use play::Play;
+pub use repeat::Repeat;
+pub use simple::{Barrier, SetFreq, SetPhase, ShiftFreq, ShiftPhase, SwapPhase};
+pub use stack::Stack;
+
+mod absolute;
 mod grid;
+mod play;
+mod repeat;
+mod simple;
 mod stack;
 
-use grid::Grid;
-use stack::Stack;
+pub type ElementRef = Arc<Element>;
 
 #[derive(Debug, Clone)]
 pub struct Element {
@@ -15,9 +25,123 @@ pub struct Element {
     variant: ElementVariant,
 }
 
+impl Element {
+    pub fn new(common: ElementCommon, variant: impl Into<ElementVariant>) -> Self {
+        Self {
+            common,
+            variant: variant.into(),
+        }
+    }
+
+    pub fn common(&self) -> &ElementCommon {
+        &self.common
+    }
+
+    pub fn margin(&self) -> &(f64, f64) {
+        &self.common.margin
+    }
+
+    pub fn alignment(&self) -> &Alignment {
+        &self.common.alignment
+    }
+
+    pub fn phantom(&self) -> &bool {
+        &self.common.phantom
+    }
+
+    pub fn duration(&self) -> &Option<f64> {
+        &self.common.duration
+    }
+
+    pub fn max_duration(&self) -> &f64 {
+        &self.common.max_duration
+    }
+
+    pub fn min_duration(&self) -> &f64 {
+        &self.common.min_duration
+    }
+
+    pub fn try_get_play(&self) -> Option<&Play> {
+        match &self.variant {
+            ElementVariant::Play(v) => Some(v),
+            _ => None,
+        }
+    }
+
+    pub fn try_get_shift_phase(&self) -> Option<&ShiftPhase> {
+        match &self.variant {
+            ElementVariant::ShiftPhase(v) => Some(v),
+            _ => None,
+        }
+    }
+
+    pub fn try_get_set_phase(&self) -> Option<&SetPhase> {
+        match &self.variant {
+            ElementVariant::SetPhase(v) => Some(v),
+            _ => None,
+        }
+    }
+
+    pub fn try_get_shift_freq(&self) -> Option<&ShiftFreq> {
+        match &self.variant {
+            ElementVariant::ShiftFreq(v) => Some(v),
+            _ => None,
+        }
+    }
+
+    pub fn try_get_set_freq(&self) -> Option<&SetFreq> {
+        match &self.variant {
+            ElementVariant::SetFreq(v) => Some(v),
+            _ => None,
+        }
+    }
+
+    pub fn try_get_swap_phase(&self) -> Option<&SwapPhase> {
+        match &self.variant {
+            ElementVariant::SwapPhase(v) => Some(v),
+            _ => None,
+        }
+    }
+
+    pub fn try_get_barrier(&self) -> Option<&Barrier> {
+        match &self.variant {
+            ElementVariant::Barrier(v) => Some(v),
+            _ => None,
+        }
+    }
+
+    pub fn try_get_repeat(&self) -> Option<&Repeat> {
+        match &self.variant {
+            ElementVariant::Repeat(v) => Some(v),
+            _ => None,
+        }
+    }
+
+    pub fn try_get_stack(&self) -> Option<&Stack> {
+        match &self.variant {
+            ElementVariant::Stack(v) => Some(v),
+            _ => None,
+        }
+    }
+
+    pub fn try_get_absolute(&self) -> Option<&Absolute> {
+        match &self.variant {
+            ElementVariant::Absolute(v) => Some(v),
+            _ => None,
+        }
+    }
+
+    pub fn try_get_grid(&self) -> Option<&Grid> {
+        match &self.variant {
+            ElementVariant::Grid(v) => Some(v),
+            _ => None,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct MeasuredElement {
-    element: Rc<Element>,
+    element: ElementRef,
     /// Desired duration without clipping. Doesn't include margin.
     unclipped_duration: f64,
     /// Clipped desired duration. Used by scheduling system.
@@ -27,7 +151,7 @@ pub struct MeasuredElement {
 
 #[derive(Debug, Clone)]
 pub struct ArrangedElement {
-    element: Rc<Element>,
+    element: ElementRef,
     /// Start time of the inner block without margin relative to its parent.
     inner_time: f64,
     /// Duration of the inner block without margin.
@@ -82,32 +206,11 @@ trait Schedule {
     fn channels(&self) -> &[usize];
 }
 
-trait SimpleElement {
-    fn channels(&self) -> &[usize];
-}
-
-impl<T> Schedule for T
-where
-    T: SimpleElement,
-{
-    fn measure(&self, _context: &MeasureContext) -> MeasureResult {
-        MeasureResult(0.0, MeasureResultVariant::Simple)
-    }
-
-    fn arrange(&self, _context: &ArrangeContext) -> Result<ArrangeResult> {
-        Ok(ArrangeResult(0.0, ArrangeResultVariant::Simple))
-    }
-
-    fn channels(&self) -> &[usize] {
-        self.channels()
-    }
-}
-
 fn clamp_duration(duration: f64, min_duration: f64, max_duration: f64) -> f64 {
     duration.min(max_duration).max(min_duration)
 }
 
-pub fn measure(element: Rc<Element>, available_duration: f64) -> MeasuredElement {
+pub fn measure(element: ElementRef, available_duration: f64) -> MeasuredElement {
     assert!(available_duration >= 0.0 || available_duration.is_infinite());
     let common = &element.common;
     let total_margin = common.margin.0 + common.margin.1;
@@ -194,16 +297,8 @@ pub fn arrange(
     })
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Alignment {
-    End,
-    Start,
-    Center,
-    Stretch,
-}
-
 #[derive(Debug, Clone)]
-struct ElementCommon {
+pub struct ElementCommon {
     margin: (f64, f64),
     alignment: Alignment,
     phantom: bool,
@@ -212,9 +307,111 @@ struct ElementCommon {
     min_duration: f64,
 }
 
+impl ElementCommon {
+    pub fn margin(&self) -> &(f64, f64) {
+        &self.margin
+    }
+
+    pub fn alignment(&self) -> &Alignment {
+        &self.alignment
+    }
+
+    pub fn phantom(&self) -> &bool {
+        &self.phantom
+    }
+
+    pub fn duration(&self) -> &Option<f64> {
+        &self.duration
+    }
+
+    pub fn max_duration(&self) -> &f64 {
+        &self.max_duration
+    }
+
+    pub fn min_duration(&self) -> &f64 {
+        &self.min_duration
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct ElementCommonBuilder(ElementCommon);
+
+impl Default for ElementCommonBuilder {
+    fn default() -> Self {
+        Self(ElementCommon {
+            margin: (0.0, 0.0),
+            alignment: Alignment::End,
+            phantom: false,
+            duration: None,
+            max_duration: f64::INFINITY,
+            min_duration: 0.0,
+        })
+    }
+}
+
+impl ElementCommonBuilder {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn margin(&mut self, margin: (f64, f64)) -> &mut Self {
+        self.0.margin = margin;
+        self
+    }
+
+    pub fn alignment(&mut self, alignment: Alignment) -> &mut Self {
+        self.0.alignment = alignment;
+        self
+    }
+
+    pub fn phantom(&mut self, phantom: bool) -> &mut Self {
+        self.0.phantom = phantom;
+        self
+    }
+
+    pub fn duration(&mut self, duration: Option<f64>) -> &mut Self {
+        self.0.duration = duration;
+        self
+    }
+
+    pub fn max_duration(&mut self, max_duration: f64) -> &mut Self {
+        self.0.max_duration = max_duration;
+        self
+    }
+
+    pub fn min_duration(&mut self, min_duration: f64) -> &mut Self {
+        self.0.min_duration = min_duration;
+        self
+    }
+
+    pub fn validate(&self) -> Result<()> {
+        let v = &self.0;
+        if !v.margin.0.is_finite() || !v.margin.1.is_finite() {
+            bail!("Invalid margin {:?}", v.margin);
+        }
+        if let Some(v) = v.duration {
+            if !v.is_finite() || v < 0.0 {
+                bail!("Invalid duration {}", v);
+            }
+        }
+        if !v.min_duration.is_finite() || v.min_duration < 0.0 {
+            bail!("Invalid min_duration {}", v.min_duration);
+        }
+        if v.max_duration.is_nan() || v.max_duration < 0.0 {
+            bail!("Invalid max_duration {}", v.max_duration);
+        }
+        Ok(())
+    }
+
+    pub fn build(&self) -> Result<ElementCommon> {
+        self.validate()?;
+        Ok(self.0.clone())
+    }
+}
+
 #[enum_dispatch(Schedule)]
 #[derive(Debug, Clone)]
-enum ElementVariant {
+pub enum ElementVariant {
     Play,
     ShiftPhase,
     SetPhase,
@@ -226,203 +423,4 @@ enum ElementVariant {
     Stack,
     Absolute,
     Grid,
-}
-
-#[derive(Debug, Clone)]
-struct Play {
-    channel_id: [usize; 1],
-    shape_id: Option<usize>,
-    amplitude: f64,
-    width: f64,
-    plateau: f64,
-    drag_coef: f64,
-    frequency: f64,
-    phase: f64,
-    flexible: bool,
-}
-
-impl Schedule for Play {
-    fn measure(&self, _context: &MeasureContext) -> MeasureResult {
-        let wanted_duration = if self.flexible {
-            self.width
-        } else {
-            self.width + self.plateau
-        };
-        MeasureResult(wanted_duration, MeasureResultVariant::Simple)
-    }
-
-    fn arrange(&self, context: &ArrangeContext) -> Result<ArrangeResult> {
-        let arranged = if self.flexible {
-            context.final_duration
-        } else {
-            self.width + self.plateau
-        };
-        Ok(ArrangeResult(arranged, ArrangeResultVariant::Simple))
-    }
-
-    fn channels(&self) -> &[usize] {
-        &self.channel_id
-    }
-}
-
-#[derive(Debug, Clone)]
-struct ShiftPhase {
-    channel_id: [usize; 1],
-    phase: f64,
-}
-
-impl SimpleElement for ShiftPhase {
-    fn channels(&self) -> &[usize] {
-        &self.channel_id
-    }
-}
-
-#[derive(Debug, Clone)]
-struct SetPhase {
-    channel_id: [usize; 1],
-    phase: f64,
-}
-
-impl SimpleElement for SetPhase {
-    fn channels(&self) -> &[usize] {
-        &self.channel_id
-    }
-}
-
-#[derive(Debug, Clone)]
-struct ShiftFreq {
-    channel_id: [usize; 1],
-    frequency: f64,
-}
-
-impl SimpleElement for ShiftFreq {
-    fn channels(&self) -> &[usize] {
-        &self.channel_id
-    }
-}
-
-#[derive(Debug, Clone)]
-struct SetFreq {
-    channel_id: [usize; 1],
-    frequency: f64,
-}
-
-impl SimpleElement for SetFreq {
-    fn channels(&self) -> &[usize] {
-        &self.channel_id
-    }
-}
-
-#[derive(Debug, Clone)]
-struct SwapPhase {
-    channel_ids: [usize; 2],
-}
-
-impl SimpleElement for SwapPhase {
-    fn channels(&self) -> &[usize] {
-        &self.channel_ids
-    }
-}
-
-#[derive(Debug, Clone)]
-struct Barrier {
-    channel_ids: Vec<usize>,
-}
-
-impl SimpleElement for Barrier {
-    fn channels(&self) -> &[usize] {
-        &self.channel_ids
-    }
-}
-
-#[derive(Debug, Clone)]
-struct Repeat {
-    child: Rc<Element>,
-    count: usize,
-    spacing: f64,
-}
-
-impl Schedule for Repeat {
-    fn measure(&self, context: &MeasureContext) -> MeasureResult {
-        if self.count == 0 {
-            return MeasureResult(0.0, MeasureResultVariant::Simple);
-        }
-        let n = self.count as f64;
-        let duration_per_repeat = (context.max_duration - self.spacing * (n - 1.0)) / n;
-        let measured_child = measure(self.child.clone(), duration_per_repeat);
-        let wanted_duration = measured_child.duration * n + self.spacing * (n - 1.0);
-        MeasureResult(
-            wanted_duration,
-            MeasureResultVariant::Multiple(vec![measured_child]),
-        )
-    }
-
-    fn arrange(&self, context: &ArrangeContext) -> Result<ArrangeResult> {
-        if self.count == 0 {
-            return Ok(ArrangeResult(0.0, ArrangeResultVariant::Simple));
-        }
-        let n = self.count as f64;
-        let duration_per_repeat = (context.final_duration - self.spacing * (n - 1.0)) / n;
-        let measured_child = match &context.measured_self.data {
-            MeasureResultVariant::Multiple(c) if c.len() == 1 => &c[0],
-            _ => bail!("Invalid measure data"),
-        };
-        let arranged_child = arrange(measured_child, 0.0, duration_per_repeat, context.options)?;
-        let arranged = arranged_child.inner_duration * n + self.spacing * (n - 1.0);
-        Ok(ArrangeResult(
-            arranged,
-            ArrangeResultVariant::Multiple(vec![arranged_child]),
-        ))
-    }
-
-    fn channels(&self) -> &[usize] {
-        self.child.variant.channels()
-    }
-}
-
-#[derive(Debug, Clone)]
-struct AbsoluteEntry {
-    time: f64,
-    element: Rc<Element>,
-}
-
-#[derive(Debug, Clone)]
-struct Absolute {
-    children: Vec<AbsoluteEntry>,
-    channel_ids: Vec<usize>,
-}
-
-impl Schedule for Absolute {
-    fn measure(&self, context: &MeasureContext) -> MeasureResult {
-        let mut max_time: f64 = 0.0;
-        let mut measured_children = vec![];
-        for e in &self.children {
-            let measured_child = measure(e.element.clone(), context.max_duration);
-            max_time = max_time.max(e.time + measured_child.duration);
-            measured_children.push(measured_child);
-        }
-        MeasureResult(max_time, MeasureResultVariant::Multiple(measured_children))
-    }
-
-    fn arrange(&self, context: &ArrangeContext) -> Result<ArrangeResult> {
-        let measured_children = match &context.measured_self.data {
-            MeasureResultVariant::Multiple(v) => v,
-            _ => bail!("Invalid measure data"),
-        };
-        let arranged_children = self
-            .children
-            .iter()
-            .map(|e| e.time)
-            .zip(measured_children.iter())
-            .map(|(t, mc)| arrange(mc, t, mc.duration, context.options))
-            .collect::<Result<_>>()?;
-        Ok(ArrangeResult(
-            context.final_duration,
-            ArrangeResultVariant::Multiple(arranged_children),
-        ))
-    }
-
-    fn channels(&self) -> &[usize] {
-        &self.channel_ids
-    }
 }
