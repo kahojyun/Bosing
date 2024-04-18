@@ -25,8 +25,8 @@ impl AbsoluteEntry {
         Ok(self)
     }
 
-    pub fn time(&self) -> &f64 {
-        &self.time
+    pub fn time(&self) -> f64 {
+        self.time
     }
 
     pub fn element(&self) -> &ElementRef {

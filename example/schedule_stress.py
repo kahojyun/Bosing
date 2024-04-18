@@ -4,6 +4,7 @@ import time
 from itertools import cycle
 
 import numpy as np
+from scipy.interpolate import make_interp_spline
 
 from bosing import *
 
@@ -20,32 +21,33 @@ def gen_n(n: int):
     )
     c = {ch.name: i for i, ch in enumerate(channels)}
     halfcos = np.sin(np.linspace(0, np.pi, 10))
+    spline = make_interp_spline(np.linspace(-0.5, 0.5, 10), halfcos)
     shapes = [
         Hann(),
-        Interp(np.linspace(-0.5, 0.5, 10), halfcos),
+        Interp(spline.t, spline.c, spline.k),
     ]
     s = {"hann": 0, "rect": -1, "halfcos": 1}
 
     measure = Absolute().with_children(
-        *(Play(c[f"m{i}"], 0.1, s["hann"], 30e-9, plateau=1e-6, frequency=20e6 * i) for i in range(nm))
+        *(Play(c[f"m{i}"], s["hann"], 0.1, 30e-9, plateau=1e-6, frequency=20e6 * i) for i in range(nm))
     )
-    c_group = Stack().with_children(*(Play(c[f"u{i}"], 0.01 * (i + 1), s["halfcos"], 50e-9) for i in range(nu)))
+    c_group = Stack().with_children(*(Play(c[f"u{i}"], s["halfcos"], 0.01 * (i + 1), 50e-9) for i in range(nu)))
     x_group = Stack().with_children(
-        *(Play(c[f"xy{i}"], 0.01 * (i + 1), s["hann"], 50e-9, drag_coef=5e-10) for i in range(nxy))
+        *(Play(c[f"xy{i}"], s["hann"], 0.01 * (i + 1), 50e-9, drag_coef=5e-10) for i in range(nxy))
     )
 
-    schedule = Stack(duration=49.9e-6).with_children(
-        Repeat(
+    schedule = Stack(duration=50e-6).with_children(
+        *(
             Stack().with_children(
                 x_group,
                 Barrier(duration=15e-9),
                 c_group,
-            ),
-            count=n,
-            spacing=15e-9,
+                Barrier(duration=15e-9),
+            )
+            for _ in range(n)
         ),
-        Barrier(duration=15e-9),
         measure,
+        Barrier(duration=15e-9),
     )
 
     _ = generate_waveforms(channels, shapes, schedule)

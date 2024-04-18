@@ -37,30 +37,6 @@ impl Element {
         &self.common
     }
 
-    pub fn margin(&self) -> &(f64, f64) {
-        &self.common.margin
-    }
-
-    pub fn alignment(&self) -> &Alignment {
-        &self.common.alignment
-    }
-
-    pub fn phantom(&self) -> &bool {
-        &self.common.phantom
-    }
-
-    pub fn duration(&self) -> &Option<f64> {
-        &self.common.duration
-    }
-
-    pub fn max_duration(&self) -> &f64 {
-        &self.common.max_duration
-    }
-
-    pub fn min_duration(&self) -> &f64 {
-        &self.common.min_duration
-    }
-
     pub fn try_get_play(&self) -> Option<&Play> {
         match &self.variant {
             ElementVariant::Play(v) => Some(v),
@@ -149,6 +125,16 @@ pub struct MeasuredElement {
     data: MeasureResultVariant,
 }
 
+impl MeasuredElement {
+    pub fn unclipped_duration(&self) -> f64 {
+        self.unclipped_duration
+    }
+
+    pub fn duration(&self) -> f64 {
+        self.duration
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct ArrangedElement {
     element: ElementRef,
@@ -161,8 +147,8 @@ pub struct ArrangedElement {
 
 #[derive(Debug, Clone)]
 pub struct ScheduleOptions {
-    time_tolerance: f64,
-    allow_oversize: bool,
+    pub time_tolerance: f64,
+    pub allow_oversize: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -308,28 +294,28 @@ pub struct ElementCommon {
 }
 
 impl ElementCommon {
-    pub fn margin(&self) -> &(f64, f64) {
-        &self.margin
+    pub fn margin(&self) -> (f64, f64) {
+        self.margin
     }
 
-    pub fn alignment(&self) -> &Alignment {
-        &self.alignment
+    pub fn alignment(&self) -> Alignment {
+        self.alignment
     }
 
-    pub fn phantom(&self) -> &bool {
-        &self.phantom
+    pub fn phantom(&self) -> bool {
+        self.phantom
     }
 
-    pub fn duration(&self) -> &Option<f64> {
-        &self.duration
+    pub fn duration(&self) -> Option<f64> {
+        self.duration
     }
 
-    pub fn max_duration(&self) -> &f64 {
-        &self.max_duration
+    pub fn max_duration(&self) -> f64 {
+        self.max_duration
     }
 
-    pub fn min_duration(&self) -> &f64 {
-        &self.min_duration
+    pub fn min_duration(&self) -> f64 {
+        self.min_duration
     }
 }
 

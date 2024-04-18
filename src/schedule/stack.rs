@@ -45,8 +45,8 @@ impl Stack {
         &self.children
     }
 
-    pub fn direction(&self) -> &Direction {
-        &self.direction
+    pub fn direction(&self) -> Direction {
+        self.direction
     }
 }
 

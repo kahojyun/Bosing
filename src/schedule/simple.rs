@@ -43,12 +43,12 @@ impl ShiftPhase {
         })
     }
 
-    pub fn channel_id(&self) -> &usize {
-        &self.channel_id[0]
+    pub fn channel_id(&self) -> usize {
+        self.channel_id[0]
     }
 
-    pub fn phase(&self) -> &f64 {
-        &self.phase
+    pub fn phase(&self) -> f64 {
+        self.phase
     }
 }
 
@@ -75,12 +75,12 @@ impl SetPhase {
         })
     }
 
-    pub fn channel_id(&self) -> &usize {
-        &self.channel_id[0]
+    pub fn channel_id(&self) -> usize {
+        self.channel_id[0]
     }
 
-    pub fn phase(&self) -> &f64 {
-        &self.phase
+    pub fn phase(&self) -> f64 {
+        self.phase
     }
 }
 
@@ -107,12 +107,12 @@ impl ShiftFreq {
         })
     }
 
-    pub fn channel_id(&self) -> &usize {
-        &self.channel_id[0]
+    pub fn channel_id(&self) -> usize {
+        self.channel_id[0]
     }
 
-    pub fn frequency(&self) -> &f64 {
-        &self.frequency
+    pub fn frequency(&self) -> f64 {
+        self.frequency
     }
 }
 
@@ -139,12 +139,12 @@ impl SetFreq {
         })
     }
 
-    pub fn channel_id(&self) -> &usize {
-        &self.channel_id[0]
+    pub fn channel_id(&self) -> usize {
+        self.channel_id[0]
     }
 
-    pub fn frequency(&self) -> &f64 {
-        &self.frequency
+    pub fn frequency(&self) -> f64 {
+        self.frequency
     }
 }
 
@@ -166,12 +166,12 @@ impl SwapPhase {
         }
     }
 
-    pub fn channel_id1(&self) -> &usize {
-        &self.channel_ids[0]
+    pub fn channel_id1(&self) -> usize {
+        self.channel_ids[0]
     }
 
-    pub fn channel_id2(&self) -> &usize {
-        &self.channel_ids[1]
+    pub fn channel_id2(&self) -> usize {
+        self.channel_ids[1]
     }
 }
 

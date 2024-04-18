@@ -33,12 +33,12 @@ impl Repeat {
         &self.child
     }
 
-    pub fn count(&self) -> &usize {
-        &self.count
+    pub fn count(&self) -> usize {
+        self.count
     }
 
-    pub fn spacing(&self) -> &f64 {
-        &self.spacing
+    pub fn spacing(&self) -> f64 {
+        self.spacing
     }
 }
 

@@ -81,40 +81,40 @@ impl Play {
         self
     }
 
-    pub fn channel_id(&self) -> &usize {
-        &self.channel_id[0]
+    pub fn channel_id(&self) -> usize {
+        self.channel_id[0]
     }
 
-    pub fn shape_id(&self) -> &Option<usize> {
-        &self.shape_id
+    pub fn shape_id(&self) -> Option<usize> {
+        self.shape_id
     }
 
-    pub fn amplitude(&self) -> &f64 {
-        &self.amplitude
+    pub fn amplitude(&self) -> f64 {
+        self.amplitude
     }
 
-    pub fn width(&self) -> &f64 {
-        &self.width
+    pub fn width(&self) -> f64 {
+        self.width
     }
 
-    pub fn plateau(&self) -> &f64 {
-        &self.plateau
+    pub fn plateau(&self) -> f64 {
+        self.plateau
     }
 
-    pub fn drag_coef(&self) -> &f64 {
-        &self.drag_coef
+    pub fn drag_coef(&self) -> f64 {
+        self.drag_coef
     }
 
-    pub fn frequency(&self) -> &f64 {
-        &self.frequency
+    pub fn frequency(&self) -> f64 {
+        self.frequency
     }
 
-    pub fn phase(&self) -> &f64 {
-        &self.phase
+    pub fn phase(&self) -> f64 {
+        self.phase
     }
 
-    pub fn flexible(&self) -> &bool {
-        &self.flexible
+    pub fn flexible(&self) -> bool {
+        self.flexible
     }
 }
 

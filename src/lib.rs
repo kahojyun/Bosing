@@ -4,7 +4,7 @@
 
 use pyo3::{exceptions::PyValueError, prelude::*, types::PyDict};
 use schedule::ElementCommonBuilder;
-use std::sync::Arc;
+use std::{sync::Arc, time::Instant};
 
 mod schedule;
 mod shape;
@@ -175,32 +175,32 @@ struct Element(Arc<schedule::Element>);
 impl Element {
     #[getter]
     fn margin(&self) -> (f64, f64) {
-        *self.0.margin()
+        self.0.common().margin()
     }
 
     #[getter]
     fn alignment(&self) -> Alignment {
-        *self.0.alignment()
+        self.0.common().alignment()
     }
 
     #[getter]
     fn phantom(&self) -> bool {
-        *self.0.phantom()
+        self.0.common().phantom()
     }
 
     #[getter]
     fn duration(&self) -> Option<f64> {
-        *self.0.duration()
+        self.0.common().duration()
     }
 
     #[getter]
     fn max_duration(&self) -> f64 {
-        *self.0.max_duration()
+        self.0.common().max_duration()
     }
 
     #[getter]
     fn min_duration(&self) -> f64 {
-        *self.0.min_duration()
+        self.0.common().min_duration()
     }
 }
 
@@ -305,7 +305,7 @@ impl Play {
 
     #[getter]
     fn channel_id(slf: &Bound<'_, Self>) -> PyResult<usize> {
-        let ret = *slf
+        let ret = slf
             .downcast::<Element>()?
             .get()
             .0
@@ -319,7 +319,7 @@ impl Play {
 
     #[getter]
     fn shape_id(slf: &Bound<'_, Self>) -> PyResult<Option<usize>> {
-        let ret = *slf
+        let ret = slf
             .downcast::<Element>()?
             .get()
             .0
@@ -333,7 +333,7 @@ impl Play {
 
     #[getter]
     fn amplitude(slf: &Bound<'_, Self>) -> PyResult<f64> {
-        let ret = *slf
+        let ret = slf
             .downcast::<Element>()?
             .get()
             .0
@@ -347,7 +347,7 @@ impl Play {
 
     #[getter]
     fn width(slf: &Bound<'_, Self>) -> PyResult<f64> {
-        let ret = *slf
+        let ret = slf
             .downcast::<Element>()?
             .get()
             .0
@@ -361,7 +361,7 @@ impl Play {
 
     #[getter]
     fn plateau(slf: &Bound<'_, Self>) -> PyResult<f64> {
-        let ret = *slf
+        let ret = slf
             .downcast::<Element>()?
             .get()
             .0
@@ -375,7 +375,7 @@ impl Play {
 
     #[getter]
     fn drag_coef(slf: &Bound<'_, Self>) -> PyResult<f64> {
-        let ret = *slf
+        let ret = slf
             .downcast::<Element>()?
             .get()
             .0
@@ -389,7 +389,7 @@ impl Play {
 
     #[getter]
     fn frequency(slf: &Bound<'_, Self>) -> PyResult<f64> {
-        let ret = *slf
+        let ret = slf
             .downcast::<Element>()?
             .get()
             .0
@@ -403,7 +403,7 @@ impl Play {
 
     #[getter]
     fn phase(slf: &Bound<'_, Self>) -> PyResult<f64> {
-        let ret = *slf
+        let ret = slf
             .downcast::<Element>()?
             .get()
             .0
@@ -417,7 +417,7 @@ impl Play {
 
     #[getter]
     fn flexible(slf: &Bound<'_, Self>) -> PyResult<bool> {
-        let ret = *slf
+        let ret = slf
             .downcast::<Element>()?
             .get()
             .0
@@ -477,7 +477,7 @@ impl ShiftPhase {
 
     #[getter]
     fn channel_id(slf: &Bound<'_, Self>) -> PyResult<usize> {
-        let ret = *slf
+        let ret = slf
             .downcast::<Element>()?
             .get()
             .0
@@ -491,7 +491,7 @@ impl ShiftPhase {
 
     #[getter]
     fn phase(slf: &Bound<'_, Self>) -> PyResult<f64> {
-        let ret = *slf
+        let ret = slf
             .downcast::<Element>()?
             .get()
             .0
@@ -551,7 +551,7 @@ impl SetPhase {
 
     #[getter]
     fn channel_id(slf: &Bound<'_, Self>) -> PyResult<usize> {
-        let ret = *slf
+        let ret = slf
             .downcast::<Element>()?
             .get()
             .0
@@ -565,7 +565,7 @@ impl SetPhase {
 
     #[getter]
     fn phase(slf: &Bound<'_, Self>) -> PyResult<f64> {
-        let ret = *slf
+        let ret = slf
             .downcast::<Element>()?
             .get()
             .0
@@ -625,7 +625,7 @@ impl ShiftFreq {
 
     #[getter]
     fn channel_id(slf: &Bound<'_, Self>) -> PyResult<usize> {
-        let ret = *slf
+        let ret = slf
             .downcast::<Element>()?
             .get()
             .0
@@ -639,7 +639,7 @@ impl ShiftFreq {
 
     #[getter]
     fn frequency(slf: &Bound<'_, Self>) -> PyResult<f64> {
-        let ret = *slf
+        let ret = slf
             .downcast::<Element>()?
             .get()
             .0
@@ -699,7 +699,7 @@ impl SetFreq {
 
     #[getter]
     fn channel_id(slf: &Bound<'_, Self>) -> PyResult<usize> {
-        let ret = *slf
+        let ret = slf
             .downcast::<Element>()?
             .get()
             .0
@@ -713,7 +713,7 @@ impl SetFreq {
 
     #[getter]
     fn frequency(slf: &Bound<'_, Self>) -> PyResult<f64> {
-        let ret = *slf
+        let ret = slf
             .downcast::<Element>()?
             .get()
             .0
@@ -772,7 +772,7 @@ impl SwapPhase {
 
     #[getter]
     fn channel_id1(slf: &Bound<'_, Self>) -> PyResult<usize> {
-        let ret = *slf
+        let ret = slf
             .downcast::<Element>()?
             .get()
             .0
@@ -786,7 +786,7 @@ impl SwapPhase {
 
     #[getter]
     fn channel_id2(slf: &Bound<'_, Self>) -> PyResult<usize> {
-        let ret = *slf
+        let ret = slf
             .downcast::<Element>()?
             .get()
             .0
@@ -908,7 +908,7 @@ impl Repeat {
 
     #[getter]
     fn count(slf: &Bound<'_, Self>) -> PyResult<usize> {
-        let ret = *slf
+        let ret = slf
             .downcast::<Element>()?
             .get()
             .0
@@ -922,7 +922,7 @@ impl Repeat {
 
     #[getter]
     fn spacing(slf: &Bound<'_, Self>) -> PyResult<f64> {
-        let ret = *slf
+        let ret = slf
             .downcast::<Element>()?
             .get()
             .0
@@ -1046,7 +1046,7 @@ impl Stack {
 
     #[getter]
     fn direction(slf: &Bound<'_, Self>) -> PyResult<Direction> {
-        let ret = *slf
+        let ret = slf
             .downcast::<Element>()?
             .get()
             .0
@@ -1432,17 +1432,38 @@ impl Grid {
 }
 
 #[pyfunction]
+#[pyo3(signature = (
+    channels,
+    shapes,
+    schedule,
+    *,
+    time_tolerance=1e-12,
+    amp_tolerance=0.1 / 2f64.powi(16),
+    phase_tolerance=1e-4,
+    allow_oversize=false,
+))]
+#[allow(clippy::too_many_arguments)]
 fn generate_waveforms(
+    py: Python<'_>,
     channels: Vec<Channel>,
     shapes: Vec<Shape>,
     schedule: &Bound<'_, Element>,
-    options: Option<Options>,
+    time_tolerance: f64,
+    amp_tolerance: f64,
+    phase_tolerance: f64,
+    allow_oversize: bool,
 ) -> PyResult<Py<PyDict>> {
-    let _ = channels;
-    let _ = shapes;
-    let _ = schedule;
-    let _ = options;
-    todo!()
+    let t0 = Instant::now();
+    let root = schedule.downcast::<Element>()?.get().0.clone();
+    let measured = schedule::measure(root, f64::INFINITY);
+    let arrange_options = schedule::ScheduleOptions {
+        time_tolerance,
+        allow_oversize,
+    };
+    let _ = schedule::arrange(&measured, 0.0, measured.duration(), &arrange_options);
+    let t1 = Instant::now();
+    println!("Arrangement time: {:?}", t1 - t0);
+    Ok(PyDict::new_bound(py).into())
 }
 
 /// A Python module implemented in Rust.
