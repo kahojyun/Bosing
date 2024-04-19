@@ -24,7 +24,8 @@ public static class WaveformUtils
                     var tStart = time + delay;
                     var iFracStart = TimeAxisUtils.NextFracIndex(tStart, sampleRate, alignLevel);
                     var iStart = (int)Math.Ceiling(iFracStart);
-                    var envelopeInfo = new EnvelopeInfo(iStart - iFracStart, sampleRate);
+                    var indexOffset = iStart - iFracStart;
+                    var envelopeInfo = new EnvelopeInfo(indexOffset, sampleRate);
                     var envelopeSample = WaveformSampler<T>.GetEnvelopeSample(envelopeInfo, binKey.Envelope);
                     if (envelopeSample is null)
                     {
@@ -35,7 +36,7 @@ public static class WaveformUtils
                     var localFrequency = binKey.LocalFrequency;
                     var totalFrequency = globalFrequency + localFrequency;
                     var dt = 1 / sampleRate;
-                    var phaseShift = Math.Tau * globalFrequency * (iStart * dt - delay);
+                    var phaseShift = Math.Tau * (globalFrequency * (iStart * dt - delay) + localFrequency * indexOffset * dt);
                     var amplitude = pulse.Amplitude * pulseList.AmplitudeMultiplier * Complex.FromPolarCoordinates(1, phaseShift);
                     var complexAmplitude = amplitude.Amplitude;
                     var dragAmplitude = amplitude.DragAmplitude * sampleRate;
