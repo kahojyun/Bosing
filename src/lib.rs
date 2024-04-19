@@ -2,10 +2,18 @@
 //! possible to create cyclic references because we don't allow mutate the
 //! children after creation.
 
-use pyo3::{exceptions::PyValueError, prelude::*, types::PyDict};
+use numpy::PyArray1;
+use pyo3::{
+    exceptions::{PyRuntimeError, PyTypeError, PyValueError},
+    prelude::*,
+    types::PyDict,
+};
 use schedule::ElementCommonBuilder;
 use std::{sync::Arc, time::Instant};
 
+use crate::sampler::Sampler;
+
+mod sampler;
 mod schedule;
 mod shape;
 
@@ -120,6 +128,23 @@ fn extract_alignment(obj: &Bound<'_, PyAny>) -> PyResult<Alignment> {
 #[pyclass(subclass, frozen)]
 #[derive(Debug, Clone)]
 struct Shape;
+
+impl Shape {
+    fn get_rust_shape(slf: &Bound<'_, Shape>) -> PyResult<shape::Shape> {
+        if slf.downcast::<Hann>().is_ok() {
+            return Ok(shape::Shape::new_hann());
+        }
+        if let Ok(interp) = slf.downcast::<Interp>() {
+            let interp = interp.get();
+            return Ok(shape::Shape::new_interp(
+                interp.knots.clone(),
+                interp.controls.clone(),
+                interp.degree,
+            ));
+        }
+        Err(PyTypeError::new_err("Invalid shape type."))
+    }
+}
 
 #[pyclass(extends=Shape, frozen)]
 #[derive(Debug, Clone)]
@@ -824,7 +849,7 @@ impl Barrier {
         max_duration: f64,
         min_duration: f64,
     ) -> PyResult<(Self, Element)> {
-        let variant = schedule::Barrier::from_channel_ids(channel_ids);
+        let variant = schedule::Barrier::new(channel_ids);
         Ok((
             Self,
             build_element(
@@ -1446,7 +1471,7 @@ impl Grid {
 fn generate_waveforms(
     py: Python<'_>,
     channels: Vec<Channel>,
-    shapes: Vec<Shape>,
+    shapes: Vec<Py<Shape>>,
     schedule: &Bound<'_, Element>,
     time_tolerance: f64,
     amp_tolerance: f64,
@@ -1460,10 +1485,30 @@ fn generate_waveforms(
         time_tolerance,
         allow_oversize,
     };
-    let _ = schedule::arrange(&measured, 0.0, measured.duration(), &arrange_options);
+    let arranged = schedule::arrange(&measured, 0.0, measured.duration(), &arrange_options)
+        .map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
     let t1 = Instant::now();
     println!("Arrangement time: {:?}", t1 - t0);
-    Ok(PyDict::new_bound(py).into())
+    let mut sampler = Sampler::new();
+    for c in channels.iter() {
+        sampler.add_channel(c.base_freq, c.sample_rate, c.length, c.delay);
+    }
+    for s in shapes.iter() {
+        let s = s.bind(py);
+        sampler.add_shape(Shape::get_rust_shape(s)?);
+    }
+    sampler.execute(&arranged);
+    let results = sampler.into_result();
+    let t2 = Instant::now();
+    println!("Execution time: {:?}", t2 - t1);
+    let dict = PyDict::new_bound(py);
+    for (c, w) in channels.into_iter().zip(results) {
+        let array = PyArray1::from_vec_bound(py, w);
+        dict.set_item(c.name, array)?;
+    }
+    let t3 = Instant::now();
+    println!("Conversion time: {:?}", t3 - t2);
+    Ok(dict.unbind())
 }
 
 /// A Python module implemented in Rust.

@@ -1,6 +1,7 @@
 use bspline::BSpline;
 use enum_dispatch::enum_dispatch;
 
+#[derive(Debug, Clone)]
 pub struct Shape(ShapeVariant);
 
 impl Shape {
@@ -22,6 +23,7 @@ impl Shape {
 }
 
 #[enum_dispatch(ShapeTrait)]
+#[derive(Debug, Clone)]
 enum ShapeVariant {
     Hann,
     Interp,
@@ -38,6 +40,7 @@ trait ShapeTrait {
     }
 }
 
+#[derive(Debug, Clone)]
 struct Hann;
 
 impl ShapeTrait for Hann {
@@ -46,6 +49,7 @@ impl ShapeTrait for Hann {
     }
 }
 
+#[derive(Debug, Clone)]
 struct Interp(BSpline<f64, f64>);
 
 impl Interp {

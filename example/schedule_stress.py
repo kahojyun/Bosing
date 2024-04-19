@@ -26,7 +26,7 @@ def gen_n(n: int):
         Hann(),
         Interp(spline.t, spline.c, spline.k),
     ]
-    s = {"hann": 0, "rect": -1, "halfcos": 1}
+    s = {"hann": 0, "rect": None, "halfcos": 1}
 
     measure = Absolute().with_children(
         *(Play(c[f"m{i}"], s["hann"], 0.1, 30e-9, plateau=1e-6, frequency=20e6 * i) for i in range(nm))

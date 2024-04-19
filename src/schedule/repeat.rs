@@ -29,10 +29,6 @@ impl Repeat {
         Ok(self)
     }
 
-    pub fn child(&self) -> &ElementRef {
-        &self.child
-    }
-
     pub fn count(&self) -> usize {
         self.count
     }

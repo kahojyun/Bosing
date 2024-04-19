@@ -187,13 +187,7 @@ pub struct Barrier {
 }
 
 impl Barrier {
-    pub fn new() -> Self {
-        Self {
-            channel_ids: vec![],
-        }
-    }
-
-    pub fn from_channel_ids(channel_ids: Vec<usize>) -> Self {
+    pub fn new(channel_ids: Vec<usize>) -> Self {
         Self { channel_ids }
     }
 

@@ -24,14 +24,6 @@ impl AbsoluteEntry {
         self.time = time;
         Ok(self)
     }
-
-    pub fn time(&self) -> f64 {
-        self.time
-    }
-
-    pub fn element(&self) -> &ElementRef {
-        &self.element
-    }
 }
 
 #[derive(Debug, Clone)]
@@ -58,10 +50,6 @@ impl Absolute {
         self.children = children;
         self.channel_ids = channel_ids;
         self
-    }
-
-    pub fn children(&self) -> &[AbsoluteEntry] {
-        &self.children
     }
 }
 

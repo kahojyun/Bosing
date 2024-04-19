@@ -33,18 +33,6 @@ impl GridEntry {
         self.span = span;
         self
     }
-
-    pub fn element(&self) -> &ElementRef {
-        &self.element
-    }
-
-    pub fn column(&self) -> usize {
-        self.column
-    }
-
-    pub fn span(&self) -> usize {
-        self.span
-    }
 }
 
 #[derive(Debug, Clone)]
@@ -82,10 +70,6 @@ impl Grid {
         self.children = children;
         self.channel_ids = channel_ids;
         self
-    }
-
-    pub fn children(&self) -> &[GridEntry] {
-        &self.children
     }
 
     pub fn columns(&self) -> &[GridLength] {

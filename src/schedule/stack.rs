@@ -41,10 +41,6 @@ impl Stack {
         self
     }
 
-    pub fn children(&self) -> &[ElementRef] {
-        &self.children
-    }
-
     pub fn direction(&self) -> Direction {
         self.direction
     }

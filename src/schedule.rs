@@ -37,6 +37,10 @@ impl Element {
         &self.common
     }
 
+    pub fn variant(&self) -> &ElementVariant {
+        &self.variant
+    }
+
     pub fn try_get_play(&self) -> Option<&Play> {
         match &self.variant {
             ElementVariant::Play(v) => Some(v),
@@ -126,10 +130,6 @@ pub struct MeasuredElement {
 }
 
 impl MeasuredElement {
-    pub fn unclipped_duration(&self) -> f64 {
-        self.unclipped_duration
-    }
-
     pub fn duration(&self) -> f64 {
         self.duration
     }
@@ -143,6 +143,27 @@ pub struct ArrangedElement {
     /// Duration of the inner block without margin.
     inner_duration: f64,
     data: ArrangeResultVariant,
+}
+
+impl ArrangedElement {
+    pub fn inner_time(&self) -> f64 {
+        self.inner_time
+    }
+
+    pub fn inner_duration(&self) -> f64 {
+        self.inner_duration
+    }
+
+    pub fn element(&self) -> &ElementRef {
+        &self.element
+    }
+
+    pub fn try_get_children(&self) -> Option<&[ArrangedElement]> {
+        match &self.data {
+            ArrangeResultVariant::Multiple(v) => Some(v),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -162,7 +183,7 @@ enum MeasureResultVariant {
 struct MeasureResult(f64, MeasureResultVariant);
 
 #[derive(Debug, Clone)]
-enum ArrangeResultVariant {
+pub enum ArrangeResultVariant {
     Simple,
     Multiple(Vec<ArrangedElement>),
 }
