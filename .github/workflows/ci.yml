@@ -62,7 +62,7 @@ jobs:
         with:
           fetch-depth: 0
       - name: Semantic Release
-        uses: docker://ghcr.io/codfish/semantic-release-action@sha256:71048986f7e28f024cbad0ef106a7ef20b9b0d322f3a8aa51d89f1c424e75061 # v3.3.0
+        uses: codfish/semantic-release-action@v3
         # Only run on push events
         if: github.event_name == 'push'
         id: semantic-release
@@ -100,7 +100,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Replace version in Cargo.toml
-        run: sed -i "s/^version = .*/version = \"${{ needs.release.outputs.version }}\"/" Cargo.toml
+        shell: pwsh
+        run: (Get-Content -Path Cargo.toml -Raw) -replace 'version = ".*"', 'version = "${{ needs.release.outputs.version }}"' | Set-Content -Path Cargo.toml
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
@@ -130,7 +131,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Replace version in Cargo.toml
-        run: sed -i "s/^version = .*/version = \"${{ needs.release.outputs.version }}\"/" Cargo.toml
+        shell: pwsh
+        run: (Get-Content -Path Cargo.toml -Raw) -replace 'version = ".*"', 'version = "${{ needs.release.outputs.version }}"' | Set-Content -Path Cargo.toml
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
@@ -160,7 +162,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Replace version in Cargo.toml
-        run: sed -i "s/^version = .*/version = \"${{ needs.release.outputs.version }}\"/" Cargo.toml
+        shell: pwsh
+        run: (Get-Content -Path Cargo.toml -Raw) -replace 'version = ".*"', 'version = "${{ needs.release.outputs.version }}"' | Set-Content -Path Cargo.toml
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
@@ -182,7 +185,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Replace version in Cargo.toml
-        run: sed -i "s/^version = .*/version = \"${{ needs.release.outputs.version }}\"/" Cargo.toml
+        shell: pwsh
+        run: (Get-Content -Path Cargo.toml -Raw) -replace 'version = ".*"', 'version = "${{ needs.release.outputs.version }}"' | Set-Content -Path Cargo.toml
       - name: Build sdist
         uses: PyO3/maturin-action@v1
         with:
