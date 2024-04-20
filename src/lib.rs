@@ -2,20 +2,23 @@
 //! possible to create cyclic references because we don't allow mutate the
 //! children after creation.
 
-use numpy::PyArray1;
+use mimalloc::MiMalloc;
+use numpy::{Complex64, PyArray1};
 use pyo3::{
     exceptions::{PyRuntimeError, PyTypeError, PyValueError},
     prelude::*,
-    types::PyDict,
 };
 use schedule::ElementCommonBuilder;
-use std::{sync::Arc, time::Instant};
+use std::{collections::HashMap, sync::Arc, time::Instant};
 
 use crate::sampler::Sampler;
 
 mod sampler;
 mod schedule;
 mod shape;
+
+#[global_allocator]
+static GLOBAL: MiMalloc = MiMalloc;
 
 #[pyclass(get_all, frozen)]
 #[derive(Debug, Clone)]
@@ -1477,7 +1480,7 @@ fn generate_waveforms(
     amp_tolerance: f64,
     phase_tolerance: f64,
     allow_oversize: bool,
-) -> PyResult<Py<PyDict>> {
+) -> PyResult<HashMap<String, Py<PyArray1<Complex64>>>> {
     let t0 = Instant::now();
     let root = schedule.downcast::<Element>()?.get().0.clone();
     let measured = schedule::measure(root, f64::INFINITY);
@@ -1501,14 +1504,12 @@ fn generate_waveforms(
     let results = sampler.into_result();
     let t2 = Instant::now();
     println!("Execution time: {:?}", t2 - t1);
-    let dict = PyDict::new_bound(py);
-    for (c, w) in channels.into_iter().zip(results) {
-        let array = PyArray1::from_vec_bound(py, w);
-        dict.set_item(c.name, array)?;
-    }
-    let t3 = Instant::now();
-    println!("Conversion time: {:?}", t3 - t2);
-    Ok(dict.unbind())
+    let dict = channels
+        .into_iter()
+        .zip(results)
+        .map(|(c, w)| (c.name, PyArray1::from_vec_bound(py, w).unbind()))
+        .collect();
+    Ok(dict)
 }
 
 /// A Python module implemented in Rust.
