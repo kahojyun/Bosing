@@ -6,7 +6,7 @@ from itertools import cycle
 import numpy as np
 from scipy.interpolate import make_interp_spline
 
-from bosing import *
+from bosing import Absolute, Barrier, Channel, Hann, Interp, Play, Stack, generate_waveforms
 
 
 def gen_n(n: int):

@@ -4,7 +4,7 @@ use std::collections::HashMap;
 
 use super::{
     arrange, measure, ArrangeContext, ArrangeResult, ArrangeResultVariant, ElementRef,
-    MeasureContext, MeasureResult, MeasureResultVariant, Schedule,
+    MeasureContext, MeasureResult, MeasureResultVariant, MeasuredElement, Schedule,
 };
 use crate::Direction;
 
@@ -53,24 +53,26 @@ impl Schedule for Stack {
         } else {
             Either::Right(HashMap::<usize, f64>::new())
         };
-        let mut measured_children = vec![];
-        let it = match self.direction {
-            Direction::Forward => Either::Left(self.children.iter()),
-            Direction::Backward => Either::Right(self.children.iter().rev()),
-        };
-        for child in it {
+        let mapper = |child: &ElementRef| {
             let child_channels = child.variant.channels();
             let channel_used_duration = get_channel_usage(&used_duration, child_channels);
             let child_available_duration = context.max_duration - channel_used_duration;
             let measured_child = measure(child.clone(), child_available_duration);
             let channel_used_duration = channel_used_duration + measured_child.duration;
-            measured_children.push(measured_child);
             let channels = if child_channels.is_empty() {
                 self.channels()
             } else {
                 child_channels
             };
             update_channel_usage(&mut used_duration, channel_used_duration, channels);
+            measured_child
+        };
+        let mut measured_children: Vec<_> = match self.direction {
+            Direction::Forward => self.children.iter().map(mapper).collect(),
+            Direction::Backward => self.children.iter().rev().map(mapper).collect(),
+        };
+        if self.direction == Direction::Backward {
+            measured_children.reverse();
         }
         let total_used_duration = match used_duration {
             Either::Left(v) => v,
@@ -91,16 +93,11 @@ impl Schedule for Stack {
         } else {
             Either::Right(HashMap::<usize, f64>::new())
         };
-        let mut arranged_children = vec![];
         let measured_children = match &context.measured_self.data {
             MeasureResultVariant::Multiple(v) => v,
             _ => bail!("Invalid measure data"),
         };
-        let it = match self.direction {
-            Direction::Forward => Either::Left(measured_children.iter()),
-            Direction::Backward => Either::Right(measured_children.iter().rev()),
-        };
-        for child in it {
+        let mapper = |child: &MeasuredElement| {
             let child_channels = child.element.variant.channels();
             let channel_used_duration = get_channel_usage(&used_duration, child_channels);
             let measured_duration = child.duration;
@@ -110,15 +107,22 @@ impl Schedule for Stack {
                     context.final_duration - channel_used_duration - measured_duration
                 }
             };
-            let arranged_child = arrange(child, inner_time, measured_duration, context.options)?;
+            let arranged_child = arrange(child, inner_time, measured_duration, context.options);
             let channel_used_duration = channel_used_duration + measured_duration;
-            arranged_children.push(arranged_child);
             let channels = if child_channels.is_empty() {
                 self.channels()
             } else {
                 child_channels
             };
             update_channel_usage(&mut used_duration, channel_used_duration, channels);
+            arranged_child
+        };
+        let mut arranged_children: Vec<_> = match self.direction {
+            Direction::Forward => measured_children.iter().map(mapper).collect::<Result<_>>(),
+            Direction::Backward => measured_children.iter().rev().map(mapper).collect(),
+        }?;
+        if self.direction == Direction::Backward {
+            arranged_children.reverse();
         }
         Ok(ArrangeResult(
             context.final_duration,
@@ -150,13 +154,14 @@ fn get_channel_usage(used_duration: &Either<f64, HashMap<usize, f64>>, channels:
     match used_duration {
         Either::Left(v) => *v,
         Either::Right(d) => (if channels.is_empty() {
-            d.values().max_by(|a, b| a.total_cmp(b)).copied()
+            d.values().max_by(|a, b| a.total_cmp(b))
         } else {
             channels
                 .iter()
-                .map(|i| d.get(i).copied().unwrap_or_default())
+                .filter_map(|i| d.get(i))
                 .max_by(|a, b| a.total_cmp(b))
         })
+        .copied()
         .unwrap_or_default(),
     }
 }

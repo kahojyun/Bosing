@@ -9,7 +9,7 @@ use pyo3::{
     prelude::*,
 };
 use schedule::ElementCommonBuilder;
-use std::{collections::HashMap, sync::Arc, time::Instant};
+use std::{collections::HashMap, sync::Arc};
 
 use crate::sampler::Sampler;
 
@@ -50,40 +50,6 @@ impl Channel {
             length,
             delay,
             align_level,
-        }
-    }
-}
-
-#[pyclass(get_all, frozen)]
-#[derive(Debug, Clone)]
-struct Options {
-    time_tolerance: f64,
-    amp_tolerance: f64,
-    phase_tolerance: f64,
-    allow_oversize: bool,
-}
-
-#[pymethods]
-impl Options {
-    #[new]
-    #[pyo3(signature = (
-        *,
-        time_tolerance=1e-12,
-        amp_tolerance=0.1 / 2f64.powi(16),
-        phase_tolerance=1e-4,
-        allow_oversize=false,
-    ))]
-    fn new(
-        time_tolerance: f64,
-        amp_tolerance: f64,
-        phase_tolerance: f64,
-        allow_oversize: bool,
-    ) -> Self {
-        Options {
-            time_tolerance,
-            amp_tolerance,
-            phase_tolerance,
-            allow_oversize,
         }
     }
 }
@@ -1481,7 +1447,8 @@ fn generate_waveforms(
     phase_tolerance: f64,
     allow_oversize: bool,
 ) -> PyResult<HashMap<String, Py<PyArray1<Complex64>>>> {
-    let t0 = Instant::now();
+    // TODO: use the tolerances
+    let _ = (amp_tolerance, phase_tolerance);
     let root = schedule.downcast::<Element>()?.get().0.clone();
     let measured = schedule::measure(root, f64::INFINITY);
     let arrange_options = schedule::ScheduleOptions {
@@ -1490,8 +1457,6 @@ fn generate_waveforms(
     };
     let arranged = schedule::arrange(&measured, 0.0, measured.duration(), &arrange_options)
         .map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
-    let t1 = Instant::now();
-    println!("Arrangement time: {:?}", t1 - t0);
     let mut sampler = Sampler::new();
     for c in channels.iter() {
         sampler.add_channel(c.base_freq, c.sample_rate, c.length, c.delay);
@@ -1502,8 +1467,6 @@ fn generate_waveforms(
     }
     sampler.execute(&arranged);
     let results = sampler.into_result();
-    let t2 = Instant::now();
-    println!("Execution time: {:?}", t2 - t1);
     let dict = channels
         .into_iter()
         .zip(results)
@@ -1528,7 +1491,6 @@ fn bosing(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<GridLengthUnit>()?;
     m.add_class::<Hann>()?;
     m.add_class::<Interp>()?;
-    m.add_class::<Options>()?;
     m.add_class::<Play>()?;
     m.add_class::<Repeat>()?;
     m.add_class::<SetFreq>()?;

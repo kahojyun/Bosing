@@ -29,25 +29,6 @@ class Channel:
     def align_level(self) -> int: ...
 
 @final
-class Options:
-    def __new__(
-        cls,
-        *,
-        time_tolerance: float = ...,
-        amp_tolerance: float = ...,
-        phase_tolerance: float = ...,
-        allow_oversize: bool = ...,
-    ) -> Self: ...
-    @property
-    def time_tolerance(self) -> float: ...
-    @property
-    def amp_tolerance(self) -> float: ...
-    @property
-    def phase_tolerance(self) -> float: ...
-    @property
-    def allow_oversize(self) -> bool: ...
-
-@final
 class Alignment:
     End: ClassVar[Alignment]
     Start: ClassVar[Alignment]
@@ -269,8 +250,7 @@ class Direction:
 class Stack(Element):
     def __new__(
         cls,
-        children: Iterable[Element] = ...,
-        *,
+        *children: Element,
         direction: Literal["forward", "backward"] | Direction = ...,
         margin: float | tuple[float, float] | None = ...,
         alignment: Literal["end", "start", "center", "stretch"] | Alignment | None = ...,
@@ -354,7 +334,7 @@ class Grid(Element):
     def __new__(
         cls,
         *children: _GridEntryLike,
-        columns: Sequence[GridLength] = ...,
+        columns: Sequence[str | float | GridLength] = ...,
         margin: float | tuple[float, float] | None = ...,
         alignment: Literal["end", "start", "center", "stretch"] | Alignment | None = ...,
         phantom: bool = ...,
@@ -375,5 +355,9 @@ def generate_waveforms(
     channels: Iterable[Channel],
     shapes: Iterable[Shape],
     schedule: Element,
-    options: Options | None = ...,
-) -> dict[str, tuple[np.ndarray, np.ndarray]]: ...
+    *,
+    time_tolerance: float = ...,
+    amp_tolerance: float = ...,
+    phase_tolerance: float = ...,
+    allow_oversize: bool = ...,
+) -> dict[str, np.ndarray]: ...

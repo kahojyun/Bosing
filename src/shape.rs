@@ -13,10 +13,6 @@ impl Shape {
         Self(ShapeVariant::Interp(Interp::new(knots, controls, degree)))
     }
 
-    pub fn sample(&self, x: f64) -> f64 {
-        self.0.sample(x)
-    }
-
     pub fn sample_array(&self, x0: f64, dx: f64, array: &mut [f64]) {
         self.0.sample_array(x0, dx, array);
     }
@@ -76,7 +72,7 @@ mod tests {
 
     #[test]
     fn test_hann() {
-        let hann = Shape::new_hann();
+        let hann = Hann;
         assert_approx_eq!(f64, hann.sample(-0.5), 0.0);
         assert_approx_eq!(f64, hann.sample(-0.25), 0.5);
         assert_approx_eq!(f64, hann.sample(0.0), 1.0);
@@ -148,7 +144,7 @@ mod tests {
             0.3427520927181801,
             6.123233995736766e-17,
         ];
-        let interp = Shape::new_interp(knots, controls, 3);
+        let interp = Interp::new(knots, controls, 3);
         for (&x, &y) in test_x.iter().zip(test_y.iter()) {
             assert_approx_eq!(f64, interp.sample(x), y);
         }

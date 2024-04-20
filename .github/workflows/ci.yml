@@ -19,6 +19,10 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  CARGO_TERM_COLOR: always
+  PYTHON_VERSION: 3.12
+
 jobs:
   # Should run on every push and PR
   test:
@@ -27,15 +31,21 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+      - name: Cargo build
+        run: cargo build --verbose
+      - name: Cargo test
+        run: cargo test --verbose
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: ${{ env.PYTHON_VERSION }}
       - name: Install hatch
         run: |
           python -m pip install --upgrade pip
           pip install hatch
       - name: Test
         run: hatch run test:run
+      - name: Stubtest
+        run: hatch run stubtest bosing --allowlist stubtest-allowlist.txt
 
   # Should run on every push and PR, but only run semantic-release on push
   release:
@@ -52,7 +62,7 @@ jobs:
         with:
           fetch-depth: 0
       - name: Semantic Release
-        uses: docker://ghcr.io/codfish/semantic-release-action@sha256:9e0bbcc4ca3b3611668dcf911e51432573efb3222587c4ca1cc8a759c1b8283c # v3.1.1
+        uses: docker://ghcr.io/codfish/semantic-release-action@sha256:71048986f7e28f024cbad0ef106a7ef20b9b0d322f3a8aa51d89f1c424e75061 # v3.3.0
         # Only run on push events
         if: github.event_name == 'push'
         id: semantic-release
@@ -93,7 +103,7 @@ jobs:
         run: sed -i "s/^version = .*/version = \"${{ needs.release.outputs.version }}\"/" Cargo.toml
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: ${{ env.PYTHON_VERSION }}
       - name: Build wheels
         uses: PyO3/maturin-action@v1
         with:
@@ -123,7 +133,7 @@ jobs:
         run: sed -i "s/^version = .*/version = \"${{ needs.release.outputs.version }}\"/" Cargo.toml
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: ${{ env.PYTHON_VERSION }}
           architecture: ${{ matrix.platform.target }}
       - name: Build wheels
         uses: PyO3/maturin-action@v1
@@ -153,7 +163,7 @@ jobs:
         run: sed -i "s/^version = .*/version = \"${{ needs.release.outputs.version }}\"/" Cargo.toml
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: ${{ env.PYTHON_VERSION }}
       - name: Build wheels
         uses: PyO3/maturin-action@v1
         with:
