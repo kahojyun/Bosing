@@ -82,7 +82,7 @@
 
 .. math::
 
-    I(t) = E(t)\cos(\phi_p(t)) \\
-    Q(t) = E(t)\sin(\phi_p(t))
+    I(t) = E(t)\cos(2\pi\phi_p(t)) \\
+    Q(t) = E(t)\sin(2\pi\phi_p(t))
 
 其中 :math:`E(t)` 为包络.

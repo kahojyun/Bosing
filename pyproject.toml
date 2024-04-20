@@ -42,7 +42,7 @@ dependencies = [
 
 [tool.hatch.envs.default.scripts]
 mip = "maturin develop && ipython"
-stubcheck = "maturin develop && stubtest bosing"
+stubcheck = "maturin develop && stubtest bosing --allowlist stubtest-allowlist.txt"
 build_docs = "maturin develop && sphinx-build -M html docs docs/_build {args}"
 clean_docs = "rm -rf docs/_build docs/generated"
 

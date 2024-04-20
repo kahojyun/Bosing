@@ -45,8 +45,8 @@
 :attr:`Element.margin`
     元素前后额外占用的时间, 默认为 ``0``.
 
-:attr:`Element.visibility`
-    元素是否生效, 如果为 ``False`` 虽然会占用布局空间, 但是不会执行相应指令.
+:attr:`Element.phantom`
+    元素是否生效, 如果为 ``True`` 虽然会占用布局空间, 但是不会执行相应指令.
 
 :attr:`Element.alignment`
     元素在容器中的对齐方式, 目前只有 :class:`Grid` 会使用该属性, 其他布局会忽略
@@ -83,7 +83,7 @@ Stack 布局
 ----------
 
 在保持子元素前后顺序不变的前提下, 按照 :attr:`Stack.direction` 指定的方向排列子
-元素, 默认为 :attr:`ArrangeDirection.BACKWARDS`, 子元素尽量靠后排列. 如果需要同
+元素, 默认为 :attr:`Direction.Backward`, 子元素尽量靠后排列. 如果需要同
 步多个通道, 可以使用 :class:`Barrier`. 子元素的 :attr:`Element.alignment` 属性会
 被忽略, 持续时间尽可能短.
 
@@ -99,7 +99,7 @@ Absolute 布局
 
 .. code-block:: python
 
-    absolute = Absolute().with_children(
+    absolute = Absolute(
         Play(...),
         (1e-9, Play(...)),
         (2e-9, Stack(...)),
@@ -122,8 +122,8 @@ Grid 布局
 
     grid = Grid(columns=["*", "*", "*"]).with_children(
         Play(...),
-        (1, Play(...)),
-        (0, 3, Stack(...)),
+        (Play(...), 1),
+        (Stack(...), 0, 3),
     )
 
 .. tip::

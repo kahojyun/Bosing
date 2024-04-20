@@ -14,16 +14,44 @@ pip install bosing
 
 Docs are hosted on [Read the Docs](http://bosing.readthedocs.io/)
 
+## Usage
+
+Examples can be found in `example`.
+
+```python
+import matplotlib.pyplot as plt
+
+from bosing import Barrier, Channel, Hann, Play, Stack, generate_waveforms
+
+channels = [Channel("xy", 30e6, 2e9, 1000)]
+shapes = [Hann()]
+schedule = Stack(duration=500e-9).with_children(
+    Play(
+        channel_id=0,
+        shape_id=0,
+        amplitude=0.3,
+        width=100e-9,
+        plateau=200e-9,
+    ),
+    Barrier(duration=10e-9),
+)
+result = generate_waveforms(channels, shapes, schedule)
+w = result["xy"]
+plt.plot(w.real, label="I")
+plt.plot(w.imag, label="Q")
+plt.legend()
+plt.show()
+```
+
 ## Development
 
 ### Prerequisites
 
-* .NET 8 SDK. Install the latest .NET SDK from [here](https://dotnet.microsoft.com/download/dotnet) or install with Visual Studio.
+* Latest stable Rust toolchain.
+* [maturin](https://github.com/PyO3/maturin) 1.5+.
 * [hatch](https://github.com/pypa/hatch) for python project management.
 
 ### Development install
-
-Ensure `dotnet` cli is in `PATH`.
 
 ```bash
 git clone https://github.com/kahojyun/Bosing.git
@@ -40,38 +68,6 @@ hatch run docs:build
 ### Run tests
 
 ```bash
-dotnet test
+cargo test
 hatch run test:run
 ```
-
-### Usage
-
-Examples can be found in `python/examples`.
-
-```python
-from bosing import Play, Barrier, Hann, Channel, Stack, generate_waveforms
-import matplotlib.pyplot as plt
-
-channels = [Channel("xy", 200e6, 2e9, 100000)]
-shapes = [Hann()]
-schedule = Stack(duration=50e-6).with_children(
-    Play(
-        channel_id = 0,
-        amplitude = 0.3,
-        shape_id = 0,
-        width = 100e-9,
-    ),
-    Barrier(duration=10e-9),
-)
-result = generate_waveforms(channels, shapes, schedule)
-i, q = result["xy"]
-plt.plot(i)
-plt.plot(q)
-plt.show()
-```
-
-### Tooling
-
-Use Visual Studio or Visual Studio Code with the [C# extension](https://marketplace.visualstudio.com/items?itemName=ms-dotnettools.csharp).
-
-Manage python project with [hatch](https://github.com/pypa/hatch).

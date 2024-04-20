@@ -76,7 +76,7 @@ jobs:
               "@semantic-release/github",
             ]
     outputs:
-      version: ${{ steps.semantic-release.outputs.release-version || '0.0.0-dev' }}
+      version: ${{ steps.semantic-release.outputs.release-version || format('0.0.0-dev+{0}', github.sha) }}
       published: ${{ steps.semantic-release.outputs.new-release-published || 'false' }}
 
   linux:

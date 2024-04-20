@@ -37,6 +37,9 @@ impl Sampler {
     }
 
     fn execute_dispatch(&mut self, element: &ArrangedElement, time: f64) {
+        if element.element().common().phantom() {
+            return;
+        }
         let time = time + element.inner_time();
         let duration = element.inner_duration();
         match element.element().variant() {

@@ -21,7 +21,6 @@ bosing: 微波波形生成器
 
 * 脉冲编排: 通过 :class:`Stack` 等控制波形时序
 * 自定义波形: 通过 :class:`Interp` 自定义插值波形
-* 滤波器: 通过 :attr:`Channel.iir` 和 :attr:`Channel.fir` 添加滤波器
 
 安装
 ----
@@ -34,7 +33,7 @@ bosing: 微波波形生成器
 从源码安装
 ----------
 
-#. 安装 `.NET 8.0 SDK <https://dotnet.microsoft.com/en-us/download>`_
+#. 安装 Rust toolchain 1.74+
 #. 安装 Python 3.8+
 #. Clone 本项目并安装
 
