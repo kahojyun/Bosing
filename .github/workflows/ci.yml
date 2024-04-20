@@ -45,7 +45,7 @@ jobs:
       - name: Test
         run: hatch run test:run
       - name: Stubtest
-        run: hatch run stubtest bosing --allowlist stubtest-allowlist.txt
+        run: hatch run stubcheck
 
   # Should run on every push and PR, but only run semantic-release on push
   release:
