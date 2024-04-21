@@ -32,57 +32,33 @@
 
     公式中的相位单位均为周期数, 即 :math:`2\pi` 的倍数.
 
-目前程序会记录三种频率: 通道的载波频率 :math:`f_c`, 由于频率偏置而产生的额外频率
-:math:`f_a`, 以及 :class:`Play` 指令中的附加频率 :math:`f_p`. 前两者相加得到全局
-频率 :math:`f`, 即 :math:`f = f_c + f_a`. 相位则记录两种: 通道的初相位
-:math:`\phi_0` 与 :class:`Play` 指令中的附加相位 :math:`\phi_p`. 利用这些信息可
-以计算出时刻 :math:`t` 的额外相位 :math:`\phi_a(t)`:
+对于每个通道，``bosing`` 记录了以下信息:
+
+- 通道的载波频率 :math:`f_0`
+- 由于频率偏置而产生的额外频率 :math:`\Delta f`
+- 通道的初相位 :math:`\phi_c`
+
+而 :class:`Play` 指令中还可以指定额外频率 :math:`f_p` 与额外相位 :math:`\phi_p`.
+假设经过 DRAG 修正后的波形包络为 :math:`E_d(t)`, 波形起始时间为 :math:`t_0`, 则
+混频后的波形为
 
 .. math::
 
-    \phi_a(t) = f_a t + \phi_0
+    P(t) = E_d(t) \exp \big[ i 2 \pi ((f_0 + \Delta f) t + f_p (t-t_0) + \phi_c + \phi_p) \big]
 
-载波相位 :math:`\phi_c(t)`:
+涉及相位的指令还有
 
-.. math::
+- :class:`ShiftPhase`:
+    改变 :math:`\phi_c`, 与时间无关
 
-    \phi_c(t) = \phi_a(t) + f_c t = f t + \phi_0
+- :class:`SetPhase`:
+    改变 :math:`\phi_c`, 使得在指定时间 :math:`t` 时相位为 :math:`\phi`. 计算相位时
+    只包括 :math:`\Delta f`
 
-起始时刻为 :math:`\tau` 的波形中的相位 :math:`\phi_p(t)` 则为:
+- :class:`SwapPhase`:
+    改变两个通道的 :math:`\phi_c`, 使得在指定时间 :math:`t` 时两个通道的相位交换. 计算相位时
+    包括 :math:`f_0` 与 :math:`\Delta f`
 
-.. math::
-
-    \phi_p(t) = \phi_c(t) + f_p (t - \tau)
-
-目前 :class:`ShiftFreq` 指令与 :class:`SetFreq` 指令改变的是 :math:`f_a`, 并且会
-令额外相位 :math:`\phi_a(t)` 在给定时刻 :math:`\tau` 连续:
-
-.. math::
-
-    \phi_a(\tau) = f_a \tau + \phi_0 = \phi_a'(\tau) = f_a' \tau +
-    \phi_0'
-
-:class:`ShiftPhase` 指令直接改变 :math:`\phi_0`, 不受时间影响.
-:class:`SetPhase` 改变 :math:`\phi_0` 使得给定时刻 :math:`\tau` 的
-额外相位 :math:`\phi_a(\tau)` 变为给定值 :math:`\phi`:
-
-.. math::
-
-    \phi_a'(\tau) = f_a \tau + \phi_0' = \phi
-
-:class:`SwapPhase` 指令在给定时刻 :math:`\tau` 交换两个通道的
-载波相位 :math:`\phi_c^{(1)}(\tau)` 与 :math:`\phi_c^{(2)}(\tau)`:
-
-.. math::
-
-    \phi_c^{(1)'}(\tau) = \phi_c^{(2)}(\tau) \\
-    \phi_c^{(2)'}(\tau) = \phi_c^{(1)}(\tau)
-
-最后生成波形时, ``bosing`` 采用的 I, Q 通道混频公式为:
-
-.. math::
-
-    I(t) = E(t)\cos(2\pi\phi_p(t)) \\
-    Q(t) = E(t)\sin(2\pi\phi_p(t))
-
-其中 :math:`E(t)` 为包络.
+- :class:`ShiftFreq` 与 :class:`SetFreq`:
+    改变 :math:`\Delta f`, 同时改变 :math:`\phi_c` 使得在指定时间 :math:`t` 时相位保持连续.
+    计算相位时只包括 :math:`\Delta f`

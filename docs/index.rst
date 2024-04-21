@@ -36,12 +36,11 @@ bosing: 微波波形生成器
 #. 安装 Rust toolchain 1.74+
 #. 安装 Python 3.8+
 #. Clone 本项目并安装
-
     .. code-block:: console
 
         $ git clone https://github.com/kahojyun/Bosing.git
         $ cd Bosing
-        $ pip install -e .
+        $ pip install .
 
 注意
 ----
