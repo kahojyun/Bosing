@@ -21,6 +21,18 @@ mod shape;
 static GLOBAL: MiMalloc = MiMalloc;
 
 /// Channel configuration.
+///
+/// `align_level` is the time axis alignment granularity. With sampling interval
+/// :math:`\Delta t` and `align_level` :math:`n`, start of pulse is aligned to
+/// the nearest multiple of :math:`2^n \Delta t`.
+///
+/// Args:
+///     name (str): Name of the channel.
+///     base_freq (float): Base frequency of the channel.
+///     sample_rate (float): Sample rate of the channel.
+///     length (int): Length of the waveform.
+///     delay (float): Delay of the channel. Defaults to 0.0.
+///     align_level (int): Time axis alignment granularity. Defaults to -10.
 #[pyclass(get_all, frozen)]
 #[derive(Debug, Clone)]
 struct Channel {
@@ -56,6 +68,14 @@ impl Channel {
 }
 
 /// Alignment of a schedule element.
+///
+/// The alignment of a schedule element is used to align the element within its
+/// parent element. The alignment can be one of the following:
+///
+/// - :attr:`Alignment.End`
+/// - :attr:`Alignment.Start`
+/// - :attr:`Alignment.Center`
+/// - :attr:`Alignment.Stretch`: Stretch the element to fill the parent.
 #[pyclass(frozen)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Alignment {
@@ -68,6 +88,21 @@ enum Alignment {
 #[pymethods]
 impl Alignment {
     /// Convert the value to Alignment.
+    ///
+    /// The value can be one of the following:
+    ///
+    /// - :class:`Alignment`
+    /// - "end"
+    /// - "start"
+    /// - "center"
+    /// - "stretch"
+    ///
+    /// Args:
+    ///     obj (str | Alignment): The value to convert.
+    /// Returns:
+    ///     Alignment: The converted value.
+    /// Raises:
+    ///     ValueError: If the value cannot be converted to Alignment.
     #[staticmethod]
     fn convert(obj: &Bound<'_, PyAny>) -> PyResult<Py<Self>> {
         if let Ok(slf) = obj.extract() {
@@ -98,6 +133,16 @@ fn extract_alignment(obj: &Bound<'_, PyAny>) -> PyResult<Alignment> {
 }
 
 /// Base class for shapes.
+///
+/// Shapes are used to define the envelope of a pulse. Internally, the shape is
+/// represented as a function :math:`f(t)` defined on the interval :math:`t \in
+/// [-0.5, 0.5]`. The shape should be normalized such that :math:`f(\pm 0.5) = 0`
+/// and :math:`f(0) = 1`.
+///
+/// Following shapes are supported:
+///
+/// - :class:`Hann`: Hann window.
+/// - :class:`Interp`: Interpolated shape.
 #[pyclass(subclass, frozen)]
 #[derive(Debug, Clone)]
 struct Shape;
@@ -137,6 +182,15 @@ impl Hann {
 /// The interpolated shape use a B-spline. :func:`scipy.interpolate.make_interp_spline`
 /// can be used to calculate the parameters.
 ///
+/// .. caution::
+///
+///     It's user's responsibility to ensure the b-spline parameters are valid and
+///     the shape is normalized such that :math:`f(\pm 0.5) = 0` and :math:`f(0) = 1`.
+///
+/// Args:
+///     knots (Sequence[float]): Knots of the B-spline.
+///     controls (Sequence[float]): Control points of the B-spline.
+///     degree (int): Degree of the B-spline.
 /// Example:
 ///     .. code-block:: python
 ///
@@ -178,7 +232,7 @@ fn extract_margin(obj: &Bound<'_, PyAny>) -> PyResult<(f64, f64)> {
     if let Ok((v1, v2)) = obj.extract() {
         return Ok((v1, v2));
     }
-    let msg = "Failed to convert the value to (f64, f64).";
+    let msg = "Failed to convert the value to (float, float).";
     Err(PyValueError::new_err(msg))
 }
 
@@ -188,49 +242,105 @@ fn extract_margin(obj: &Bound<'_, PyAny>) -> PyResult<(f64, f64)> {
 /// HTML elements. The design is inspired by `XAML in WPF / WinUI
 /// <https://learn.microsoft.com/en-us/windows/apps/design/layout/layouts-with-xaml>`_
 ///
-/// When :attr:`duration`, :attr:`max_duration`, and :attr:`min_duration` are
-/// conflicting, the priority is as follows:
+/// Every element has the following properties:
 ///
-/// 1. :attr:`min_duration`
-/// 2. :attr:`max_duration`
-/// 3. :attr:`duration`
+/// - :attr:`margin`
+///     The margin of an element is a tuple of two floats representing the
+///     margin before and after the element. If :attr:`margin` is set to a
+///     single float, both sides use the same value.
+///
+///     Similar to margins in XAML, margins don't collapse. For example, if two
+///     elements have a margin of 10 and 20, the space between the two elements
+///     is 30, not 20.
+///
+/// - :attr:`alignment`
+///     The alignment of the element. Currently, this property takes effect only
+///     when the element is a child of a :class:`Grid` element.
+///
+/// - :attr:`phantom`
+///     Whether the element is a phantom element. Phantom elements are measured
+///     and arranged in the layout but do not add to the waveforms.
+///
+/// - :attr:`duration`, :attr:`max_duration`, and :attr:`min_duration`
+///     Constraints on the duration of the element. When :attr:`duration`,
+///     :attr:`max_duration`, and :attr:`min_duration` are conflicting, the
+///     priority is as follows:
+///
+///     1. :attr:`min_duration`
+///     2. :attr:`max_duration`
+///     3. :attr:`duration`
+///
+///     When :attr:`duration` is not set, the duration is calculated such that
+///     the element occupies the minimum duration.
+///
+/// There are two types of elements:
+///
+/// - Instruction elements:
+///     Elements that instruct the waveform generator to perform certain
+///     operations, such as playing a pulse or setting the phase of a channel.
+///
+///     - :class:`Play`: Play a pulse on a channel.
+///     - :class:`ShiftPhase`: Shift the phase of a channel.
+///     - :class:`SetPhase`: Set the phase of a channel.
+///     - :class:`ShiftFreq`: Shift the frequency of a channel.
+///     - :class:`SetFreq`: Set the frequency of a channel.
+///     - :class:`SwapPhase`: Swap the phase of two channels.
+///
+///     The timing information required by the waveform generator is calculated
+///     by the layout system.
+///
+/// - Layout elements:
+///     Elements that control the layout of child elements.
+///
+///     - :class:`Grid`: Grid layout.
+///     - :class:`Stack`: Stack layout.
+///     - :class:`Absolute`: Absolute layout.
+///     - :class:`Repeat`: Repeat element.
+///     - :class:`Barrier`: Barrier element.
+///
+/// Args:
+///     margin (float | tuple[float, float]): Margin of the element. Defaults to
+///         0.
+///     alignment (str | Alignment): Alignment of the element. The value can
+///         be :class:`Alignment` or one of 'end', 'start', 'center', 'stretch'.
+///         Defaults to :attr:`Alignment.End`.
+///     phantom (bool): Whether the element is a phantom element and should not
+///         add to waveforms. Defaults to ``False``.
+///     duration (float): Duration of the element. Defaults to ``None``.
+///     max_duration (float): Maximum duration of the element. Defaults to
+///         ``inf``.
+///     min_duration (float): Minimum duration of the element. Defaults to 0.
 #[pyclass(subclass, frozen)]
 #[derive(Debug, Clone)]
 struct Element(Arc<schedule::Element>);
 
 #[pymethods]
 impl Element {
-    /// tuple[float, float]: Margin of the element.
     #[getter]
     fn margin(&self) -> (f64, f64) {
         self.0.common().margin()
     }
 
-    /// Alignment: Alignment of the element.
     #[getter]
     fn alignment(&self) -> Alignment {
         self.0.common().alignment()
     }
 
-    /// bool: Whether the element is a phantom element and should not add to waveforms.
     #[getter]
     fn phantom(&self) -> bool {
         self.0.common().phantom()
     }
 
-    /// float | None: Duration of the element.
     #[getter]
     fn duration(&self) -> Option<f64> {
         self.0.common().duration()
     }
 
-    /// float: Maximum duration of the element.
     #[getter]
     fn max_duration(&self) -> f64 {
         self.0.common().max_duration()
     }
 
-    /// float: Minimum duration of the element.
     #[getter]
     fn min_duration(&self) -> f64 {
         self.0.common().min_duration()
@@ -266,9 +376,45 @@ fn build_element(
 
 /// A pulse play element.
 ///
-/// If :attr:`flexible` is set to ``True`` and :attr:`alignment` is set to
-/// :attr:`Alignment.Stretch`, the plateau of the pulse is stretched to fill the
-/// parent element.
+/// Given the pulse envelope :math:`E(t)`, channel total frequency :math:`f_c`,
+/// and channel phase :math:`\phi_c`, the the final pulse :math:`P(t)` starts at
+/// :math:`t_0` with sideband will be
+///
+/// .. math::
+///
+///     E_d(t) = \left( 1 + i \alpha \frac{d}{dt} \right) E(t)
+///
+///     P(t) = E_d(t) \exp \big[ i 2 \pi (f_c t + f_p (t-t_0) + \phi_c + \phi_p) \big]
+///
+/// where :math:`\alpha` is the `drag_coef` parameter, :math:`f_p` is the
+/// `frequency` parameter, and :math:`\phi_p` is the `phase` parameter. The
+/// derivative is calculated using the central difference method. An exceptional
+/// case is when the pulse is a rectangular pulse. In this case, the drag
+/// coefficient is ignored.
+///
+/// If `flexible` is set to ``True``, the `plateau` parameter is ignored and the
+/// actual plateau length is determined by the duration of the element.
+///
+/// .. caution::
+///
+///     The unit of phase is number of cycles, not radians. For example, a phase
+///     of :math:`0.5` means a phase shift of :math:`\pi` radians.
+///
+/// Args:
+///     channel_id (int): Target channel ID.
+///     shape_id (int | None): Shape ID of the pulse. If ``None``, the pulse is
+///         a rectangular pulse.
+///     amplitude (float): Amplitude of the pulse.
+///     width (float): Width of the pulse.
+///     plateau (float): Plateau length of the pulse. Defaults to 0.
+///     drag_coef (float): Drag coefficient of the pulse. If the pulse is a
+///         rectangular pulse, the drag coefficient is ignored. Defaults to 0.
+///     frequency (float): Additional frequency of the pulse on top of channel
+///         base frequency and frequency shift. Defaults to 0.
+///     phase (float): Additional phase of the pulse in **cycles**. Defaults to
+///         0.
+///     flexible (bool): Whether the pulse has flexible plateau length. Defaults
+///         to ``False``.
 #[pyclass(extends=Element, frozen)]
 #[derive(Debug, Clone)]
 struct Play;
@@ -341,7 +487,6 @@ impl Play {
         ))
     }
 
-    /// int: Target channel ID.
     #[getter]
     fn channel_id(slf: &Bound<'_, Self>) -> PyResult<usize> {
         let ret = slf
@@ -356,8 +501,6 @@ impl Play {
         Ok(ret)
     }
 
-    /// int | None: Shape ID of the pulse. If ``None``, the pulse is a
-    ///     rectangular pulse.
     #[getter]
     fn shape_id(slf: &Bound<'_, Self>) -> PyResult<Option<usize>> {
         let ret = slf
@@ -372,7 +515,6 @@ impl Play {
         Ok(ret)
     }
 
-    /// float: Amplitude of the pulse.
     #[getter]
     fn amplitude(slf: &Bound<'_, Self>) -> PyResult<f64> {
         let ret = slf
@@ -387,7 +529,6 @@ impl Play {
         Ok(ret)
     }
 
-    /// float: Width of the pulse.
     #[getter]
     fn width(slf: &Bound<'_, Self>) -> PyResult<f64> {
         let ret = slf
@@ -402,7 +543,6 @@ impl Play {
         Ok(ret)
     }
 
-    /// float: Plateau of the pulse.
     #[getter]
     fn plateau(slf: &Bound<'_, Self>) -> PyResult<f64> {
         let ret = slf
@@ -417,8 +557,6 @@ impl Play {
         Ok(ret)
     }
 
-    /// float: Drag coefficient of the pulse. If the pulse is a rectangular pulse,
-    ///     the drag coefficient is ignored.
     #[getter]
     fn drag_coef(slf: &Bound<'_, Self>) -> PyResult<f64> {
         let ret = slf
@@ -433,8 +571,6 @@ impl Play {
         Ok(ret)
     }
 
-    /// float: Additional frequency of the pulse on top of channel base
-    ///     frequency and frequency shift.
     #[getter]
     fn frequency(slf: &Bound<'_, Self>) -> PyResult<f64> {
         let ret = slf
@@ -449,7 +585,6 @@ impl Play {
         Ok(ret)
     }
 
-    /// float: Additional phase of the pulse in **cycles**.
     #[getter]
     fn phase(slf: &Bound<'_, Self>) -> PyResult<f64> {
         let ret = slf
@@ -464,7 +599,6 @@ impl Play {
         Ok(ret)
     }
 
-    /// bool: Whether the pulse is flexible and should stretch to fill the parent.
     #[getter]
     fn flexible(slf: &Bound<'_, Self>) -> PyResult<bool> {
         let ret = slf
@@ -481,6 +615,18 @@ impl Play {
 }
 
 /// A phase shift element.
+///
+/// Phase shift will be added to the channel phase offset :math:`\phi_c` and is
+/// time-independent.
+///
+/// .. caution::
+///
+///     The unit of phase is number of cycles, not radians. For example, a phase
+///     of :math:`0.5` means a phase shift of :math:`\pi` radians.
+///
+/// Args:
+///     channel_id (int): Target channel ID.
+///     phase (float): Phase shift in **cycles**.
 #[pyclass(extends=Element, frozen)]
 #[derive(Debug, Clone)]
 struct ShiftPhase;
@@ -526,7 +672,6 @@ impl ShiftPhase {
         ))
     }
 
-    /// int: Target channel ID.
     #[getter]
     fn channel_id(slf: &Bound<'_, Self>) -> PyResult<usize> {
         let ret = slf
@@ -541,7 +686,6 @@ impl ShiftPhase {
         Ok(ret)
     }
 
-    /// float: Phase shift in **cycles**.
     #[getter]
     fn phase(slf: &Bound<'_, Self>) -> PyResult<f64> {
         let ret = slf
@@ -559,16 +703,25 @@ impl ShiftPhase {
 
 /// A phase set element.
 ///
-/// Given the base frequency :math:`f`, the frequency shift :math:`\\Delta f`,
-/// the time :math:`t`, and the phase offset :math:`\\phi_0`, the phase is
-/// defined as
+/// Waveform generator treats the base frequency :math:`f_0` and the channel
+/// frequency shift :math:`\Delta f` differently. :math:`f_0` is never changed
+/// during the execution of the schedule, while :math:`\Delta f` can be changed
+/// by :class:`ShiftFreq` and :class:`SetFreq`. :class:`SetPhase` only considers
+/// :math:`\Delta f` part of the frequency. The channel phase offset
+/// :math:`\phi_c` will be adjusted such that
 ///
-/// .. math::
+/// .. math:: \Delta f t + \phi_c = \phi
 ///
-///     \\phi(t) = (f + \\Delta f) t + \\phi_0
+/// at the scheduled time point, where :math:`\phi` is the `phase` parameter.
 ///
-/// :class:`SetPhase` sets the phase offset :math:`\\phi_0` such that
-/// :math:`\\phi(t)` is equal to the given phase.
+/// .. caution::
+///
+///     The unit of phase is number of cycles, not radians. For example, a phase
+///     of :math:`0.5` means a phase shift of :math:`\pi` radians.
+///
+/// Args:
+///     channel_id (int): Target channel ID.
+///     phase (float): Target phase value in **cycles**.
 #[pyclass(extends=Element, frozen)]
 #[derive(Debug, Clone)]
 struct SetPhase;
@@ -614,7 +767,6 @@ impl SetPhase {
         ))
     }
 
-    /// int: Target channel ID.
     #[getter]
     fn channel_id(slf: &Bound<'_, Self>) -> PyResult<usize> {
         let ret = slf
@@ -629,7 +781,6 @@ impl SetPhase {
         Ok(ret)
     }
 
-    /// float: Target phase value in **cycles**.
     #[getter]
     fn phase(slf: &Bound<'_, Self>) -> PyResult<f64> {
         let ret = slf
@@ -647,9 +798,13 @@ impl SetPhase {
 
 /// A frequency shift element.
 ///
-/// Additional frequency shift on top of the channel cumulative frequency shift.
-/// Phase offset will be adjusted accordingly such that the phase is continuous
-/// at the shift point.
+/// Frequency shift will be added to the channel frequency shift :math:`\Delta
+/// f` and the channel phase offset :math:`\phi_c` will be adjusted such that
+/// the phase is continuous at the scheduled time point.
+///
+/// Args:
+///     channel_id (int): Target channel ID.
+///     frequency (float): Delta frequency.
 #[pyclass(extends=Element, frozen)]
 #[derive(Debug, Clone)]
 struct ShiftFreq;
@@ -695,7 +850,6 @@ impl ShiftFreq {
         ))
     }
 
-    /// int: Target channel ID.
     #[getter]
     fn channel_id(slf: &Bound<'_, Self>) -> PyResult<usize> {
         let ret = slf
@@ -710,7 +864,6 @@ impl ShiftFreq {
         Ok(ret)
     }
 
-    /// float: Delta frequency.
     #[getter]
     fn frequency(slf: &Bound<'_, Self>) -> PyResult<f64> {
         let ret = slf
@@ -728,8 +881,14 @@ impl ShiftFreq {
 
 /// A frequency set element.
 ///
-/// Set the channel frequency shift to the target frequency. Phase offset will
-/// be adjusted accordingly such that the phase is continuous at the shift point.
+/// The channel frequency shift :math:`\Delta f` will be set to the provided
+/// `frequency` parameter and the channel phase offset :math:`\phi_c` will be
+/// adjusted such that the phase is continuous at the scheduled time point.
+/// The channel base frequency :math:`f_0` will not be changed.
+///
+/// Args:
+///     channel_id (int): Target channel ID.
+///     frequency (float): Target frequency.
 #[pyclass(extends=Element, frozen)]
 #[derive(Debug, Clone)]
 struct SetFreq;
@@ -775,7 +934,6 @@ impl SetFreq {
         ))
     }
 
-    /// int: Target channel ID.
     #[getter]
     fn channel_id(slf: &Bound<'_, Self>) -> PyResult<usize> {
         let ret = slf
@@ -790,7 +948,6 @@ impl SetFreq {
         Ok(ret)
     }
 
-    /// float: Target frequency.
     #[getter]
     fn frequency(slf: &Bound<'_, Self>) -> PyResult<f64> {
         let ret = slf
@@ -808,14 +965,16 @@ impl SetFreq {
 
 /// A phase swap element.
 ///
-/// This instruction swaps carrier phases between two target channels at the
-/// scheduled time point. Carrier phase is defined as
+/// Different from :class:`SetPhase` and :class:`SetFreq`, both the channel
+/// base frequency :math:`f_0` and the channel frequency shift :math:`\Delta f`
+/// will be considered. At the scheduled time point, the phase to be swapped
+/// is calculated as
 ///
-/// .. math::
-///     \\phi(t) = (f + \\Delta f) t + \\phi_0
+/// .. math:: \phi(t) = (f_0 + \Delta f) t + \phi_c
 ///
-/// where :math:`f` is the base frequency, :math:`\\Delta f` is the frequency
-/// shift, :math:`t` is the time, and :math:`\\phi_0` is the phase offset.
+/// Args:
+///     channel_id1 (int): Target channel ID 1.
+///     channel_id2 (int): Target channel ID 2.
 #[pyclass(extends=Element, frozen)]
 #[derive(Debug, Clone)]
 struct SwapPhase;
@@ -860,7 +1019,6 @@ impl SwapPhase {
         ))
     }
 
-    /// int: Target channel ID 1.
     #[getter]
     fn channel_id1(slf: &Bound<'_, Self>) -> PyResult<usize> {
         let ret = slf
@@ -875,7 +1033,6 @@ impl SwapPhase {
         Ok(ret)
     }
 
-    /// int: Target channel ID 2.
     #[getter]
     fn channel_id2(slf: &Bound<'_, Self>) -> PyResult<usize> {
         let ret = slf
@@ -893,11 +1050,15 @@ impl SwapPhase {
 
 /// A barrier element.
 ///
-/// A barrier element is a zero-duration no-op element. Useful for aligning
-/// elements on different channels in :class:`Stack`.
+/// A barrier element is a no-op element. Useful for aligning elements on
+/// different channels and adding space between elements in a :class:`Stack`
+/// layout.
 ///
-/// If :attr:`channel_ids` is empty, the barrier is applied to
-/// all channels in its parent element.
+/// If no channel IDs are provided, the layout system will arrange the barrier
+/// element as if it occupies all channels in its parent.
+///
+/// Args:
+///     *channel_ids (int): Channel IDs. Defaults to empty.
 #[pyclass(extends=Element, frozen)]
 #[derive(Debug, Clone)]
 struct Barrier;
@@ -938,8 +1099,6 @@ impl Barrier {
         ))
     }
 
-    /// Sequence[int]: Target channel IDs. The returned value is a copy of the
-    ///     internal channel IDs.
     #[getter]
     fn channel_ids(slf: &Bound<'_, Self>) -> PyResult<Vec<usize>> {
         let ret = slf
@@ -956,11 +1115,17 @@ impl Barrier {
     }
 }
 
-/// A repeated schedule element.
+/// A repeat element.
+///
+/// Repeat the child element multiple times with a spacing between repetitions.
+///
+/// Args:
+///     child (Element): Child element to repeat.
+///     count (int): Number of repetitions.
+///     spacing (float): Spacing between repetitions. Defaults to 0.
 #[pyclass(extends=Element, get_all, frozen)]
 #[derive(Debug, Clone)]
 struct Repeat {
-    /// Element: Child element to repeat.
     child: Py<Element>,
 }
 
@@ -1009,7 +1174,6 @@ impl Repeat {
         ))
     }
 
-    /// int: Number of repetitions.
     #[getter]
     fn count(slf: &Bound<'_, Self>) -> PyResult<usize> {
         let ret = slf
@@ -1024,7 +1188,6 @@ impl Repeat {
         Ok(ret)
     }
 
-    /// float: Spacing between repetitions.
     #[getter]
     fn spacing(slf: &Bound<'_, Self>) -> PyResult<f64> {
         let ret = slf
@@ -1040,7 +1203,17 @@ impl Repeat {
     }
 }
 
-/// Direction of arrangement.
+/// Layout order in a stack layout.
+///
+/// A stack layout has two possible children processing orders:
+///
+/// - :attr:`Direction.Backward`:
+///     Process children in reverse order and schedule them as late as possible.
+///     This is the default order.
+///
+/// - :attr:`Direction.Forward`:
+///     Process children in original order and schedule them as early as
+///     possible.
 #[pyclass(frozen)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Direction {
@@ -1051,6 +1224,18 @@ enum Direction {
 #[pymethods]
 impl Direction {
     /// Convert the value to Direction.
+    ///
+    /// The value can be:
+    ///
+    /// - :class:`Direction`
+    /// - str: 'backward' or 'forward'
+    ///
+    /// Args:
+    ///     obj (str | Direction): Value to convert.
+    /// Returns:
+    ///     Direction: Converted value.
+    /// Raises:
+    ///     ValueError: If the value cannot be converted.
     #[staticmethod]
     fn convert(obj: &Bound<'_, PyAny>) -> PyResult<Py<Self>> {
         if let Ok(slf) = obj.extract() {
@@ -1078,17 +1263,20 @@ fn extract_direction(obj: &Bound<'_, PyAny>) -> PyResult<Direction> {
     Direction::convert(obj).and_then(|x| x.extract(obj.py()))
 }
 
-/// Layout child elements in one direction.
+/// A stack layout element.
 ///
-/// The child elements are arranged in one direction. The direction can be
-/// forwards or backwards.
+/// Each child element occupies some channels and has a duration. Stack layout
+/// will put children as close as possible without changing the order of
+/// children with common channels. Two layout orders are available:
+/// :attr:`Direction.Backward` and :attr:`Direction.Forward`. The default order
+/// is :attr:`Direction.Backward`.
 ///
-/// Child elements with no common channel are arranged in parallel.
-/// :class:`Barrier` can be used to synchronize multiple channels.
+/// Args:
+///     *children (Element): Child elements.
+///     direction (str | Direction): Layout order. Defaults to 'backward'.
 #[pyclass(extends=Element, get_all, frozen)]
 #[derive(Debug, Clone)]
 struct Stack {
-    /// Sequence[Element]: Child elements.
     children: Vec<Py<Element>>,
 }
 
@@ -1137,6 +1325,22 @@ impl Stack {
         ))
     }
 
+    /// Create a new stack layout with different children.
+    ///
+    /// Using this method may be more readable than specifying children in the
+    /// constructor.
+    ///
+    /// .. code-block:: python
+    ///
+    ///     stack = Stack(direction='forward').with_children(
+    ///         element1,
+    ///         element2,
+    ///     )
+    ///
+    /// Args:
+    ///     *children (Element): New child elements.
+    /// Returns:
+    ///     Stack: New stack layout.
     #[pyo3(signature=(*children))]
     fn with_children(slf: &Bound<'_, Self>, children: Vec<Py<Element>>) -> PyResult<Py<Self>> {
         let py = slf.py();
@@ -1159,7 +1363,6 @@ impl Stack {
         )
     }
 
-    /// Direction: Direction of arrangement.
     #[getter]
     fn direction(slf: &Bound<'_, Self>) -> PyResult<Direction> {
         let ret = slf
@@ -1175,29 +1378,45 @@ impl Stack {
     }
 }
 
-/// A child element with an absolute time.
+/// A child element with an absolute time in a absolute layout.
+///
+/// The time of each child element is relative to the start of the absolute
+/// layout.
+///
+/// Args:
+///     time (float): Time relative to the start of the parent element.
+///     element (Element): Child element.
 #[pyclass(get_all, frozen)]
 #[derive(Debug, Clone)]
 struct AbsoluteEntry {
-    /// float: Time relative to the start of the parent element.
     time: f64,
-    /// Element: Child element.
     element: Py<Element>,
 }
 
 #[pymethods]
 impl AbsoluteEntry {
     #[new]
-    fn new(time: f64, element: Py<Element>) -> Self {
-        AbsoluteEntry { time, element }
+    fn new(time: f64, element: Py<Element>) -> PyResult<Self> {
+        if !time.is_finite() {
+            return Err(PyValueError::new_err("Time must be finite"));
+        }
+        Ok(AbsoluteEntry { time, element })
     }
 
     /// Convert the value to AbsoluteEntry.
     ///
     /// the value can be:
+    ///
     /// - AbsoluteEntry
     /// - Element
-    /// - tuple[float, Element]
+    /// - tuple[float, Element]: Time and element.
+    ///
+    /// Args:
+    ///     obj (AbsoluteEntry | Element | tuple[float, Element]): Value to convert.
+    /// Returns:
+    ///     AbsoluteEntry: Converted value.
+    /// Raises:
+    ///     ValueError: If the value cannot be converted.
     #[staticmethod]
     fn convert(obj: &Bound<'_, PyAny>) -> PyResult<Py<Self>> {
         let py = obj.py();
@@ -1205,10 +1424,10 @@ impl AbsoluteEntry {
             return Ok(slf);
         }
         if let Ok(element) = obj.extract() {
-            return Py::new(py, AbsoluteEntry::new(0.0, element));
+            return Py::new(py, AbsoluteEntry::new(0.0, element)?);
         }
         if let Ok((time, element)) = obj.extract() {
-            return Py::new(py, AbsoluteEntry::new(time, element));
+            return Py::new(py, AbsoluteEntry::new(time, element)?);
         }
         Err(PyValueError::new_err(
             "Failed to convert the value to AbsoluteEntry",
@@ -1220,15 +1439,31 @@ fn extract_absolute_entry(obj: &Bound<'_, PyAny>) -> PyResult<AbsoluteEntry> {
     AbsoluteEntry::convert(obj).and_then(|x| x.extract(obj.py()))
 }
 
-/// An absolute schedule element.
+/// An absolute layout element.
 ///
 /// The child elements are arranged in absolute time. The time of each child
 /// element is relative to the start of the absolute schedule. The duration of
 /// the absolute schedule is the maximum end time of the child elements.
+///
+/// The `children` argument can be:
+///
+/// - AbsoluteEntry
+/// - Element
+/// - tuple[float, Element]: Time and element.
+///
+/// Args:
+///     *children (AbsoluteEntry | Element | tuple[float, Element]): Child elements.
+/// Example:
+///     .. code-block:: python
+///
+///         absolute = Absolute(
+///             element1,
+///             (1.0, element2),
+///             AbsoluteEntry(2.0, element3),
+///         )
 #[pyclass(extends=Element, get_all, frozen)]
 #[derive(Debug, Clone)]
 struct Absolute {
-    /// Sequence[AbsoluteEntry]: Child elements.
     children: Vec<AbsoluteEntry>,
 }
 
@@ -1284,6 +1519,22 @@ impl Absolute {
     }
 
     /// Create a new absolute schedule with different children.
+    ///
+    /// Using this method may be more readable than specifying children in the
+    /// constructor.
+    ///
+    /// .. code-block:: python
+    ///
+    ///     absolute = Absolute(duration=50e-6).with_children(
+    ///         element1,
+    ///         (100e-9, element2),
+    ///     )
+    ///
+    /// Args:
+    ///     *children (AbsoluteEntry | Element | tuple[float, Element]): New
+    ///         child elements.
+    /// Returns:
+    ///     Absolute: New absolute schedule.
     #[pyo3(signature=(*children))]
     fn with_children(slf: &Bound<'_, Self>, children: Vec<Py<PyAny>>) -> PyResult<Py<Self>> {
         let py = slf.py();
@@ -1322,9 +1573,10 @@ impl Absolute {
 /// Unit of grid length.
 ///
 /// The unit can be:
+///
 /// - Seconds: Fixed length in seconds.
 /// - Auto: Auto length.
-/// - Star: Ratio of the remaining space.
+/// - Star: Ratio of the remaining duration.
 #[pyclass(frozen)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum GridLengthUnit {
@@ -1336,7 +1588,7 @@ enum GridLengthUnit {
 /// Length of a grid column.
 ///
 /// :class:`GridLength` is used to specify the length of a grid column. The
-/// length can be specified in seconds, as a fraction of the remaining space,
+/// length can be specified in seconds, as a fraction of the remaining duration,
 /// or automatically.
 #[pyclass(get_all, frozen)]
 #[derive(Debug, Clone)]
@@ -1347,12 +1599,10 @@ struct GridLength {
 
 #[pymethods]
 impl GridLength {
-    #[new]
-    fn new(value: f64, unit: GridLengthUnit) -> Self {
-        GridLength { value, unit }
-    }
-
     /// Create an automatic grid length.
+    ///
+    /// Returns:
+    ///     GridLength: Automatic grid length.
     #[staticmethod]
     fn auto() -> Self {
         GridLength {
@@ -1362,6 +1612,11 @@ impl GridLength {
     }
 
     /// Create a ratio based grid length.
+    ///
+    /// Args:
+    ///     value (float): Ratio of the remaining duration.
+    /// Returns:
+    ///     GridLength: Ratio based grid length.
     #[staticmethod]
     fn star(value: f64) -> PyResult<Self> {
         if !value.is_finite() || value <= 0.0 {
@@ -1374,6 +1629,11 @@ impl GridLength {
     }
 
     /// Create a fixed grid length.
+    ///
+    /// Args:
+    ///     value (float): Fixed length in seconds.
+    /// Returns:
+    ///     GridLength: Fixed grid length.
     #[staticmethod]
     fn fixed(value: f64) -> PyResult<Self> {
         if !value.is_finite() || value < 0.0 {
@@ -1390,12 +1650,20 @@ impl GridLength {
     /// Convert the value to GridLength.
     ///
     /// The value can be:
+    ///
     /// - GridLength
     /// - float: Fixed length in seconds.
     /// - 'auto': Auto length.
     /// - 'x*': x stars.
     /// - 'x': Fixed length in seconds.
     /// - '*': 1 star.
+    ///
+    /// Args:
+    ///     obj (GridLength | float | str): Value to convert.
+    /// Returns:
+    ///     GridLength: Converted value.
+    /// Raises:
+    ///     ValueError: If the value cannot be converted.
     #[staticmethod]
     fn convert(obj: &Bound<'_, PyAny>) -> PyResult<Py<Self>> {
         let py = obj.py();
@@ -1429,7 +1697,12 @@ fn extract_grid_length(obj: &Bound<'_, PyAny>) -> PyResult<GridLength> {
     GridLength::convert(obj).and_then(|x| x.extract(obj.py()))
 }
 
-/// A child element in a grid.
+/// A child element in a grid layout.
+///
+/// Args:
+///     element (Element): Child element.
+///     column (int): Column index.
+///     span (int): Column span.
 #[pyclass(get_all, frozen)]
 #[derive(Debug, Clone)]
 struct GridEntry {
@@ -1442,21 +1715,32 @@ struct GridEntry {
 impl GridEntry {
     #[new]
     #[pyo3(signature = (element, column=0, span=1))]
-    fn new(element: Py<Element>, column: usize, span: usize) -> Self {
-        GridEntry {
+    fn new(element: Py<Element>, column: usize, span: usize) -> PyResult<Self> {
+        if span == 0 {
+            return Err(PyValueError::new_err("The span must be greater than 0."));
+        }
+        Ok(GridEntry {
             element,
             column,
             span,
-        }
+        })
     }
 
     /// Convert the value to GridEntry.
     ///
     /// The value can be:
+    ///
     /// - GridEntry
     /// - Element
     /// - tuple[Element, int]: Element and column.
     /// - tuple[Element, int, int]: Element, column, and span.
+    ///
+    /// Args:
+    ///     obj (GridEntry | Element | tuple[Element, int] | tuple[Element, int, int]): Value to convert.
+    /// Returns:
+    ///     GridEntry: Converted value.
+    /// Raises:
+    ///     ValueError: If the value cannot be converted.
     #[staticmethod]
     fn convert(obj: &Bound<'_, PyAny>) -> PyResult<Py<Self>> {
         let py = obj.py();
@@ -1464,13 +1748,13 @@ impl GridEntry {
             return Ok(slf);
         }
         if let Ok(element) = obj.extract() {
-            return Py::new(py, GridEntry::new(element, 0, 1));
+            return Py::new(py, GridEntry::new(element, 0, 1)?);
         }
         if let Ok((element, column)) = obj.extract() {
-            return Py::new(py, GridEntry::new(element, column, 1));
+            return Py::new(py, GridEntry::new(element, column, 1)?);
         }
         if let Ok((element, column, span)) = obj.extract() {
-            return Py::new(py, GridEntry::new(element, column, span));
+            return Py::new(py, GridEntry::new(element, column, span)?);
         }
         Err(PyValueError::new_err(
             "Failed to convert the value to GridEntry.",
@@ -1482,7 +1766,50 @@ fn extract_grid_entry(obj: &Bound<'_, PyAny>) -> PyResult<GridEntry> {
     GridEntry::convert(obj).and_then(|x| x.extract(obj.py()))
 }
 
-/// A grid schedule element.
+/// A grid layout element.
+///
+/// A grid layout has multiple columns and each child element occupies some
+/// columns. The width of each column can be specified by :class:`GridLength`,
+/// which can be:
+///
+/// - Fixed length in seconds.
+/// - Auto length:
+///     The width is determined by the child element.
+///
+/// - Star length:
+///     The width id determined by remaining duration. For example, if there
+///     are two columns with 1* and 2* and the remaining duration is 300 ns,
+///     the width of the columns will be 100 ns and 200 ns.
+///
+/// Columns length can be specified with a simplified syntax:
+///
+/// - 'auto': Auto length.
+/// - 'x*': x stars.
+/// - 'x': Fixed length in seconds.
+/// - '*': 1 star.
+///
+/// If no columns are provided, the grid layout will have one column with '*'.
+///
+/// Children can be provided as:
+///
+/// - GridEntry
+/// - Element: The column index is 0 and the span is 1.
+/// - tuple[Element, int]: Element and column. The span is 1.
+/// - tuple[Element, int, int]: Element, column, and span.
+///
+/// Args:
+///     *children (GridEntry | Element | tuple[Element, int] | tuple[Element, int, int]): Child elements.
+///     columns (Iterable[GridLength | float | str]): Column lengths. Defaults to ['*'].
+/// Example:
+///     .. code-block:: python
+///
+///         grid = Grid(
+///             GridEntry(element1, 0, 1),
+///             (element2, 1),
+///             (element3, 2, 2),
+///             element4,
+///             columns=['auto', '1*', '2'],
+///         )
 #[pyclass(extends=Element, get_all, frozen)]
 #[derive(Debug, Clone)]
 struct Grid {
@@ -1549,6 +1876,22 @@ impl Grid {
     }
 
     /// Create a new grid schedule with different children.
+    ///
+    /// Using this method may be more readable than specifying children in the
+    /// constructor.
+    ///
+    /// .. code-block:: python
+    ///
+    ///     grid = Grid(columns=['auto', '*', 'auto']).with_children(
+    ///         element1,
+    ///         (element2, 2),
+    ///         (element3, 0, 3),
+    ///     )
+    ///
+    /// Args:
+    ///     *children (GridEntry | Element | tuple[Element, int] | tuple[Element, int, int]): New child elements.
+    /// Returns:
+    ///     Grid: New grid schedule.
     #[pyo3(signature=(*children))]
     fn with_children(slf: &Bound<'_, Self>, children: Vec<Py<PyAny>>) -> PyResult<Py<Self>> {
         let py = slf.py();
@@ -1583,7 +1926,6 @@ impl Grid {
         )
     }
 
-    /// Sequence[GridLength]: Column lengths.
     #[getter]
     fn columns(slf: &Bound<'_, Self>) -> PyResult<Vec<GridLength>> {
         let ret = slf
@@ -1605,20 +1947,20 @@ impl Grid {
 /// Args:
 ///     channels (Iterable[Channel]): Information of the channels.
 ///     shapes (Iterable[Shape]): Shapes used in the schedule.
-///     schedule (Element): Schedule to execute.
+///     schedule (Element): Root element of the schedule.
 ///     time_tolerance (float): Tolerance for time comparison. Default is 1e-12.
-///     amp_tolerance (float): Tolerance for amplitude comparison. Default is 0.1 / 2^16.
-///     phase_tolerance (float): Tolerance for phase comparison. Default is 1e-4.
+///     amp_tolerance (float): Tolerance for amplitude comparison. Default is
+///         0.1 / 2^16.
+///     phase_tolerance (float): Tolerance for phase comparison. Default is
+///         1e-4.
 ///     allow_oversize (bool): Allow oversize elements. Default is ``False``.
-///
 /// Returns:
-///     Dict[str, numpy.ndarray]: Waveforms of the channels.
-///
+///     Dict[str, numpy.ndarray]: Waveforms of the channels. The key is the
+///         channel name and the value is the waveform.
 /// Raises:
 ///     ValueError: If some input is invalid.
 ///     TypeError: If some input has an invalid type.
 ///     RuntimeError: If waveform generation fails.
-///
 /// Example:
 ///     .. code-block:: python
 ///
@@ -1686,12 +2028,13 @@ fn generate_waveforms(
     Ok(dict)
 }
 
-/// Generates microwave pulses for superconducting quantum computing experiments.
+/// Generates microwave pulses for superconducting quantum computing
+/// experiments.
 ///
 /// .. caution::
 ///
-///     All phase values are in number of cycles. For example, a phase of
-///     :math:`0.25` means :math:`\\pi/2` radians.
+///     The unit of phase is number of cycles, not radians. For example, a phase
+///     of :math:`0.5` means a phase shift of :math:`\pi` radians.
 #[pymodule]
 fn bosing(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Absolute>()?;
