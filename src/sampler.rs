@@ -1,11 +1,14 @@
-use std::f64::consts::TAU;
+use std::{f64::consts::TAU, sync::Arc};
 
+use cached::proc_macro::cached;
 use itertools::izip;
 use numpy::Complex64;
+use ordered_float::NotNan;
 
 use crate::{
     schedule::{self, ArrangedElement, ElementVariant},
     shape::Shape,
+    time::{AlignedIndex, Time},
 };
 
 #[derive(Debug, Clone, Default)]
@@ -19,9 +22,21 @@ impl Sampler {
         Self::default()
     }
 
-    pub fn add_channel(&mut self, base_freq: f64, sample_rate: f64, length: usize, delay: f64) {
-        self.channels
-            .push(Channel::new(base_freq, sample_rate, length, delay));
+    pub fn add_channel(
+        &mut self,
+        base_freq: f64,
+        sample_rate: f64,
+        length: usize,
+        delay: f64,
+        align_level: i32,
+    ) {
+        self.channels.push(Channel::new(
+            base_freq,
+            sample_rate,
+            length,
+            delay,
+            align_level,
+        ));
     }
 
     pub fn add_shape(&mut self, shape: Shape) {
@@ -62,7 +77,7 @@ impl Sampler {
     }
 
     fn execute_play(&mut self, element: &schedule::Play, time: f64, duration: f64) {
-        let shape = element.shape_id().map(|id| &self.shapes[id]);
+        let shape = element.shape_id().map(|id| self.shapes[id].clone());
         let width = element.width();
         let plateau = if element.flexible() {
             duration - width
@@ -74,6 +89,9 @@ impl Sampler {
         let freq = element.frequency();
         let phase = element.phase();
         let channel = &mut self.channels[element.channel_id()];
+        let time = Time::new(time).unwrap();
+        let width = Time::new(width).unwrap();
+        let plateau = Time::new(plateau).unwrap();
         channel.sample(
             shape, time, width, plateau, amplitude, drag_coef, freq, phase,
         );
@@ -150,18 +168,20 @@ struct Channel {
     phase: f64,
     sample_rate: f64,
     waveform: Vec<Complex64>,
-    delay: f64,
+    delay: Time,
+    align_level: i32,
 }
 
 impl Channel {
-    fn new(base_freq: f64, sample_rate: f64, length: usize, delay: f64) -> Self {
+    fn new(base_freq: f64, sample_rate: f64, length: usize, delay: f64, align_level: i32) -> Self {
         Self {
             base_freq,
             delta_freq: 0.0,
             phase: 0.0,
             sample_rate,
             waveform: vec![Complex64::default(); length],
-            delay,
+            delay: Time::new(delay).unwrap(),
+            align_level,
         }
     }
 
@@ -200,49 +220,55 @@ impl Channel {
 
     fn sample(
         &mut self,
-        shape: Option<&Shape>,
-        time: f64,
-        width: f64,
-        plateau: f64,
+        shape: Option<Shape>,
+        time: Time,
+        width: Time,
+        plateau: Time,
         amplitude: f64,
         drag_coef: f64,
         freq: f64,
         phase: f64,
     ) {
         let t_start = time + self.delay;
-        let i_frac_start = t_start * self.sample_rate;
-        let i_start = i_frac_start.ceil() as usize;
-        let index_offset = i_start as f64 - i_frac_start;
+        let i_frac_start = AlignedIndex::new(t_start, self.sample_rate, self.align_level).unwrap();
+        let i_start = i_frac_start.ceil();
+        let index_offset = i_frac_start.index_offset();
         let global_freq = self.total_freq();
         let local_freq = freq;
         let total_freq = global_freq + local_freq;
         let dt = 1.0 / self.sample_rate;
         let phase0 = phase
             + self.phase
-            + global_freq * (i_start as f64 * dt - self.delay)
-            + local_freq * index_offset * dt;
+            + global_freq * (i_start.value() * dt - self.delay.value())
+            + local_freq * index_offset.value() * dt;
         let dphase = total_freq * dt;
         let phase0 = phase0 * TAU;
         let dphase = dphase * TAU;
-        let waveform = &mut self.waveform[i_start..];
+        let waveform = &mut self.waveform[i_start.value() as usize..];
         if let Some(shape) = shape {
-            let envelope = get_envelope(shape, width, plateau, self.sample_rate, index_offset);
+            let sample_rate = NotNan::new(self.sample_rate).unwrap();
+            let envelope = get_envelope(shape, width, plateau, index_offset, sample_rate);
             let drag_coef = drag_coef * self.sample_rate;
             mix_add_envelope(waveform, &envelope, amplitude, drag_coef, phase0, dphase);
         } else {
-            let i_plateau = ((width + plateau) * self.sample_rate).ceil() as usize;
+            let i_plateau = ((width + plateau).value() * self.sample_rate).ceil() as usize;
             mix_add_plateau(&mut waveform[..i_plateau], amplitude, phase0, dphase);
         }
     }
 }
 
+#[cached(size = 1024)]
 fn get_envelope(
-    shape: &Shape,
-    width: f64,
-    plateau: f64,
-    sample_rate: f64,
-    index_offset: f64,
-) -> Vec<f64> {
+    shape: Shape,
+    width: Time,
+    plateau: Time,
+    index_offset: AlignedIndex,
+    sample_rate: NotNan<f64>,
+) -> Arc<Vec<f64>> {
+    let width = width.value();
+    let plateau = plateau.value();
+    let index_offset = index_offset.value();
+    let sample_rate = sample_rate.into_inner();
     let dt = 1.0 / sample_rate;
     let t_offset = index_offset * dt;
     let t1 = width / 2.0 - t_offset;
@@ -262,7 +288,7 @@ fn get_envelope(
         let x2 = (plateau_end_index as f64 * dt - t2) / width;
         shape.sample_array(x2, dx, &mut envelope[plateau_end_index..]);
     }
-    envelope
+    Arc::new(envelope)
 }
 
 fn mix_add_envelope(
@@ -291,10 +317,10 @@ fn mix_add_envelope(
 }
 
 pub fn mix_add_plateau(waveform: &mut [Complex64], amplitude: f64, phase: f64, dphase: f64) {
-    let mut carrier = Complex64::from_polar(1.0, phase);
+    let mut carrier = Complex64::from_polar(amplitude, phase);
     let dcarrier = Complex64::from_polar(1.0, dphase);
     for y in waveform.iter_mut() {
-        *y += carrier * amplitude;
+        *y += carrier;
         carrier *= dcarrier;
     }
 }

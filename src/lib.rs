@@ -16,6 +16,7 @@ use crate::sampler::Sampler;
 mod sampler;
 mod schedule;
 mod shape;
+mod time;
 
 #[global_allocator]
 static GLOBAL: MiMalloc = MiMalloc;
@@ -154,11 +155,12 @@ impl Shape {
         }
         if let Ok(interp) = slf.downcast::<Interp>() {
             let interp = interp.get();
-            return Ok(shape::Shape::new_interp(
+            return shape::Shape::new_interp(
                 interp.knots.clone(),
                 interp.controls.clone(),
                 interp.degree,
-            ));
+            )
+            .map_err(|e| PyValueError::new_err(e.to_string()));
         }
         Err(PyTypeError::new_err("Invalid shape type."))
     }
@@ -2012,7 +2014,7 @@ fn generate_waveforms(
         .map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
     let mut sampler = Sampler::new();
     for c in channels.iter() {
-        sampler.add_channel(c.base_freq, c.sample_rate, c.length, c.delay);
+        sampler.add_channel(c.base_freq, c.sample_rate, c.length, c.delay, c.align_level);
     }
     for s in shapes.iter() {
         let s = s.bind(py);

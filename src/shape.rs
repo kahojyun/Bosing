@@ -1,21 +1,79 @@
-use bspline::BSpline;
-use enum_dispatch::enum_dispatch;
+use std::hash::Hash;
+use std::sync::Arc;
 
+use anyhow::{anyhow, Result};
+use bspline::BSpline;
+use cached::proc_macro::cached;
+use enum_dispatch::enum_dispatch;
+use ordered_float::NotNan;
+
+/// A shape that can be used to modulate the amplitude of a signal.
+///
+/// The shape is defined in the range \[-0.5, 0.5\].
+///
+/// Internally, shape instances are cached such that we can compare and hash
+/// by instance address.
 #[derive(Debug, Clone)]
-pub struct Shape(ShapeVariant);
+pub struct Shape(Arc<ShapeVariant>);
 
 impl Shape {
     pub fn new_hann() -> Self {
-        Self(ShapeVariant::Hann(Hann))
+        Self(get_shape_instance(ShapeKey::Hann))
     }
 
-    pub fn new_interp(knots: Vec<f64>, controls: Vec<f64>, degree: usize) -> Self {
-        Self(ShapeVariant::Interp(Interp::new(knots, controls, degree)))
+    pub fn new_interp(knots: Vec<f64>, controls: Vec<f64>, degree: usize) -> Result<Self> {
+        let knots = knots
+            .into_iter()
+            .map(NotNan::new)
+            .collect::<Result<_, _>>()
+            .map_err(|_| anyhow!("Nan in knots"))?;
+        let controls = controls
+            .into_iter()
+            .map(NotNan::new)
+            .collect::<Result<_, _>>()
+            .map_err(|_| anyhow!("Nan in controls"))?;
+        let key = ShapeKey::Interp(knots, controls, degree);
+        Ok(Self(get_shape_instance(key)))
     }
 
     pub fn sample_array(&self, x0: f64, dx: f64, array: &mut [f64]) {
         self.0.sample_array(x0, dx, array);
     }
+}
+
+impl Hash for Shape {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        Arc::as_ptr(&self.0).hash(state);
+    }
+}
+
+impl PartialEq for Shape {
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.0, &other.0)
+    }
+}
+
+impl Eq for Shape {}
+
+type HashableArray = Vec<NotNan<f64>>;
+
+#[derive(Debug, Clone, Hash, Eq, PartialEq)]
+enum ShapeKey {
+    Hann,
+    Interp(HashableArray, HashableArray, usize),
+}
+
+#[cached(size = 128)]
+fn get_shape_instance(a: ShapeKey) -> Arc<ShapeVariant> {
+    let variant = match a {
+        ShapeKey::Hann => Hann.into(),
+        ShapeKey::Interp(t, c, k) => {
+            let t = t.into_iter().map(|v| v.into()).collect();
+            let c = c.into_iter().map(|v| v.into()).collect();
+            Interp::new(t, c, k).into()
+        }
+    };
+    Arc::new(variant)
 }
 
 #[enum_dispatch(ShapeTrait)]
@@ -148,5 +206,38 @@ mod tests {
         for (&x, &y) in test_x.iter().zip(test_y.iter()) {
             assert_approx_eq!(f64, interp.sample(x), y);
         }
+    }
+
+    #[test]
+    fn test_shape_eq() {
+        let h1 = Shape::new_hann();
+        let h2 = Shape::new_hann();
+        assert_eq!(h1, h2);
+        let knots = vec![
+            -0.5,
+            -0.5,
+            -0.5,
+            -0.5,
+            -0.16666666666666669,
+            0.0,
+            0.16666666666666663,
+            0.5,
+            0.5,
+            0.5,
+            0.5,
+        ];
+        let controls = vec![
+            6.123233995736766e-17,
+            0.35338865119588236,
+            0.8602099957160162,
+            1.0465966680946615,
+            0.8602099957160163,
+            0.35338865119588264,
+            6.123233995736766e-17,
+        ];
+        let i1 = Shape::new_interp(knots.clone(), controls.clone(), 3).unwrap();
+        let i2 = Shape::new_interp(knots.clone(), controls.clone(), 3).unwrap();
+        assert_eq!(i1, i2);
+        assert_ne!(h1, i1);
     }
 }
