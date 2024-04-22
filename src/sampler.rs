@@ -310,13 +310,14 @@ fn mix_add_envelope(
         };
         (right - left) / 2.0
     });
+    let drag_coef = Complex64::new(0.0, drag_coef);
     for (y, env, slope) in izip!(waveform.iter_mut(), envelope.iter().copied(), slope_iter) {
-        *y += carrier * (env + Complex64::i() * drag_coef * slope);
+        *y += carrier * (env + drag_coef * slope);
         carrier *= dcarrier;
     }
 }
 
-pub fn mix_add_plateau(waveform: &mut [Complex64], amplitude: f64, phase: f64, dphase: f64) {
+fn mix_add_plateau(waveform: &mut [Complex64], amplitude: f64, phase: f64, dphase: f64) {
     let mut carrier = Complex64::from_polar(amplitude, phase);
     let dcarrier = Complex64::from_polar(1.0, dphase);
     for y in waveform.iter_mut() {
