@@ -299,7 +299,7 @@ fn mix_add_envelope(
     phase: f64,
     dphase: f64,
 ) {
-    let mut carrier = Complex64::from_polar(1.0, phase);
+    let mut carrier = Complex64::from_polar(amplitude, phase);
     let dcarrier = Complex64::from_polar(1.0, dphase);
     let slope_iter = (0..envelope.len()).map(|i| {
         let left = if i > 0 { envelope[i - 1] } else { 0.0 };
@@ -311,7 +311,7 @@ fn mix_add_envelope(
         (right - left) / 2.0
     });
     for (y, env, slope) in izip!(waveform.iter_mut(), envelope.iter().copied(), slope_iter) {
-        *y += carrier * (amplitude * env + Complex64::i() * drag_coef * slope);
+        *y += carrier * (env + Complex64::i() * drag_coef * slope);
         carrier *= dcarrier;
     }
 }
