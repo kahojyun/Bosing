@@ -154,11 +154,12 @@ impl Shape {
         }
         if let Ok(interp) = slf.downcast::<Interp>() {
             let interp = interp.get();
-            return Ok(shape::Shape::new_interp(
+            return shape::Shape::new_interp(
                 interp.knots.clone(),
                 interp.controls.clone(),
                 interp.degree,
-            ));
+            )
+            .map_err(|e| PyValueError::new_err(e.to_string()));
         }
         Err(PyTypeError::new_err("Invalid shape type."))
     }
