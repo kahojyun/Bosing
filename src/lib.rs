@@ -3,15 +3,14 @@
 //! children after creation.
 
 use mimalloc::MiMalloc;
-use numpy::{Complex64, PyArray1};
-use pyo3::{
-    exceptions::{PyRuntimeError, PyTypeError, PyValueError},
-    prelude::*,
-};
-use schedule::ElementCommonBuilder;
+use numpy::prelude::*;
+use numpy::{AllowTypeChange, Complex64, PyArray1, PyArrayLike2};
+use pyo3::exceptions::{PyRuntimeError, PyTypeError, PyValueError};
+use pyo3::prelude::*;
 use std::{collections::HashMap, sync::Arc};
 
 use crate::sampler::Sampler;
+use schedule::ElementCommonBuilder;
 
 mod sampler;
 mod schedule;
@@ -1956,6 +1955,7 @@ impl Grid {
 ///     phase_tolerance (float): Tolerance for phase comparison. Default is
 ///         1e-4.
 ///     allow_oversize (bool): Allow oversize elements. Default is ``False``.
+///     crosstalk (array_like | None): Crosstalk matrix. Default is ``None``.
 /// Returns:
 ///     Dict[str, numpy.ndarray]: Waveforms of the channels. The key is the
 ///         channel name and the value is the waveform.
@@ -1990,6 +1990,7 @@ impl Grid {
     amp_tolerance=0.1 / 2f64.powi(16),
     phase_tolerance=1e-4,
     allow_oversize=false,
+    crosstalk=None,
 ))]
 #[allow(clippy::too_many_arguments)]
 fn generate_waveforms(
@@ -2001,9 +2002,24 @@ fn generate_waveforms(
     amp_tolerance: f64,
     phase_tolerance: f64,
     allow_oversize: bool,
+    crosstalk: Option<PyArrayLike2<'_, f64, AllowTypeChange>>,
 ) -> PyResult<HashMap<String, Py<PyArray1<Complex64>>>> {
     // TODO: use the tolerances
     let _ = (amp_tolerance, phase_tolerance);
+    if let Some(crosstalk) = &crosstalk {
+        if crosstalk.ndim() != 2 {
+            return Err(PyValueError::new_err("Crosstalk must be a 2D array."));
+        }
+        if crosstalk.shape()[0] != crosstalk.shape()[1] {
+            return Err(PyValueError::new_err("Crosstalk must be a square matrix."));
+        }
+        if crosstalk.shape()[0] != channels.len() {
+            return Err(PyValueError::new_err(
+                "The size of the crosstalk matrix must be the same as the number of channels.",
+            ));
+        }
+    }
+
     let root = schedule.downcast::<Element>()?.get().0.clone();
     let measured = schedule::measure(root, f64::INFINITY);
     let arrange_options = schedule::ScheduleOptions {
@@ -2019,6 +2035,9 @@ fn generate_waveforms(
     for s in shapes.iter() {
         let s = s.bind(py);
         sampler.add_shape(Shape::get_rust_shape(s)?);
+    }
+    if let Some(crosstalk) = &crosstalk {
+        sampler.set_crosstalk(crosstalk.as_array());
     }
     sampler.execute(&arranged);
     let results = sampler.into_result();

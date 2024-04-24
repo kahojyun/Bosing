@@ -2,6 +2,7 @@ use std::{f64::consts::TAU, sync::Arc};
 
 use cached::proc_macro::cached;
 use itertools::izip;
+use ndarray::ArrayView2;
 use numpy::Complex64;
 use ordered_float::NotNan;
 
@@ -15,6 +16,7 @@ use crate::{
 pub struct Sampler {
     channels: Vec<Channel>,
     shapes: Vec<Shape>,
+    crosstalk: Option<Vec<Vec<(usize, f64)>>>,
 }
 
 impl Sampler {
@@ -41,6 +43,21 @@ impl Sampler {
 
     pub fn add_shape(&mut self, shape: Shape) {
         self.shapes.push(shape);
+    }
+
+    pub fn set_crosstalk(&mut self, crosstalk: ArrayView2<f64>) {
+        let crosstalk = crosstalk
+            .columns()
+            .into_iter()
+            .map(|c| {
+                c.iter()
+                    .copied()
+                    .enumerate()
+                    .filter(|(_, v)| *v != 0.0)
+                    .collect()
+            })
+            .collect();
+        self.crosstalk = Some(crosstalk);
     }
 
     pub fn execute(&mut self, element: &ArrangedElement) {
@@ -88,13 +105,30 @@ impl Sampler {
         let drag_coef = element.drag_coef();
         let freq = element.frequency();
         let phase = element.phase();
-        let channel = &mut self.channels[element.channel_id()];
         let time = Time::new(time).unwrap();
         let width = Time::new(width).unwrap();
         let plateau = Time::new(plateau).unwrap();
-        channel.sample(
-            shape, time, width, plateau, amplitude, drag_coef, freq, phase,
-        );
+        if let Some(crosstalk) = &self.crosstalk {
+            for &(target, ct) in crosstalk[element.channel_id()].iter() {
+                let amplitude = amplitude * ct;
+                let channel = &mut self.channels[target];
+                channel.sample(
+                    shape.clone(),
+                    time,
+                    width,
+                    plateau,
+                    amplitude,
+                    drag_coef,
+                    freq,
+                    phase,
+                );
+            }
+        } else {
+            let channel = &mut self.channels[element.channel_id()];
+            channel.sample(
+                shape, time, width, plateau, amplitude, drag_coef, freq, phase,
+            );
+        }
     }
 
     fn execute_shift_phase(&mut self, element: &schedule::ShiftPhase) {
