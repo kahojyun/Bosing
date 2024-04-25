@@ -2,6 +2,7 @@ from collections.abc import Iterable, Sequence
 from typing import ClassVar, Literal, Self, TypeAlias, final
 
 import numpy as np
+import numpy.typing as npt
 
 @final
 class Channel:
@@ -360,4 +361,5 @@ def generate_waveforms(
     amp_tolerance: float = ...,
     phase_tolerance: float = ...,
     allow_oversize: bool = ...,
+    crosstalk: npt.ArrayLike | None = ...,
 ) -> dict[str, np.ndarray]: ...

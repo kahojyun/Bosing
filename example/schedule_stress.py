@@ -50,14 +50,17 @@ def gen_n(n: int):
         Barrier(duration=15e-9),
     )
 
-    _ = generate_waveforms(channels, shapes, schedule)
+    crosstalk = np.eye(len(channels), dtype=np.float64)
+    crosstalk[c["u0"] : c["u0"] + nu, c["u0"] : c["u0"] + nu] += 0.1
+
+    _ = generate_waveforms(channels, shapes, schedule, crosstalk=crosstalk)
 
     t1 = time.perf_counter()
     print(f"Time: {t1-t0:.3f}s")
 
 
 def main():
-    for i in cycle(range(1, 100)):
+    for i in cycle(range(349, 350)):
         print(i)
         gen_n(i)
 

@@ -3,20 +3,22 @@
 //! children after creation.
 
 use mimalloc::MiMalloc;
-use numpy::{Complex64, PyArray1};
-use pyo3::{
-    exceptions::{PyRuntimeError, PyTypeError, PyValueError},
-    prelude::*,
-};
-use schedule::ElementCommonBuilder;
+use numpy::prelude::*;
+use numpy::{AllowTypeChange, Complex64, PyArray1, PyArrayLike2};
+use pyo3::exceptions::{PyRuntimeError, PyTypeError, PyValueError};
+use pyo3::prelude::*;
 use std::{collections::HashMap, sync::Arc};
 
-use crate::sampler::Sampler;
+use crate::executor::Executor;
+use crate::pulse::Sampler;
+use crate::quant::{Frequency, Time};
+use schedule::ElementCommonBuilder;
 
-mod sampler;
+mod executor;
+mod pulse;
+mod quant;
 mod schedule;
 mod shape;
-mod time;
 
 #[global_allocator]
 static GLOBAL: MiMalloc = MiMalloc;
@@ -1956,6 +1958,7 @@ impl Grid {
 ///     phase_tolerance (float): Tolerance for phase comparison. Default is
 ///         1e-4.
 ///     allow_oversize (bool): Allow oversize elements. Default is ``False``.
+///     crosstalk (array_like | None): Crosstalk matrix. Default is ``None``.
 /// Returns:
 ///     Dict[str, numpy.ndarray]: Waveforms of the channels. The key is the
 ///         channel name and the value is the waveform.
@@ -1990,6 +1993,7 @@ impl Grid {
     amp_tolerance=0.1 / 2f64.powi(16),
     phase_tolerance=1e-4,
     allow_oversize=false,
+    crosstalk=None,
 ))]
 #[allow(clippy::too_many_arguments)]
 fn generate_waveforms(
@@ -2001,9 +2005,24 @@ fn generate_waveforms(
     amp_tolerance: f64,
     phase_tolerance: f64,
     allow_oversize: bool,
+    crosstalk: Option<PyArrayLike2<'_, f64, AllowTypeChange>>,
 ) -> PyResult<HashMap<String, Py<PyArray1<Complex64>>>> {
     // TODO: use the tolerances
-    let _ = (amp_tolerance, phase_tolerance);
+    let _ = phase_tolerance;
+    if let Some(crosstalk) = &crosstalk {
+        if crosstalk.ndim() != 2 {
+            return Err(PyValueError::new_err("Crosstalk must be a 2D array."));
+        }
+        if crosstalk.shape()[0] != crosstalk.shape()[1] {
+            return Err(PyValueError::new_err("Crosstalk must be a square matrix."));
+        }
+        if crosstalk.shape()[0] != channels.len() {
+            return Err(PyValueError::new_err(
+                "The size of the crosstalk matrix must be the same as the number of channels.",
+            ));
+        }
+    }
+
     let root = schedule.downcast::<Element>()?.get().0.clone();
     let measured = schedule::measure(root, f64::INFINITY);
     let arrange_options = schedule::ScheduleOptions {
@@ -2012,19 +2031,33 @@ fn generate_waveforms(
     };
     let arranged = schedule::arrange(&measured, 0.0, measured.duration(), &arrange_options)
         .map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
-    let mut sampler = Sampler::new();
+    let mut executor = Executor::new(amp_tolerance, time_tolerance);
     for c in channels.iter() {
-        sampler.add_channel(c.base_freq, c.sample_rate, c.length, c.delay, c.align_level);
+        executor.add_channel(c.base_freq);
     }
     for s in shapes.iter() {
         let s = s.bind(py);
-        sampler.add_shape(Shape::get_rust_shape(s)?);
+        executor.add_shape(Shape::get_rust_shape(s)?);
     }
-    sampler.execute(&arranged);
-    let results = sampler.into_result();
+    executor.execute(&arranged);
+    let results = executor.into_result();
+    let mut sampler = Sampler::new();
+    for (c, pl) in channels.iter().zip(results) {
+        sampler.add_channel(
+            pl,
+            c.length,
+            Frequency::new(c.sample_rate).unwrap(),
+            Time::new(c.delay).unwrap(),
+            c.align_level,
+        );
+    }
+    if let Some(crosstalk) = &crosstalk {
+        sampler.set_crosstalk(crosstalk.as_array());
+    }
+    let waveforms = sampler.sample(time_tolerance);
     let dict = channels
         .into_iter()
-        .zip(results)
+        .zip(waveforms)
         .map(|(c, w)| (c.name, PyArray1::from_vec_bound(py, w).unbind()))
         .collect();
     Ok(dict)
