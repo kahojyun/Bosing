@@ -9,13 +9,16 @@ use pyo3::exceptions::{PyRuntimeError, PyTypeError, PyValueError};
 use pyo3::prelude::*;
 use std::{collections::HashMap, sync::Arc};
 
-use crate::sampler::Sampler;
+use crate::executor::Executor;
+use crate::pulse::Sampler;
+use crate::quant::{Frequency, Time};
 use schedule::ElementCommonBuilder;
 
-mod sampler;
+mod executor;
+mod pulse;
+mod quant;
 mod schedule;
 mod shape;
-mod time;
 
 #[global_allocator]
 static GLOBAL: MiMalloc = MiMalloc;
@@ -2005,7 +2008,7 @@ fn generate_waveforms(
     crosstalk: Option<PyArrayLike2<'_, f64, AllowTypeChange>>,
 ) -> PyResult<HashMap<String, Py<PyArray1<Complex64>>>> {
     // TODO: use the tolerances
-    let _ = (amp_tolerance, phase_tolerance);
+    let _ = phase_tolerance;
     if let Some(crosstalk) = &crosstalk {
         if crosstalk.ndim() != 2 {
             return Err(PyValueError::new_err("Crosstalk must be a 2D array."));
@@ -2028,22 +2031,33 @@ fn generate_waveforms(
     };
     let arranged = schedule::arrange(&measured, 0.0, measured.duration(), &arrange_options)
         .map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
-    let mut sampler = Sampler::new();
+    let mut executor = Executor::new(amp_tolerance, time_tolerance);
     for c in channels.iter() {
-        sampler.add_channel(c.base_freq, c.sample_rate, c.length, c.delay, c.align_level);
+        executor.add_channel(c.base_freq);
     }
     for s in shapes.iter() {
         let s = s.bind(py);
-        sampler.add_shape(Shape::get_rust_shape(s)?);
+        executor.add_shape(Shape::get_rust_shape(s)?);
+    }
+    executor.execute(&arranged);
+    let results = executor.into_result();
+    let mut sampler = Sampler::new();
+    for (c, pl) in channels.iter().zip(results) {
+        sampler.add_channel(
+            pl,
+            c.length,
+            Frequency::new(c.sample_rate).unwrap(),
+            Time::new(c.delay).unwrap(),
+            c.align_level,
+        );
     }
     if let Some(crosstalk) = &crosstalk {
         sampler.set_crosstalk(crosstalk.as_array());
     }
-    sampler.execute(&arranged);
-    let results = sampler.into_result();
+    let waveforms = sampler.sample(time_tolerance);
     let dict = channels
         .into_iter()
-        .zip(results)
+        .zip(waveforms)
         .map(|(c, w)| (c.name, PyArray1::from_vec_bound(py, w).unbind()))
         .collect();
     Ok(dict)
