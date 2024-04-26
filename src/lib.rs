@@ -2,12 +2,13 @@
 //! possible to create cyclic references because we don't allow mutate the
 //! children after creation.
 
+use hashbrown::HashMap;
 use mimalloc::MiMalloc;
 use numpy::prelude::*;
 use numpy::{AllowTypeChange, Complex64, PyArray1, PyArrayLike2};
 use pyo3::exceptions::{PyRuntimeError, PyTypeError, PyValueError};
 use pyo3::prelude::*;
-use std::{collections::HashMap, sync::Arc};
+use std::sync::Arc;
 
 use crate::executor::Executor;
 use crate::pulse::Sampler;
@@ -30,7 +31,6 @@ static GLOBAL: MiMalloc = MiMalloc;
 /// the nearest multiple of :math:`2^n \Delta t`.
 ///
 /// Args:
-///     name (str): Name of the channel.
 ///     base_freq (float): Base frequency of the channel.
 ///     sample_rate (float): Sample rate of the channel.
 ///     length (int): Length of the waveform.
@@ -39,7 +39,6 @@ static GLOBAL: MiMalloc = MiMalloc;
 #[pyclass(get_all, frozen)]
 #[derive(Debug, Clone)]
 struct Channel {
-    name: String,
     base_freq: f64,
     sample_rate: f64,
     length: usize,
@@ -50,17 +49,9 @@ struct Channel {
 #[pymethods]
 impl Channel {
     #[new]
-    #[pyo3(signature = (name, base_freq, sample_rate, length, *, delay=0.0, align_level=-10))]
-    fn new(
-        name: String,
-        base_freq: f64,
-        sample_rate: f64,
-        length: usize,
-        delay: f64,
-        align_level: i32,
-    ) -> Self {
+    #[pyo3(signature = (base_freq, sample_rate, length, *, delay=0.0, align_level=-10))]
+    fn new(base_freq: f64, sample_rate: f64, length: usize, delay: f64, align_level: i32) -> Self {
         Channel {
-            name,
             base_freq,
             sample_rate,
             length,
@@ -405,8 +396,8 @@ fn build_element(
 ///     of :math:`0.5` means a phase shift of :math:`\pi` radians.
 ///
 /// Args:
-///     channel_id (int): Target channel ID.
-///     shape_id (int | None): Shape ID of the pulse. If ``None``, the pulse is
+///     channel_id (str): Target channel ID.
+///     shape_id (str | None): Shape ID of the pulse. If ``None``, the pulse is
 ///         a rectangular pulse.
 ///     amplitude (float): Amplitude of the pulse.
 ///     width (float): Width of the pulse.
@@ -446,8 +437,8 @@ impl Play {
     ))]
     #[allow(clippy::too_many_arguments)]
     fn new(
-        channel_id: usize,
-        shape_id: Option<usize>,
+        channel_id: String,
+        shape_id: Option<String>,
         amplitude: f64,
         width: f64,
         plateau: f64,
@@ -492,7 +483,7 @@ impl Play {
     }
 
     #[getter]
-    fn channel_id(slf: &Bound<'_, Self>) -> PyResult<usize> {
+    fn channel_id(slf: &Bound<'_, Self>) -> PyResult<String> {
         let ret = slf
             .downcast::<Element>()?
             .get()
@@ -502,11 +493,11 @@ impl Play {
                 "Failed to get the play variant from the element.",
             ))?
             .channel_id();
-        Ok(ret)
+        Ok(ret.to_string())
     }
 
     #[getter]
-    fn shape_id(slf: &Bound<'_, Self>) -> PyResult<Option<usize>> {
+    fn shape_id(slf: &Bound<'_, Self>) -> PyResult<Option<String>> {
         let ret = slf
             .downcast::<Element>()?
             .get()
@@ -516,7 +507,7 @@ impl Play {
                 "Failed to get the play variant from the element.",
             ))?
             .shape_id();
-        Ok(ret)
+        Ok(ret.map(|x| x.to_string()))
     }
 
     #[getter]
@@ -629,7 +620,7 @@ impl Play {
 ///     of :math:`0.5` means a phase shift of :math:`\pi` radians.
 ///
 /// Args:
-///     channel_id (int): Target channel ID.
+///     channel_id (str): Target channel ID.
 ///     phase (float): Phase shift in **cycles**.
 #[pyclass(extends=Element, frozen)]
 #[derive(Debug, Clone)]
@@ -651,7 +642,7 @@ impl ShiftPhase {
     ))]
     #[allow(clippy::too_many_arguments)]
     fn new(
-        channel_id: usize,
+        channel_id: String,
         phase: f64,
         margin: Option<&Bound<'_, PyAny>>,
         alignment: Option<&Bound<'_, PyAny>>,
@@ -677,7 +668,7 @@ impl ShiftPhase {
     }
 
     #[getter]
-    fn channel_id(slf: &Bound<'_, Self>) -> PyResult<usize> {
+    fn channel_id(slf: &Bound<'_, Self>) -> PyResult<String> {
         let ret = slf
             .downcast::<Element>()?
             .get()
@@ -687,7 +678,7 @@ impl ShiftPhase {
                 "Failed to get the shift_phase variant from the element.",
             ))?
             .channel_id();
-        Ok(ret)
+        Ok(ret.to_string())
     }
 
     #[getter]
@@ -724,7 +715,7 @@ impl ShiftPhase {
 ///     of :math:`0.5` means a phase shift of :math:`\pi` radians.
 ///
 /// Args:
-///     channel_id (int): Target channel ID.
+///     channel_id (str): Target channel ID.
 ///     phase (float): Target phase value in **cycles**.
 #[pyclass(extends=Element, frozen)]
 #[derive(Debug, Clone)]
@@ -746,7 +737,7 @@ impl SetPhase {
     ))]
     #[allow(clippy::too_many_arguments)]
     fn new(
-        channel_id: usize,
+        channel_id: String,
         phase: f64,
         margin: Option<&Bound<'_, PyAny>>,
         alignment: Option<&Bound<'_, PyAny>>,
@@ -772,7 +763,7 @@ impl SetPhase {
     }
 
     #[getter]
-    fn channel_id(slf: &Bound<'_, Self>) -> PyResult<usize> {
+    fn channel_id(slf: &Bound<'_, Self>) -> PyResult<String> {
         let ret = slf
             .downcast::<Element>()?
             .get()
@@ -782,7 +773,7 @@ impl SetPhase {
                 "Failed to get the set_phase variant from the element.",
             ))?
             .channel_id();
-        Ok(ret)
+        Ok(ret.to_string())
     }
 
     #[getter]
@@ -807,7 +798,7 @@ impl SetPhase {
 /// the phase is continuous at the scheduled time point.
 ///
 /// Args:
-///     channel_id (int): Target channel ID.
+///     channel_id (str): Target channel ID.
 ///     frequency (float): Delta frequency.
 #[pyclass(extends=Element, frozen)]
 #[derive(Debug, Clone)]
@@ -829,7 +820,7 @@ impl ShiftFreq {
     ))]
     #[allow(clippy::too_many_arguments)]
     fn new(
-        channel_id: usize,
+        channel_id: String,
         frequency: f64,
         margin: Option<&Bound<'_, PyAny>>,
         alignment: Option<&Bound<'_, PyAny>>,
@@ -855,7 +846,7 @@ impl ShiftFreq {
     }
 
     #[getter]
-    fn channel_id(slf: &Bound<'_, Self>) -> PyResult<usize> {
+    fn channel_id(slf: &Bound<'_, Self>) -> PyResult<String> {
         let ret = slf
             .downcast::<Element>()?
             .get()
@@ -865,7 +856,7 @@ impl ShiftFreq {
                 "Failed to get the shift_freq variant from the element.",
             ))?
             .channel_id();
-        Ok(ret)
+        Ok(ret.to_string())
     }
 
     #[getter]
@@ -891,7 +882,7 @@ impl ShiftFreq {
 /// The channel base frequency :math:`f_0` will not be changed.
 ///
 /// Args:
-///     channel_id (int): Target channel ID.
+///     channel_id (str): Target channel ID.
 ///     frequency (float): Target frequency.
 #[pyclass(extends=Element, frozen)]
 #[derive(Debug, Clone)]
@@ -913,7 +904,7 @@ impl SetFreq {
     ))]
     #[allow(clippy::too_many_arguments)]
     fn new(
-        channel_id: usize,
+        channel_id: String,
         frequency: f64,
         margin: Option<&Bound<'_, PyAny>>,
         alignment: Option<&Bound<'_, PyAny>>,
@@ -939,7 +930,7 @@ impl SetFreq {
     }
 
     #[getter]
-    fn channel_id(slf: &Bound<'_, Self>) -> PyResult<usize> {
+    fn channel_id(slf: &Bound<'_, Self>) -> PyResult<String> {
         let ret = slf
             .downcast::<Element>()?
             .get()
@@ -949,7 +940,7 @@ impl SetFreq {
                 "Failed to get the set_freq variant from the element.",
             ))?
             .channel_id();
-        Ok(ret)
+        Ok(ret.to_string())
     }
 
     #[getter]
@@ -977,8 +968,8 @@ impl SetFreq {
 /// .. math:: \phi(t) = (f_0 + \Delta f) t + \phi_c
 ///
 /// Args:
-///     channel_id1 (int): Target channel ID 1.
-///     channel_id2 (int): Target channel ID 2.
+///     channel_id1 (str): Target channel ID 1.
+///     channel_id2 (str): Target channel ID 2.
 #[pyclass(extends=Element, frozen)]
 #[derive(Debug, Clone)]
 struct SwapPhase;
@@ -999,8 +990,8 @@ impl SwapPhase {
     ))]
     #[allow(clippy::too_many_arguments)]
     fn new(
-        channel_id1: usize,
-        channel_id2: usize,
+        channel_id1: String,
+        channel_id2: String,
         margin: Option<&Bound<'_, PyAny>>,
         alignment: Option<&Bound<'_, PyAny>>,
         phantom: bool,
@@ -1024,7 +1015,7 @@ impl SwapPhase {
     }
 
     #[getter]
-    fn channel_id1(slf: &Bound<'_, Self>) -> PyResult<usize> {
+    fn channel_id1(slf: &Bound<'_, Self>) -> PyResult<String> {
         let ret = slf
             .downcast::<Element>()?
             .get()
@@ -1034,11 +1025,11 @@ impl SwapPhase {
                 "Failed to get the swap_phase variant from the element.",
             ))?
             .channel_id1();
-        Ok(ret)
+        Ok(ret.to_string())
     }
 
     #[getter]
-    fn channel_id2(slf: &Bound<'_, Self>) -> PyResult<usize> {
+    fn channel_id2(slf: &Bound<'_, Self>) -> PyResult<String> {
         let ret = slf
             .downcast::<Element>()?
             .get()
@@ -1048,7 +1039,7 @@ impl SwapPhase {
                 "Failed to get the swap_phase variant from the element.",
             ))?
             .channel_id2();
-        Ok(ret)
+        Ok(ret.to_string())
     }
 }
 
@@ -1062,7 +1053,7 @@ impl SwapPhase {
 /// element as if it occupies all channels in its parent.
 ///
 /// Args:
-///     *channel_ids (int): Channel IDs. Defaults to empty.
+///     *channel_ids (str): Channel IDs. Defaults to empty.
 #[pyclass(extends=Element, frozen)]
 #[derive(Debug, Clone)]
 struct Barrier;
@@ -1080,7 +1071,7 @@ impl Barrier {
         min_duration=0.0,
     ))]
     fn new(
-        channel_ids: Vec<usize>,
+        channel_ids: Vec<String>,
         margin: Option<&Bound<'_, PyAny>>,
         alignment: Option<&Bound<'_, PyAny>>,
         phantom: bool,
@@ -1104,7 +1095,7 @@ impl Barrier {
     }
 
     #[getter]
-    fn channel_ids(slf: &Bound<'_, Self>) -> PyResult<Vec<usize>> {
+    fn channel_ids(slf: &Bound<'_, Self>) -> PyResult<Vec<String>> {
         let ret = slf
             .downcast::<Element>()?
             .get()
@@ -1949,16 +1940,15 @@ impl Grid {
 /// Generate waveforms from a schedule.
 ///
 /// Args:
-///     channels (Iterable[Channel]): Information of the channels.
-///     shapes (Iterable[Shape]): Shapes used in the schedule.
+///     channels (Mapping[str, Channel]): Information of the channels.
+///     shapes (Mapping[str, Shape]): Shapes used in the schedule.
 ///     schedule (Element): Root element of the schedule.
 ///     time_tolerance (float): Tolerance for time comparison. Default is 1e-12.
 ///     amp_tolerance (float): Tolerance for amplitude comparison. Default is
 ///         0.1 / 2^16.
-///     phase_tolerance (float): Tolerance for phase comparison. Default is
-///         1e-4.
 ///     allow_oversize (bool): Allow oversize elements. Default is ``False``.
-///     crosstalk (array_like | None): Crosstalk matrix. Default is ``None``.
+///     crosstalk (tuple[array_like, Sequence[str]] | None): Crosstalk matrix
+///         with corresponding channel ids. Default is ``None``.
 /// Returns:
 ///     Dict[str, numpy.ndarray]: Waveforms of the channels. The key is the
 ///         channel name and the value is the waveform.
@@ -1970,12 +1960,12 @@ impl Grid {
 ///     .. code-block:: python
 ///
 ///         from bosing import Barrier, Channel, Hann, Play, Stack, generate_waveforms
-///         channels = [Channel("xy", 30e6, 2e9, 1000)]
-///         shapes = [Hann()]
+///         channels = {"xy": Channel(30e6, 2e9, 1000)}
+///         shapes = {"hann": Hann()}
 ///         schedule = Stack(duration=500e-9).with_children(
 ///             Play(
-///                 channel_id=0,
-///                 shape_id=0,
+///                 channel_id="xy",
+///                 shape_id="hann",
 ///                 amplitude=0.3,
 ///                 width=100e-9,
 ///                 plateau=200e-9,
@@ -1991,34 +1981,30 @@ impl Grid {
     *,
     time_tolerance=1e-12,
     amp_tolerance=0.1 / 2f64.powi(16),
-    phase_tolerance=1e-4,
     allow_oversize=false,
     crosstalk=None,
 ))]
 #[allow(clippy::too_many_arguments)]
 fn generate_waveforms(
     py: Python<'_>,
-    channels: Vec<Channel>,
-    shapes: Vec<Py<Shape>>,
+    channels: HashMap<String, Channel>,
+    shapes: HashMap<String, Py<Shape>>,
     schedule: &Bound<'_, Element>,
     time_tolerance: f64,
     amp_tolerance: f64,
-    phase_tolerance: f64,
     allow_oversize: bool,
-    crosstalk: Option<PyArrayLike2<'_, f64, AllowTypeChange>>,
+    crosstalk: Option<(PyArrayLike2<'_, f64, AllowTypeChange>, Vec<String>)>,
 ) -> PyResult<HashMap<String, Py<PyArray1<Complex64>>>> {
-    // TODO: use the tolerances
-    let _ = phase_tolerance;
-    if let Some(crosstalk) = &crosstalk {
+    if let Some((crosstalk, names)) = &crosstalk {
         if crosstalk.ndim() != 2 {
             return Err(PyValueError::new_err("Crosstalk must be a 2D array."));
         }
         if crosstalk.shape()[0] != crosstalk.shape()[1] {
             return Err(PyValueError::new_err("Crosstalk must be a square matrix."));
         }
-        if crosstalk.shape()[0] != channels.len() {
+        if crosstalk.shape()[0] != names.len() {
             return Err(PyValueError::new_err(
-                "The size of the crosstalk matrix must be the same as the number of channels.",
+                "The size of the crosstalk matrix must be the same as the number of names.",
             ));
         }
     }
@@ -2032,18 +2018,20 @@ fn generate_waveforms(
     let arranged = schedule::arrange(&measured, 0.0, measured.duration(), &arrange_options)
         .map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
     let mut executor = Executor::new(amp_tolerance, time_tolerance);
-    for c in channels.iter() {
-        executor.add_channel(c.base_freq);
+    for (n, c) in &channels {
+        executor.add_channel(n.clone(), c.base_freq);
     }
-    for s in shapes.iter() {
+    for (n, s) in &shapes {
         let s = s.bind(py);
-        executor.add_shape(Shape::get_rust_shape(s)?);
+        executor.add_shape(n.clone(), Shape::get_rust_shape(s)?);
     }
     executor.execute(&arranged);
     let results = executor.into_result();
     let mut sampler = Sampler::new();
-    for (c, pl) in channels.iter().zip(results) {
+    for (n, pl) in results {
+        let c = &channels[&n];
         sampler.add_channel(
+            n,
             pl,
             c.length,
             Frequency::new(c.sample_rate).unwrap(),
@@ -2051,14 +2039,13 @@ fn generate_waveforms(
             c.align_level,
         );
     }
-    if let Some(crosstalk) = &crosstalk {
-        sampler.set_crosstalk(crosstalk.as_array());
+    if let Some((crosstalk, names)) = &crosstalk {
+        sampler.set_crosstalk(crosstalk.as_array(), names.clone());
     }
     let waveforms = sampler.sample(time_tolerance);
-    let dict = channels
+    let dict = waveforms
         .into_iter()
-        .zip(waveforms)
-        .map(|(c, w)| (c.name, PyArray1::from_vec_bound(py, w).unbind()))
+        .map(|(n, w)| (n, PyArray1::from_vec_bound(py, w).unbind()))
         .collect();
     Ok(dict)
 }

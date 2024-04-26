@@ -1,5 +1,4 @@
 use std::{
-    collections::HashMap,
     f64::consts::TAU,
     ops::{Add, Mul},
     sync::Arc,
@@ -7,9 +6,11 @@ use std::{
 
 use cached::proc_macro::cached;
 use float_cmp::approx_eq;
+use hashbrown::HashMap;
 use itertools::{izip, Itertools};
-use ndarray::ArrayView2;
+use ndarray::{ArrayView2, Axis};
 use numpy::Complex64;
+use rayon::prelude::*;
 
 use crate::{
     quant::{AlignedIndex, Frequency, Time},
@@ -86,10 +87,22 @@ pub struct PulseList {
     items: HashMap<ListBin, Vec<(Time, PulseAmplitude)>>,
 }
 
+#[derive(Debug, Clone)]
+pub struct Crosstalk<'a> {
+    matrix: ArrayView2<'a, f64>,
+    names: Vec<String>,
+}
+
+impl<'a> Crosstalk<'a> {
+    pub fn new(matrix: ArrayView2<'a, f64>, names: Vec<String>) -> Self {
+        Self { matrix, names }
+    }
+}
+
 #[derive(Debug, Clone, Default)]
 pub struct Sampler<'a> {
-    channels: Vec<Channel>,
-    crosstalk: Option<ArrayView2<'a, f64>>,
+    channels: HashMap<String, Channel>,
+    crosstalk: Option<Crosstalk<'a>>,
 }
 
 impl<'a> Sampler<'a> {
@@ -99,57 +112,72 @@ impl<'a> Sampler<'a> {
 
     pub fn add_channel(
         &mut self,
+        name: String,
         pulses: PulseList,
         length: usize,
         sample_rate: Frequency,
         delay: Time,
         align_level: i32,
     ) {
-        self.channels.push(Channel {
-            pulses,
-            length,
-            sample_rate,
-            align_level,
-            delay,
-        });
+        self.channels.insert(
+            name,
+            Channel {
+                pulses,
+                length,
+                sample_rate,
+                align_level,
+                delay,
+            },
+        );
     }
 
-    pub fn set_crosstalk(&mut self, crosstalk: ArrayView2<'a, f64>) {
-        self.crosstalk = Some(crosstalk);
+    pub fn set_crosstalk(&mut self, crosstalk: ArrayView2<'a, f64>, names: Vec<String>) {
+        self.crosstalk = Some(Crosstalk::new(crosstalk, names));
     }
 
-    pub fn sample(&self, time_tolerance: f64) -> Vec<Vec<Complex64>> {
-        if let Some(crosstalk) = self.crosstalk {
+    pub fn sample(&self, time_tolerance: f64) -> HashMap<String, Vec<Complex64>> {
+        if let Some(crosstalk) = &self.crosstalk {
             crosstalk
-                .columns()
-                .into_iter()
-                .zip(&self.channels)
-                .map(|(column, output)| {
-                    let lists = column
-                        .iter()
-                        .copied()
-                        .zip(&self.channels)
-                        .map(|(multiplier, input)| (multiplier, &input.pulses));
-                    merge_and_sample(
-                        lists,
-                        output.length,
-                        output.sample_rate,
-                        output.delay,
-                        output.align_level,
-                        time_tolerance,
+                .matrix
+                .axis_iter(Axis(0))
+                .into_par_iter()
+                .zip(&crosstalk.names)
+                .map(|(row, out_name)| {
+                    let out_channel = &self.channels[out_name];
+                    let lists =
+                        row.iter()
+                            .copied()
+                            .zip(&crosstalk.names)
+                            .map(|(multiplier, in_name)| {
+                                let in_channel = &self.channels[in_name];
+                                (multiplier, &in_channel.pulses)
+                            });
+                    (
+                        out_name.clone(),
+                        merge_and_sample(
+                            lists,
+                            out_channel.length,
+                            out_channel.sample_rate,
+                            out_channel.delay,
+                            out_channel.align_level,
+                            time_tolerance,
+                        ),
                     )
                 })
                 .collect()
         } else {
             self.channels
-                .iter()
-                .map(|c| {
+                .par_iter()
+                .map(|(n, c)| {
                     let list = c
                         .pulses
                         .items
                         .iter()
                         .map(|(bin, items)| (bin.clone(), items.iter().copied()));
-                    sample_pulse_list(list, c.length, c.sample_rate, c.delay, c.align_level)
+                    (
+                        n.clone(),
+                        sample_pulse_list(list, c.length, c.sample_rate, c.delay, c.align_level),
+                    )
                 })
                 .collect()
         }

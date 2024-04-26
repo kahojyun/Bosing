@@ -71,7 +71,7 @@ impl Schedule for Repeat {
         ))
     }
 
-    fn channels(&self) -> &[usize] {
+    fn channels(&self) -> &[String] {
         self.child.variant.channels()
     }
 }

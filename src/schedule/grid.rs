@@ -39,7 +39,7 @@ impl GridEntry {
 pub struct Grid {
     children: Vec<GridEntry>,
     columns: Vec<GridLength>,
-    channel_ids: Vec<usize>,
+    channel_ids: Vec<String>,
 }
 
 impl Grid {
@@ -64,7 +64,7 @@ impl Grid {
         let channel_ids = children
             .iter()
             .flat_map(|e| e.element.variant.channels())
-            .copied()
+            .cloned()
             .unique()
             .collect();
         self.children = children;
@@ -198,7 +198,7 @@ impl Schedule for Grid {
         ))
     }
 
-    fn channels(&self) -> &[usize] {
+    fn channels(&self) -> &[String] {
         &self.channel_ids
     }
 }

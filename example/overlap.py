@@ -2,13 +2,13 @@ import matplotlib.pyplot as plt
 
 from bosing import Absolute, Barrier, Channel, Hann, Play, Stack, generate_waveforms
 
-channels = [Channel("m", 0, 2e9, 1000)]
-shapes = [Hann()]
+channels = {"m": Channel(30e6, 2e9, 1000)}
+shapes = {"hann": Hann()}
 measure = Absolute().with_children(
     *[
         Play(
-            channel_id=0,
-            shape_id=0,
+            channel_id="m",
+            shape_id="hann",
             amplitude=0.3,
             width=100e-9,
             plateau=300e-9,

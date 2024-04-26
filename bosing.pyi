@@ -1,4 +1,4 @@
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from typing import ClassVar, Literal, Self, TypeAlias, final
 
 import numpy as np
@@ -8,7 +8,6 @@ import numpy.typing as npt
 class Channel:
     def __new__(
         cls,
-        name: str,
         base_freq: float,
         sample_rate: float,
         length: int,
@@ -16,8 +15,6 @@ class Channel:
         delay: float = ...,
         align_level: int = ...,
     ) -> Self: ...
-    @property
-    def name(self) -> str: ...
     @property
     def base_freq(self) -> float: ...
     @property
@@ -72,8 +69,8 @@ class Element:
 class Play(Element):
     def __new__(
         cls,
-        channel_id: int,
-        shape_id: int | None,
+        channel_id: str,
+        shape_id: str | None,
         amplitude: float,
         width: float,
         *,
@@ -90,9 +87,9 @@ class Play(Element):
         min_duration: float = ...,
     ) -> Self: ...
     @property
-    def channel_id(self) -> int: ...
+    def channel_id(self) -> str: ...
     @property
-    def shape_id(self) -> int | None: ...
+    def shape_id(self) -> str | None: ...
     @property
     def amplitude(self) -> float: ...
     @property
@@ -112,7 +109,7 @@ class Play(Element):
 class ShiftPhase(Element):
     def __new__(
         cls,
-        channel_id: int,
+        channel_id: str,
         phase: float,
         *,
         margin: float | tuple[float, float] | None = ...,
@@ -123,7 +120,7 @@ class ShiftPhase(Element):
         min_duration: float = ...,
     ) -> Self: ...
     @property
-    def channel_id(self) -> int: ...
+    def channel_id(self) -> str: ...
     @property
     def phase(self) -> float: ...
 
@@ -131,7 +128,7 @@ class ShiftPhase(Element):
 class SetPhase(Element):
     def __new__(
         cls,
-        channel_id: int,
+        channel_id: str,
         phase: float,
         *,
         margin: float | tuple[float, float] | None = ...,
@@ -142,7 +139,7 @@ class SetPhase(Element):
         min_duration: float = ...,
     ) -> Self: ...
     @property
-    def channel_id(self) -> int: ...
+    def channel_id(self) -> str: ...
     @property
     def phase(self) -> float: ...
 
@@ -150,7 +147,7 @@ class SetPhase(Element):
 class ShiftFreq(Element):
     def __new__(
         cls,
-        channel_id: int,
+        channel_id: str,
         frequency: float,
         *,
         margin: float | tuple[float, float] | None = ...,
@@ -161,7 +158,7 @@ class ShiftFreq(Element):
         min_duration: float = ...,
     ) -> Self: ...
     @property
-    def channel_id(self) -> int: ...
+    def channel_id(self) -> str: ...
     @property
     def frequency(self) -> float: ...
 
@@ -169,7 +166,7 @@ class ShiftFreq(Element):
 class SetFreq(Element):
     def __new__(
         cls,
-        channel_id: int,
+        channel_id: str,
         frequency: float,
         *,
         margin: float | tuple[float, float] | None = ...,
@@ -180,7 +177,7 @@ class SetFreq(Element):
         min_duration: float = ...,
     ) -> Self: ...
     @property
-    def channel_id(self) -> int: ...
+    def channel_id(self) -> str: ...
     @property
     def frequency(self) -> float: ...
 
@@ -188,8 +185,8 @@ class SetFreq(Element):
 class SwapPhase(Element):
     def __new__(
         cls,
-        channel_id1: int,
-        channel_id2: int,
+        channel_id1: str,
+        channel_id2: str,
         *,
         margin: float | tuple[float, float] | None = ...,
         alignment: Literal["end", "start", "center", "stretch"] | Alignment | None = ...,
@@ -199,15 +196,15 @@ class SwapPhase(Element):
         min_duration: float = ...,
     ) -> Self: ...
     @property
-    def channel_id1(self) -> int: ...
+    def channel_id1(self) -> str: ...
     @property
-    def channel_id2(self) -> int: ...
+    def channel_id2(self) -> str: ...
 
 @final
 class Barrier(Element):
     def __new__(
         cls,
-        *channel_ids: int,
+        *channel_ids: str,
         margin: float | tuple[float, float] | None = ...,
         alignment: Literal["end", "start", "center", "stretch"] | Alignment | None = ...,
         phantom: bool = ...,
@@ -216,7 +213,7 @@ class Barrier(Element):
         min_duration: float = ...,
     ) -> Self: ...
     @property
-    def channel_ids(self) -> Sequence[int]: ...
+    def channel_ids(self) -> Sequence[str]: ...
 
 @final
 class Repeat(Element):
@@ -353,13 +350,12 @@ class Grid(Element):
     def columns(self) -> Sequence[GridLength]: ...
 
 def generate_waveforms(
-    channels: Iterable[Channel],
-    shapes: Iterable[Shape],
+    channels: Mapping[str, Channel],
+    shapes: Mapping[str, Shape],
     schedule: Element,
     *,
     time_tolerance: float = ...,
     amp_tolerance: float = ...,
-    phase_tolerance: float = ...,
     allow_oversize: bool = ...,
-    crosstalk: npt.ArrayLike | None = ...,
+    crosstalk: tuple[npt.ArrayLike, Sequence[str]] | None = ...,
 ) -> dict[str, np.ndarray]: ...

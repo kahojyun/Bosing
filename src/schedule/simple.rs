@@ -6,7 +6,7 @@ use super::{
 };
 
 trait SimpleElement {
-    fn channels(&self) -> &[usize];
+    fn channels(&self) -> &[String];
 }
 
 impl<T> Schedule for T
@@ -21,19 +21,19 @@ where
         Ok(ArrangeResult(0.0, ArrangeResultVariant::Simple))
     }
 
-    fn channels(&self) -> &[usize] {
+    fn channels(&self) -> &[String] {
         self.channels()
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct ShiftPhase {
-    channel_id: [usize; 1],
+    channel_id: [String; 1],
     phase: f64,
 }
 
 impl ShiftPhase {
-    pub fn new(channel_id: usize, phase: f64) -> Result<Self> {
+    pub fn new(channel_id: String, phase: f64) -> Result<Self> {
         if !phase.is_finite() {
             bail!("Invalid phase {}", phase);
         }
@@ -43,8 +43,8 @@ impl ShiftPhase {
         })
     }
 
-    pub fn channel_id(&self) -> usize {
-        self.channel_id[0]
+    pub fn channel_id(&self) -> &str {
+        &self.channel_id[0]
     }
 
     pub fn phase(&self) -> f64 {
@@ -53,19 +53,19 @@ impl ShiftPhase {
 }
 
 impl SimpleElement for ShiftPhase {
-    fn channels(&self) -> &[usize] {
+    fn channels(&self) -> &[String] {
         &self.channel_id
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct SetPhase {
-    channel_id: [usize; 1],
+    channel_id: [String; 1],
     phase: f64,
 }
 
 impl SetPhase {
-    pub fn new(channel_id: usize, phase: f64) -> Result<Self> {
+    pub fn new(channel_id: String, phase: f64) -> Result<Self> {
         if !phase.is_finite() {
             bail!("Invalid phase {}", phase);
         }
@@ -75,8 +75,8 @@ impl SetPhase {
         })
     }
 
-    pub fn channel_id(&self) -> usize {
-        self.channel_id[0]
+    pub fn channel_id(&self) -> &str {
+        &self.channel_id[0]
     }
 
     pub fn phase(&self) -> f64 {
@@ -85,19 +85,19 @@ impl SetPhase {
 }
 
 impl SimpleElement for SetPhase {
-    fn channels(&self) -> &[usize] {
+    fn channels(&self) -> &[String] {
         &self.channel_id
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct ShiftFreq {
-    channel_id: [usize; 1],
+    channel_id: [String; 1],
     frequency: f64,
 }
 
 impl ShiftFreq {
-    pub fn new(channel_id: usize, frequency: f64) -> Result<Self> {
+    pub fn new(channel_id: String, frequency: f64) -> Result<Self> {
         if !frequency.is_finite() {
             bail!("Invalid frequency {}", frequency);
         }
@@ -107,8 +107,8 @@ impl ShiftFreq {
         })
     }
 
-    pub fn channel_id(&self) -> usize {
-        self.channel_id[0]
+    pub fn channel_id(&self) -> &str {
+        &self.channel_id[0]
     }
 
     pub fn frequency(&self) -> f64 {
@@ -117,19 +117,19 @@ impl ShiftFreq {
 }
 
 impl SimpleElement for ShiftFreq {
-    fn channels(&self) -> &[usize] {
+    fn channels(&self) -> &[String] {
         &self.channel_id
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct SetFreq {
-    channel_id: [usize; 1],
+    channel_id: [String; 1],
     frequency: f64,
 }
 
 impl SetFreq {
-    pub fn new(channel_id: usize, frequency: f64) -> Result<Self> {
+    pub fn new(channel_id: String, frequency: f64) -> Result<Self> {
         if !frequency.is_finite() {
             bail!("Invalid frequency {}", frequency);
         }
@@ -139,8 +139,8 @@ impl SetFreq {
         })
     }
 
-    pub fn channel_id(&self) -> usize {
-        self.channel_id[0]
+    pub fn channel_id(&self) -> &str {
+        &self.channel_id[0]
     }
 
     pub fn frequency(&self) -> f64 {
@@ -149,55 +149,55 @@ impl SetFreq {
 }
 
 impl SimpleElement for SetFreq {
-    fn channels(&self) -> &[usize] {
+    fn channels(&self) -> &[String] {
         &self.channel_id
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct SwapPhase {
-    channel_ids: [usize; 2],
+    channel_ids: [String; 2],
 }
 
 impl SwapPhase {
-    pub fn new(channel_id1: usize, channel_id2: usize) -> Self {
+    pub fn new(channel_id1: String, channel_id2: String) -> Self {
         Self {
             channel_ids: [channel_id1, channel_id2],
         }
     }
 
-    pub fn channel_id1(&self) -> usize {
-        self.channel_ids[0]
+    pub fn channel_id1(&self) -> &str {
+        &self.channel_ids[0]
     }
 
-    pub fn channel_id2(&self) -> usize {
-        self.channel_ids[1]
+    pub fn channel_id2(&self) -> &str {
+        &self.channel_ids[1]
     }
 }
 
 impl SimpleElement for SwapPhase {
-    fn channels(&self) -> &[usize] {
+    fn channels(&self) -> &[String] {
         &self.channel_ids
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct Barrier {
-    channel_ids: Vec<usize>,
+    channel_ids: Vec<String>,
 }
 
 impl Barrier {
-    pub fn new(channel_ids: Vec<usize>) -> Self {
+    pub fn new(channel_ids: Vec<String>) -> Self {
         Self { channel_ids }
     }
 
-    pub fn channel_ids(&self) -> &[usize] {
+    pub fn channel_ids(&self) -> &[String] {
         &self.channel_ids
     }
 }
 
 impl SimpleElement for Barrier {
-    fn channels(&self) -> &[usize] {
+    fn channels(&self) -> &[String] {
         &self.channel_ids
     }
 }
