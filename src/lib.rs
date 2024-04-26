@@ -1,28 +1,27 @@
 //! Although Element struct may contains [`Py<Element>`] as children, it is not
 //! possible to create cyclic references because we don't allow mutate the
 //! children after creation.
-
-use hashbrown::HashMap;
-use mimalloc::MiMalloc;
-use numpy::prelude::*;
-use numpy::{AllowTypeChange, Complex64, PyArray1, PyArrayLike2};
-use pyo3::exceptions::{PyRuntimeError, PyTypeError, PyValueError};
-use pyo3::prelude::*;
 use std::sync::Arc;
 
-use crate::executor::Executor;
-use crate::pulse::Sampler;
-use crate::quant::{Frequency, Time};
-use schedule::ElementCommonBuilder;
+use hashbrown::HashMap;
+use numpy::{prelude::*, AllowTypeChange, PyArray2, PyArrayLike2};
+use pyo3::{
+    exceptions::{PyRuntimeError, PyTypeError, PyValueError},
+    prelude::*,
+};
+
+use crate::{
+    executor::Executor,
+    pulse::Sampler,
+    quant::{Frequency, Time},
+    schedule::ElementCommonBuilder,
+};
 
 mod executor;
 mod pulse;
 mod quant;
 mod schedule;
 mod shape;
-
-#[global_allocator]
-static GLOBAL: MiMalloc = MiMalloc;
 
 /// Channel configuration.
 ///
@@ -1951,7 +1950,8 @@ impl Grid {
 ///         with corresponding channel ids. Default is ``None``.
 /// Returns:
 ///     Dict[str, numpy.ndarray]: Waveforms of the channels. The key is the
-///         channel name and the value is the waveform.
+///         channel name and the value is the waveform. The shape of the
+///         waveform is ``(2, length)``.
 /// Raises:
 ///     ValueError: If some input is invalid.
 ///     TypeError: If some input has an invalid type.
@@ -1994,7 +1994,7 @@ fn generate_waveforms(
     amp_tolerance: f64,
     allow_oversize: bool,
     crosstalk: Option<(PyArrayLike2<'_, f64, AllowTypeChange>, Vec<String>)>,
-) -> PyResult<HashMap<String, Py<PyArray1<Complex64>>>> {
+) -> PyResult<HashMap<String, Py<PyArray2<f64>>>> {
     if let Some((crosstalk, names)) = &crosstalk {
         if crosstalk.ndim() != 2 {
             return Err(PyValueError::new_err("Crosstalk must be a 2D array."));
@@ -2008,7 +2008,6 @@ fn generate_waveforms(
             ));
         }
     }
-
     let root = schedule.downcast::<Element>()?.get().0.clone();
     let measured = schedule::measure(root, f64::INFINITY);
     let arrange_options = schedule::ScheduleOptions {
@@ -2027,13 +2026,17 @@ fn generate_waveforms(
     }
     executor.execute(&arranged);
     let results = executor.into_result();
-    let mut sampler = Sampler::new();
-    for (n, pl) in results {
-        let c = &channels[&n];
+    let waveforms: HashMap<String, Bound<PyArray2<f64>>> = channels
+        .iter()
+        .map(|(n, c)| (n.clone(), PyArray2::zeros_bound(py, (2, c.length), false)))
+        .collect();
+    let mut sampler = Sampler::new(results);
+    for (n, c) in channels {
+        // SAFETY: These arrays are just created.
+        let array = unsafe { waveforms[&n].as_array_mut() };
         sampler.add_channel(
             n,
-            pl,
-            c.length,
+            array,
             Frequency::new(c.sample_rate).unwrap(),
             Time::new(c.delay).unwrap(),
             c.align_level,
@@ -2042,12 +2045,12 @@ fn generate_waveforms(
     if let Some((crosstalk, names)) = &crosstalk {
         sampler.set_crosstalk(crosstalk.as_array(), names.clone());
     }
-    let waveforms = sampler.sample(time_tolerance);
-    let dict = waveforms
+    sampler.sample(time_tolerance);
+    let waveforms = waveforms
         .into_iter()
-        .map(|(n, w)| (n, PyArray1::from_vec_bound(py, w).unbind()))
+        .map(|(n, w)| (n, w.unbind()))
         .collect();
-    Ok(dict)
+    Ok(waveforms)
 }
 
 /// Generates microwave pulses for superconducting quantum computing

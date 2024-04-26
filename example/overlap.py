@@ -23,6 +23,6 @@ schedule = Stack(duration=500e-9).with_children(
 )
 result = generate_waveforms(channels, shapes, schedule)
 w = result["m"]
-plt.plot(w.real, label="I")
-plt.plot(w.imag, label="Q")
+plt.plot(w[0], label="I")
+plt.plot(w[1], label="Q")
 plt.legend()

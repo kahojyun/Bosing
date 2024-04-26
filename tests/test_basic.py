@@ -10,7 +10,8 @@ def test_basic():
     result = bosing.generate_waveforms(channels, shapes, schedule)
     assert "xy0" in result
     w = result["xy0"]
-    assert len(w) == 100000
+    assert w.shape == (2, 100000)
+    w = w[0] + 1j * w[1]
     assert w[0] == 0
     assert w[-1] == 0
     assert np.any(w != 0)
@@ -33,10 +34,12 @@ def test_mixing():
     channels = {"xy": bosing.Channel(freq, 2e9, 1000)}
     result = bosing.generate_waveforms(channels, shapes, schedule)
     w1 = result["xy"]
+    w1 = w1[0] + 1j * w1[1]
 
     channels = {"xy": bosing.Channel(0, 2e9, 1000)}
     result = bosing.generate_waveforms(channels, shapes, schedule)
     w2 = result["xy"]
+    w2 = w2[0] + 1j * w2[1]
     w2 = w2 * np.exp(1j * (2 * np.pi * freq * np.arange(1000) / 2e9))
 
     assert np.allclose(w1, w2)
