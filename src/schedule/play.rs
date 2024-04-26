@@ -7,8 +7,8 @@ use super::{
 
 #[derive(Debug, Clone)]
 pub struct Play {
-    channel_id: [usize; 1],
-    shape_id: Option<usize>,
+    channel_id: [String; 1],
+    shape_id: Option<String>,
     amplitude: f64,
     width: f64,
     plateau: f64,
@@ -20,8 +20,8 @@ pub struct Play {
 
 impl Play {
     pub fn new(
-        channel_id: usize,
-        shape_id: Option<usize>,
+        channel_id: String,
+        shape_id: Option<String>,
         amplitude: f64,
         width: f64,
     ) -> Result<Self> {
@@ -81,12 +81,12 @@ impl Play {
         self
     }
 
-    pub fn channel_id(&self) -> usize {
-        self.channel_id[0]
+    pub fn channel_id(&self) -> &str {
+        &self.channel_id[0]
     }
 
-    pub fn shape_id(&self) -> Option<usize> {
-        self.shape_id
+    pub fn shape_id(&self) -> Option<&str> {
+        self.shape_id.as_deref()
     }
 
     pub fn amplitude(&self) -> f64 {
@@ -137,7 +137,7 @@ impl Schedule for Play {
         Ok(ArrangeResult(arranged, ArrangeResultVariant::Simple))
     }
 
-    fn channels(&self) -> &[usize] {
+    fn channels(&self) -> &[String] {
         &self.channel_id
     }
 }

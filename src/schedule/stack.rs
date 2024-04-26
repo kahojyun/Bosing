@@ -1,6 +1,6 @@
 use anyhow::{bail, Result};
+use hashbrown::HashMap;
 use itertools::{Either, Itertools as _};
-use std::collections::HashMap;
 
 use super::{
     arrange, measure, ArrangeContext, ArrangeResult, ArrangeResultVariant, ElementRef,
@@ -12,7 +12,7 @@ use crate::Direction;
 pub struct Stack {
     children: Vec<ElementRef>,
     direction: Direction,
-    channel_ids: Vec<usize>,
+    channel_ids: Vec<String>,
 }
 
 impl Stack {
@@ -33,7 +33,7 @@ impl Stack {
         let channel_ids = children
             .iter()
             .flat_map(|e| e.variant.channels())
-            .copied()
+            .cloned()
             .unique()
             .collect();
         self.children = children;
@@ -51,7 +51,7 @@ impl Schedule for Stack {
         let mut used_duration = if self.channel_ids.is_empty() {
             Either::Left(0.0)
         } else {
-            Either::Right(HashMap::<usize, f64>::new())
+            Either::Right(HashMap::<String, f64>::new())
         };
         let mapper = |child: &ElementRef| {
             let child_channels = child.variant.channels();
@@ -91,7 +91,7 @@ impl Schedule for Stack {
         let mut used_duration = if self.channel_ids.is_empty() {
             Either::Left(0.0)
         } else {
-            Either::Right(HashMap::<usize, f64>::new())
+            Either::Right(HashMap::<String, f64>::new())
         };
         let measured_children = match &context.measured_self.data {
             MeasureResultVariant::Multiple(v) => v,
@@ -130,27 +130,30 @@ impl Schedule for Stack {
         ))
     }
 
-    fn channels(&self) -> &[usize] {
+    fn channels(&self) -> &[String] {
         &self.channel_ids
     }
 }
 
 fn update_channel_usage(
-    used_duration: &mut Either<f64, HashMap<usize, f64>>,
+    used_duration: &mut Either<f64, HashMap<String, f64>>,
     new_duration: f64,
-    channels: &[usize],
+    channels: &[String],
 ) {
     match used_duration {
         Either::Left(v) => *v = new_duration,
         Either::Right(d) => {
-            for &ch in channels {
-                d.insert(ch, new_duration);
+            for ch in channels {
+                d.insert(ch.clone(), new_duration);
             }
         }
     }
 }
 
-fn get_channel_usage(used_duration: &Either<f64, HashMap<usize, f64>>, channels: &[usize]) -> f64 {
+fn get_channel_usage(
+    used_duration: &Either<f64, HashMap<String, f64>>,
+    channels: &[String],
+) -> f64 {
     match used_duration {
         Either::Left(v) => *v,
         Either::Right(d) => (if channels.is_empty() {

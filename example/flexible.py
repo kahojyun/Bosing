@@ -2,14 +2,19 @@ import matplotlib.pyplot as plt
 
 from bosing import Barrier, Channel, Grid, Hann, Play, Repeat, Stack, generate_waveforms
 
-channels = [Channel("xy", 30e6, 2e9, 1000), Channel("u", 0, 2e9, 1000)]
-shapes = [Hann()]
+channels = {
+    "xy": Channel(30e6, 2e9, 1000),
+    "u": Channel(0, 2e9, 1000),
+}
+shapes = {
+    "hann": Hann(),
+}
 grid = Grid(columns=[40e-9, "auto", 40e-9]).with_children(
     # flexible u pulse spanning 3 columns
     (
         Play(
-            channel_id=1,
-            shape_id=0,
+            channel_id="u",
+            shape_id="hann",
             amplitude=0.5,
             width=60e-9,
             alignment="stretch",
@@ -22,8 +27,8 @@ grid = Grid(columns=[40e-9, "auto", 40e-9]).with_children(
     (
         Repeat(
             Play(
-                channel_id=0,
-                shape_id=0,
+                channel_id="xy",
+                shape_id="hann",
                 amplitude=0.3,
                 width=60e-9,
             ),

@@ -29,7 +29,7 @@ impl AbsoluteEntry {
 #[derive(Debug, Clone)]
 pub struct Absolute {
     children: Vec<AbsoluteEntry>,
-    channel_ids: Vec<usize>,
+    channel_ids: Vec<String>,
 }
 
 impl Absolute {
@@ -44,7 +44,7 @@ impl Absolute {
         let channel_ids = children
             .iter()
             .flat_map(|e| e.element.variant.channels())
-            .copied()
+            .cloned()
             .unique()
             .collect();
         self.children = children;
@@ -83,7 +83,7 @@ impl Schedule for Absolute {
         ))
     }
 
-    fn channels(&self) -> &[usize] {
+    fn channels(&self) -> &[String] {
         &self.channel_ids
     }
 }

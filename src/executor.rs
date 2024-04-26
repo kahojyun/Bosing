@@ -1,3 +1,5 @@
+use hashbrown::HashMap;
+
 use crate::{
     pulse::{Envelope, PulseList, PulseListBuilder},
     quant::{Frequency, Time},
@@ -7,8 +9,8 @@ use crate::{
 
 #[derive(Debug, Clone)]
 pub struct Executor {
-    channels: Vec<Channel>,
-    shapes: Vec<Shape>,
+    channels: HashMap<String, Channel>,
+    shapes: HashMap<String, Shape>,
     amp_tolerance: f64,
     time_tolerance: f64,
 }
@@ -16,33 +18,32 @@ pub struct Executor {
 impl Executor {
     pub fn new(amp_tolerance: f64, time_tolerance: f64) -> Self {
         Self {
-            channels: vec![],
-            shapes: vec![],
+            channels: HashMap::new(),
+            shapes: HashMap::new(),
             amp_tolerance,
             time_tolerance,
         }
     }
 
-    pub fn add_channel(&mut self, base_freq: f64) {
-        self.channels.push(Channel::new(
-            base_freq,
-            self.amp_tolerance,
-            self.time_tolerance,
-        ));
+    pub fn add_channel(&mut self, name: String, base_freq: f64) {
+        self.channels.insert(
+            name,
+            Channel::new(base_freq, self.amp_tolerance, self.time_tolerance),
+        );
     }
 
-    pub fn add_shape(&mut self, shape: Shape) {
-        self.shapes.push(shape);
+    pub fn add_shape(&mut self, name: String, shape: Shape) {
+        self.shapes.insert(name, shape);
     }
 
     pub fn execute(&mut self, element: &ArrangedElement) {
         self.execute_dispatch(element, 0.0);
     }
 
-    pub fn into_result(self) -> Vec<PulseList> {
+    pub fn into_result(self) -> HashMap<String, PulseList> {
         self.channels
             .into_iter()
-            .map(|c| c.pulses.build())
+            .map(|(n, b)| (n, b.pulses.build()))
             .collect()
     }
 
@@ -86,7 +87,7 @@ impl Executor {
         let time = Time::new(time).unwrap();
         let width = Time::new(width).unwrap();
         let plateau = Time::new(plateau).unwrap();
-        let channel = &mut self.channels[element.channel_id()];
+        let channel = self.channels.get_mut(element.channel_id()).unwrap();
         channel.add_pulse(
             shape, time, width, plateau, amplitude, drag_coef, freq, phase,
         );
@@ -94,39 +95,35 @@ impl Executor {
 
     fn execute_shift_phase(&mut self, element: &schedule::ShiftPhase) {
         let delta_phase = element.phase();
-        let channel = &mut self.channels[element.channel_id()];
+        let channel = self.channels.get_mut(element.channel_id()).unwrap();
         channel.shift_phase(delta_phase);
     }
 
     fn execute_set_phase(&mut self, element: &schedule::SetPhase, time: f64) {
         let phase = element.phase();
-        let channel = &mut self.channels[element.channel_id()];
+        let channel = self.channels.get_mut(element.channel_id()).unwrap();
         channel.set_phase(phase, time);
     }
 
     fn execute_shift_freq(&mut self, element: &schedule::ShiftFreq, time: f64) {
         let delta_freq = element.frequency();
-        let channel = &mut self.channels[element.channel_id()];
+        let channel = self.channels.get_mut(element.channel_id()).unwrap();
         channel.shift_freq(delta_freq, time);
     }
 
     fn execute_set_freq(&mut self, element: &schedule::SetFreq, time: f64) {
         let freq = element.frequency();
-        let channel = &mut self.channels[element.channel_id()];
+        let channel = self.channels.get_mut(element.channel_id()).unwrap();
         channel.set_freq(freq, time);
     }
 
     fn execute_swap_phase(&mut self, element: &schedule::SwapPhase, time: f64) {
         let ch1 = element.channel_id1();
         let ch2 = element.channel_id2();
-        // Workaround for unstable get_many_mut
         if ch1 == ch2 {
             return;
         }
-        let (ch1, ch2) = if ch1 < ch2 { (ch1, ch2) } else { (ch2, ch1) };
-        let (a, b) = self.channels.split_at_mut(ch2);
-        let channel = &mut a[ch1];
-        let other = &mut b[0];
+        let [channel, other] = self.channels.get_many_mut([ch1, ch2]).unwrap();
         channel.swap_phase(other, time);
     }
 

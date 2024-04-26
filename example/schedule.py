@@ -8,34 +8,32 @@ from bosing import Absolute, Barrier, Channel, Grid, Hann, Interp, Play, Repeat,
 
 if __name__ == "__main__":
     length = 100000
-    channels = [
-        Channel("xy0", 0, 2e9, length),
-        Channel("xy1", 0, 2e9, length),
-        Channel("u0", 0, 2e9, length),
-        Channel("u1", 0, 2e9, length),
-        Channel("m0", 0, 2e9, length),
-    ]
-    c = {ch.name: i for i, ch in enumerate(channels)}
+    channels = {
+        "xy0": Channel(0, 2e9, length),
+        "xy1": Channel(0, 2e9, length),
+        "u0": Channel(0, 2e9, length),
+        "u1": Channel(0, 2e9, length),
+        "m0": Channel(0, 2e9, length),
+    }
     halfcos = np.sin(np.linspace(0, np.pi, 10))
     interp = make_interp_spline(np.linspace(-0.5, 0.5, 10), halfcos)
-    shapes = [
-        Hann(),
-        Interp(interp.t, interp.c, interp.k),
-    ]
-    s = {"hann": 0, "rect": None, "halfcos": 1}
+    shapes = {
+        "hann": Hann(),
+        "halfcos": Interp(interp.t, interp.c, interp.k),
+    }
 
     measure = Absolute(
-        Play(c["m0"], s["hann"], 0.1, 30e-9, plateau=1e-6, frequency=123e6),
-        Play(c["m0"], s["hann"], 0.15, 30e-9, plateau=1e-6, frequency=-233e6),
+        Play("m0", "hann", 0.1, 30e-9, plateau=1e-6, frequency=123e6),
+        Play("m0", "hann", 0.15, 30e-9, plateau=1e-6, frequency=-233e6),
     )
     c01 = Stack(
-        Play(c["u0"], s["rect"], 0.5, 50e-9),
-        Play(c["u1"], s["rect"], 0.5, 50e-9),
-        ShiftPhase(c["xy0"], 0.1),
-        ShiftPhase(c["xy1"], 0.2),
+        Play("u0", None, 0.5, 50e-9),
+        Play("u1", None, 0.5, 50e-9),
+        ShiftPhase("xy0", 0.1),
+        ShiftPhase("xy1", 0.2),
     )
-    x0 = Play(c["xy0"], s["hann"], 0.3, 50e-9, drag_coef=5e-10)
-    x1 = Play(c["xy1"], s["hann"], 0.4, 100e-9, drag_coef=3e-10)
+    x0 = Play("xy0", "hann", 0.3, 50e-9, drag_coef=5e-10)
+    x1 = Play("xy1", "hann", 0.4, 100e-9, drag_coef=3e-10)
     x_group = Grid(
         Stack(x0, alignment="center"),
         Stack(x1, alignment="center"),

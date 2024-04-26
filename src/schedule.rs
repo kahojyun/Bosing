@@ -210,7 +210,7 @@ trait Schedule {
     /// Arrange the element and return final inner size and arranged children.
     fn arrange(&self, context: &ArrangeContext) -> Result<ArrangeResult>;
     /// Channels used by this element. Empty means all of parent's channels.
-    fn channels(&self) -> &[usize];
+    fn channels(&self) -> &[String];
 }
 
 fn clamp_duration(duration: f64, min_duration: f64, max_duration: f64) -> f64 {

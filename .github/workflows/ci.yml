@@ -91,7 +91,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Replace version in Cargo.toml
         shell: pwsh
-        run: (Get-Content -Path Cargo.toml -Raw) -replace 'version = ".*"', 'version = "${{ needs.release.outputs.version }}"' | Set-Content -Path Cargo.toml
+        run: (Get-Content -Path Cargo.toml) -replace '^version = "0.0.0-dev"$', 'version = "${{ needs.release.outputs.version }}"' | Set-Content -Path Cargo.toml
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
@@ -122,7 +122,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Replace version in Cargo.toml
         shell: pwsh
-        run: (Get-Content -Path Cargo.toml -Raw) -replace 'version = ".*"', 'version = "${{ needs.release.outputs.version }}"' | Set-Content -Path Cargo.toml
+        run: (Get-Content -Path Cargo.toml) -replace '^version = "0.0.0-dev"$', 'version = "${{ needs.release.outputs.version }}"' | Set-Content -Path Cargo.toml
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
@@ -153,7 +153,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Replace version in Cargo.toml
         shell: pwsh
-        run: (Get-Content -Path Cargo.toml -Raw) -replace 'version = ".*"', 'version = "${{ needs.release.outputs.version }}"' | Set-Content -Path Cargo.toml
+        run: (Get-Content -Path Cargo.toml) -replace '^version = "0.0.0-dev"$', 'version = "${{ needs.release.outputs.version }}"' | Set-Content -Path Cargo.toml
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
@@ -176,7 +176,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Replace version in Cargo.toml
         shell: pwsh
-        run: (Get-Content -Path Cargo.toml -Raw) -replace 'version = ".*"', 'version = "${{ needs.release.outputs.version }}"' | Set-Content -Path Cargo.toml
+        run: (Get-Content -Path Cargo.toml) -replace '^version = "0.0.0-dev"$', 'version = "${{ needs.release.outputs.version }}"' | Set-Content -Path Cargo.toml
       - name: Build sdist
         uses: PyO3/maturin-action@v1
         with:
