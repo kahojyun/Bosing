@@ -1,6 +1,7 @@
+use std::sync::Arc;
+
 use anyhow::{bail, Result};
 use enum_dispatch::enum_dispatch;
-use std::sync::Arc;
 
 use crate::Alignment;
 pub use absolute::{Absolute, AbsoluteEntry};

@@ -44,9 +44,9 @@ schedule = Stack(duration=500e-9).with_children(
 )
 result = generate_waveforms(channels, shapes, schedule)
 w = result["xy"]
-plt.plot(w.real, label="xy I")
-plt.plot(w.imag, label="xy Q")
+plt.plot(w[0], label="xy I")
+plt.plot(w[1], label="xy Q")
 w = result["u"]
-plt.plot(w.real, label="u I")
-plt.plot(w.imag, label="u Q")
+plt.plot(w[0], label="u I")
+plt.plot(w[1], label="u Q")
 plt.legend()
