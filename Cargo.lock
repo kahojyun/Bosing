@@ -48,6 +48,7 @@ dependencies = [
  "enum_dispatch",
  "float-cmp",
  "hashbrown",
+ "indoc",
  "itertools",
  "ndarray",
  "num",

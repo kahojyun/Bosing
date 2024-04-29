@@ -14,6 +14,8 @@ class Channel:
         *,
         delay: float = ...,
         align_level: int = ...,
+        iq_matrix: npt.ArrayLike | None = ...,
+        iq_offset: tuple[float, float] | None = ...,
     ) -> Self: ...
     @property
     def base_freq(self) -> float: ...
@@ -25,6 +27,10 @@ class Channel:
     def delay(self) -> float: ...
     @property
     def align_level(self) -> int: ...
+    @property
+    def iq_matrix(self) -> np.ndarray | None: ...
+    @property
+    def iq_offset(self) -> tuple[float, float] | None: ...
 
 @final
 class Alignment:

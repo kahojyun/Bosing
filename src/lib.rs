@@ -4,10 +4,12 @@
 use std::sync::Arc;
 
 use hashbrown::HashMap;
-use numpy::{prelude::*, AllowTypeChange, PyArray2, PyArrayLike2};
+use indoc::indoc;
+use numpy::{dot_bound, prelude::*, pyarray_bound, AllowTypeChange, PyArray2, PyArrayLike2};
 use pyo3::{
     exceptions::{PyRuntimeError, PyTypeError, PyValueError},
     prelude::*,
+    types::PyDict,
 };
 
 use crate::{
@@ -35,6 +37,10 @@ mod shape;
 ///     length (int): Length of the waveform.
 ///     delay (float): Delay of the channel. Defaults to 0.0.
 ///     align_level (int): Time axis alignment granularity. Defaults to -10.
+///     iq_matrix (array_like[2, 2] | None): IQ matrix of the channel. Defaults
+///         to None.
+///     iq_offset (tuple[float, float]): IQ offset of the channel. Defaults to
+///         (0.0, 0.0).
 #[pyclass(get_all, frozen)]
 #[derive(Debug, Clone)]
 struct Channel {
@@ -43,20 +49,44 @@ struct Channel {
     length: usize,
     delay: f64,
     align_level: i32,
+    iq_matrix: Option<Py<PyArray2<f64>>>,
+    iq_offset: (f64, f64),
 }
 
 #[pymethods]
 impl Channel {
     #[new]
-    #[pyo3(signature = (base_freq, sample_rate, length, *, delay=0.0, align_level=-10))]
-    fn new(base_freq: f64, sample_rate: f64, length: usize, delay: f64, align_level: i32) -> Self {
-        Channel {
+    #[pyo3(signature = (base_freq, sample_rate, length, *, delay=0.0, align_level=-10, iq_matrix=None, iq_offset=(0.0, 0.0)))]
+    fn new(
+        py: Python<'_>,
+        base_freq: f64,
+        sample_rate: f64,
+        length: usize,
+        delay: f64,
+        align_level: i32,
+        iq_matrix: Option<PyArrayLike2<f64, AllowTypeChange>>,
+        iq_offset: (f64, f64),
+    ) -> PyResult<Self> {
+        let iq_matrix = if let Some(iq_matrix) = iq_matrix {
+            if iq_matrix.shape() != [2, 2] {
+                return Err(PyValueError::new_err("iq_matrix should be a 2x2 matrix"));
+            }
+            let kwargs = PyDict::new_bound(py);
+            kwargs.set_item("write", false)?;
+            iq_matrix.getattr("setflags")?.call((), Some(&kwargs))?;
+            Some(Bound::clone(&iq_matrix).unbind())
+        } else {
+            None
+        };
+        Ok(Channel {
             base_freq,
             sample_rate,
             length,
             delay,
             align_level,
-        }
+            iq_matrix,
+            iq_offset,
+        })
     }
 }
 
@@ -1996,13 +2026,8 @@ fn generate_waveforms(
     crosstalk: Option<(PyArrayLike2<'_, f64, AllowTypeChange>, Vec<String>)>,
 ) -> PyResult<HashMap<String, Py<PyArray2<f64>>>> {
     if let Some((crosstalk, names)) = &crosstalk {
-        if crosstalk.ndim() != 2 {
-            return Err(PyValueError::new_err("Crosstalk must be a 2D array."));
-        }
-        if crosstalk.shape()[0] != crosstalk.shape()[1] {
-            return Err(PyValueError::new_err("Crosstalk must be a square matrix."));
-        }
-        if crosstalk.shape()[0] != names.len() {
+        let nl = names.len();
+        if crosstalk.shape() != [nl, nl] {
             return Err(PyValueError::new_err(
                 "The size of the crosstalk matrix must be the same as the number of names.",
             ));
@@ -2031,11 +2056,11 @@ fn generate_waveforms(
         .map(|(n, c)| (n.clone(), PyArray2::zeros_bound(py, (2, c.length), false)))
         .collect();
     let mut sampler = Sampler::new(results);
-    for (n, c) in channels {
+    for (n, c) in &channels {
         // SAFETY: These arrays are just created.
-        let array = unsafe { waveforms[&n].as_array_mut() };
+        let array = unsafe { waveforms[n].as_array_mut() };
         sampler.add_channel(
-            n,
+            n.clone(),
             array,
             Frequency::new(c.sample_rate).unwrap(),
             Time::new(c.delay).unwrap(),
@@ -2048,8 +2073,27 @@ fn generate_waveforms(
     sampler.sample(time_tolerance);
     let waveforms = waveforms
         .into_iter()
-        .map(|(n, w)| (n, w.unbind()))
-        .collect();
+        .map(|(n, mut w)| {
+            let c = &channels[&n];
+            if let Some(iq_matrix) = &c.iq_matrix {
+                w = dot_bound(iq_matrix.bind(py), &w)?;
+            }
+            if c.iq_offset.0 != 0.0 || c.iq_offset.1 != 0.0 {
+                let locals = PyDict::new_bound(py);
+                locals.set_item("w", w.clone())?;
+                locals.set_item("offset", pyarray_bound![py, c.iq_offset.0, c.iq_offset.1])?;
+                py.run_bound(
+                    indoc! {"
+                        import numpy as np
+                        w += offset[:, np.newaxis]
+                    "},
+                    None,
+                    Some(&locals),
+                )?;
+            }
+            Ok((n, w.unbind()))
+        })
+        .collect::<PyResult<_>>()?;
     Ok(waveforms)
 }
 
