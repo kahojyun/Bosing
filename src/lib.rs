@@ -5,7 +5,10 @@ use std::sync::Arc;
 
 use hashbrown::HashMap;
 use indoc::indoc;
-use numpy::{dot_bound, prelude::*, pyarray_bound, AllowTypeChange, PyArray2, PyArrayLike2};
+use numpy::{
+    dot_bound, prelude::*, pyarray_bound, AllowTypeChange, PyArray1, PyArray2, PyArrayLike1,
+    PyArrayLike2,
+};
 use pyo3::{
     exceptions::{PyRuntimeError, PyTypeError, PyValueError},
     prelude::*,
@@ -41,6 +44,12 @@ mod shape;
 ///         to None.
 ///     iq_offset (tuple[float, float]): IQ offset of the channel. Defaults to
 ///         (0.0, 0.0).
+///     iir (array_like[N, 6] | None): IIR filter of the channel. The format of
+///         the array is ``[[b0, b1, b2, a0, a1, a2], ...]``, which is the same
+///         as `sos` parameter of :func:`scipy.signal.sosfilt`. Defaults to None.
+///     fir (array_like[M] | None): FIR filter of the channel. Defaults to None.
+///     filter_offset (bool): Whether to apply filter to the offset. Defaults to
+///         False.
 #[pyclass(get_all, frozen)]
 #[derive(Debug, Clone)]
 struct Channel {
@@ -51,12 +60,27 @@ struct Channel {
     align_level: i32,
     iq_matrix: Option<Py<PyArray2<f64>>>,
     iq_offset: (f64, f64),
+    iir: Option<Py<PyArray2<f64>>>,
+    fir: Option<Py<PyArray1<f64>>>,
+    filter_offset: bool,
 }
 
 #[pymethods]
 impl Channel {
     #[new]
-    #[pyo3(signature = (base_freq, sample_rate, length, *, delay=0.0, align_level=-10, iq_matrix=None, iq_offset=(0.0, 0.0)))]
+    #[pyo3(signature = (
+        base_freq,
+        sample_rate,
+        length,
+        *,
+        delay=0.0,
+        align_level=-10,
+        iq_matrix=None,
+        iq_offset=(0.0, 0.0),
+        iir=None,
+        fir=None,
+        filter_offset=false,
+    ))]
     fn new(
         py: Python<'_>,
         base_freq: f64,
@@ -66,6 +90,9 @@ impl Channel {
         align_level: i32,
         iq_matrix: Option<PyArrayLike2<f64, AllowTypeChange>>,
         iq_offset: (f64, f64),
+        iir: Option<PyArrayLike2<f64, AllowTypeChange>>,
+        fir: Option<PyArrayLike1<f64, AllowTypeChange>>,
+        filter_offset: bool,
     ) -> PyResult<Self> {
         let iq_matrix = if let Some(iq_matrix) = iq_matrix {
             if iq_matrix.shape() != [2, 2] {
@@ -78,6 +105,25 @@ impl Channel {
         } else {
             None
         };
+        let iir = if let Some(iir) = iir {
+            if !matches!(iir.shape(), [_, 6]) {
+                return Err(PyValueError::new_err("iir should be a Nx6 matrix"));
+            }
+            let kwargs = PyDict::new_bound(py);
+            kwargs.set_item("write", false)?;
+            iir.getattr("setflags")?.call((), Some(&kwargs))?;
+            Some(Bound::clone(&iir).unbind())
+        } else {
+            None
+        };
+        let fir = if let Some(fir) = fir {
+            let kwargs = PyDict::new_bound(py);
+            kwargs.set_item("write", false)?;
+            fir.getattr("setflags")?.call((), Some(&kwargs))?;
+            Some(Bound::clone(&fir).unbind())
+        } else {
+            None
+        };
         Ok(Channel {
             base_freq,
             sample_rate,
@@ -86,6 +132,9 @@ impl Channel {
             align_level,
             iq_matrix,
             iq_offset,
+            iir,
+            fir,
+            filter_offset,
         })
     }
 }
@@ -2055,22 +2104,24 @@ fn generate_waveforms(
         .iter()
         .map(|(n, c)| (n.clone(), PyArray2::zeros_bound(py, (2, c.length), false)))
         .collect();
-    let mut sampler = Sampler::new(results);
-    for (n, c) in &channels {
-        // SAFETY: These arrays are just created.
-        let array = unsafe { waveforms[n].as_array_mut() };
-        sampler.add_channel(
-            n.clone(),
-            array,
-            Frequency::new(c.sample_rate).unwrap(),
-            Time::new(c.delay).unwrap(),
-            c.align_level,
-        );
+    {
+        let mut sampler = Sampler::new(results);
+        for (n, c) in &channels {
+            // SAFETY: These arrays are just created.
+            let array = unsafe { waveforms[n].as_array_mut() };
+            sampler.add_channel(
+                n.clone(),
+                array,
+                Frequency::new(c.sample_rate).unwrap(),
+                Time::new(c.delay).unwrap(),
+                c.align_level,
+            );
+        }
+        if let Some((crosstalk, names)) = &crosstalk {
+            sampler.set_crosstalk(crosstalk.as_array(), names.clone());
+        }
+        sampler.sample(time_tolerance);
     }
-    if let Some((crosstalk, names)) = &crosstalk {
-        sampler.set_crosstalk(crosstalk.as_array(), names.clone());
-    }
-    sampler.sample(time_tolerance);
     let waveforms = waveforms
         .into_iter()
         .map(|(n, mut w)| {
@@ -2078,23 +2129,84 @@ fn generate_waveforms(
             if let Some(iq_matrix) = &c.iq_matrix {
                 w = dot_bound(iq_matrix.bind(py), &w)?;
             }
-            if c.iq_offset.0 != 0.0 || c.iq_offset.1 != 0.0 {
-                let locals = PyDict::new_bound(py);
-                locals.set_item("w", w.clone())?;
-                locals.set_item("offset", pyarray_bound![py, c.iq_offset.0, c.iq_offset.1])?;
-                py.run_bound(
-                    indoc! {"
-                        import numpy as np
-                        w += offset[:, np.newaxis]
-                    "},
-                    None,
-                    Some(&locals),
-                )?;
+            if c.filter_offset {
+                apply_offset(py, &w, c.iq_offset)?;
+                if let Some(iir) = &c.iir {
+                    apply_iir(py, &w, iir.bind(py))?;
+                }
+                if let Some(fir) = &c.fir {
+                    apply_fir(py, &w, fir.bind(py))?;
+                }
+            } else {
+                if let Some(iir) = &c.iir {
+                    apply_iir(py, &w, iir.bind(py))?;
+                }
+                if let Some(fir) = &c.fir {
+                    apply_fir(py, &w, fir.bind(py))?;
+                }
+                apply_offset(py, &w, c.iq_offset)?;
             }
             Ok((n, w.unbind()))
         })
         .collect::<PyResult<_>>()?;
     Ok(waveforms)
+}
+
+fn apply_offset(py: Python<'_>, w: &Bound<'_, PyArray2<f64>>, offset: (f64, f64)) -> PyResult<()> {
+    if offset.0 == 0.0 && offset.1 == 0.0 {
+        return Ok(());
+    }
+    let locals = PyDict::new_bound(py);
+    locals.set_item("w", w)?;
+    locals.set_item("offset", pyarray_bound![py, offset.0, offset.1])?;
+    py.run_bound(
+        indoc! {"
+            import numpy as np
+            w += offset[:, np.newaxis]
+        "},
+        None,
+        Some(&locals),
+    )?;
+    Ok(())
+}
+
+fn apply_iir<'py>(
+    py: Python<'py>,
+    w: &Bound<'py, PyArray2<f64>>,
+    iir: &Bound<'py, PyArray2<f64>>,
+) -> PyResult<()> {
+    let locals = PyDict::new_bound(py);
+    locals.set_item("w", w)?;
+    locals.set_item("iir", iir)?;
+    py.run_bound(
+        indoc! {"
+            from scipy import signal
+            w[:] = signal.sosfilt(np.array(iir), w)
+        "},
+        None,
+        Some(&locals),
+    )?;
+    Ok(())
+}
+
+fn apply_fir<'py>(
+    py: Python<'py>,
+    w: &Bound<'py, PyArray2<f64>>,
+    fir: &Bound<'py, PyArray1<f64>>,
+) -> PyResult<()> {
+    let locals = PyDict::new_bound(py);
+    locals.set_item("w", w)?;
+    locals.set_item("fir", fir)?;
+    py.run_bound(
+        indoc! {"
+            from scipy import signal
+            for wi in w:
+                wi[:] = signal.convolve(wi, fir, mode='full')[:len(wi)]
+        "},
+        None,
+        Some(&locals),
+    )?;
+    Ok(())
 }
 
 /// Generates microwave pulses for superconducting quantum computing
