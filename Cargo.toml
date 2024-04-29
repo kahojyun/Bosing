@@ -16,6 +16,7 @@ cached = "0.49.3"
 enum_dispatch = "0.3.13"
 float-cmp = "0.9.0"
 hashbrown = { version = "0.14.3", features = ["rayon"] }
+indoc = "2.0.5"
 itertools = "0.12.1"
 ndarray = { version = "0.15.6", features = ["rayon"] }
 num = "0.4.1"

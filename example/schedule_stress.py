@@ -15,7 +15,7 @@ def gen_n(n: int):
     nu = 2 * nxy
     nm = nxy // 8
     channels = (
-        {f"xy{i}": Channel(3e6 * i, 2e9, 100000) for i in range(nxy)}
+        {f"xy{i}": Channel(3e6 * i, 2e9, 100000, iq_matrix=[[1, 0.1], [0.1, 1]]) for i in range(nxy)}
         | {f"u{i}": Channel(0, 2e9, 100000) for i in range(nu)}
         | {f"m{i}": Channel(0, 2e9, 100000) for i in range(nm)}
     )
