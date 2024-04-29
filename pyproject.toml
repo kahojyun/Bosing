@@ -19,7 +19,7 @@ classifiers = [
     "Topic :: Scientific/Engineering",
     "License :: OSI Approved :: MIT License",
 ]
-dependencies = ["numpy"]
+dependencies = ["numpy", "scipy"]
 
 [project.urls]
 Documentation = "https://bosing.readthedocs.io"
@@ -32,7 +32,6 @@ features = ["pyo3/extension-module"]
 [tool.hatch.envs.default]
 dependencies = [
     "maturin>=1.5,<2.0",
-    "scipy",
     "matplotlib",
     "ipython",
     "sphinx",

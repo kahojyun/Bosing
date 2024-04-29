@@ -4,9 +4,18 @@ import time
 from itertools import cycle
 
 import numpy as np
+from scipy import signal
 from scipy.interpolate import make_interp_spline
 
 from bosing import Absolute, Barrier, Channel, Hann, Interp, Play, Stack, generate_waveforms
+
+
+def get_biquad(amp, tau, fs):
+    z = [-1 / (t * (1 + a)) for (a, t) in zip(amp, tau)]
+    p = [-1 / t for t in tau]
+    k = np.prod([1 + a for a in amp])
+    z, p, k = signal.bilinear_zpk(z, p, k, fs)
+    return signal.zpk2sos(p, z, 1 / k)
 
 
 def gen_n(n: int):
@@ -14,9 +23,11 @@ def gen_n(n: int):
     nxy = 64
     nu = 2 * nxy
     nm = nxy // 8
+    iir = get_biquad([0.1, -0.1], [100e-9, 1e-6], 2e9)
+    fir = [1, 0.1, 0.01, 0.001]
     channels = (
         {f"xy{i}": Channel(3e6 * i, 2e9, 100000, iq_matrix=[[1, 0.1], [0.1, 1]]) for i in range(nxy)}
-        | {f"u{i}": Channel(0, 2e9, 100000) for i in range(nu)}
+        | {f"u{i}": Channel(0, 2e9, 100000, iir=iir, fir=fir) for i in range(nu)}
         | {f"m{i}": Channel(0, 2e9, 100000) for i in range(nm)}
     )
     halfcos = np.sin(np.linspace(0, np.pi, 10))
