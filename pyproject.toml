@@ -1,6 +1,6 @@
 [build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+requires = ["maturin>=1.5,<2.0"]
+build-backend = "maturin"
 
 [project]
 name = "bosing"
@@ -8,48 +8,46 @@ dynamic = ["version"]
 description = "Waveform generator for pulse sequences in quantum computing"
 readme = "README.md"
 requires-python = ">=3.8"
-license = "MIT"
 keywords = []
 authors = [{ name = "kaho", email = "kaho0769@qq.com" }]
 classifiers = [
     "Development Status :: 3 - Alpha",
-    "Programming Language :: C#",
-    "Programming Language :: Python",
+    "Programming Language :: Rust",
     "Programming Language :: Python :: Implementation :: CPython",
     "Programming Language :: Python :: Implementation :: PyPy",
     "Intended Audience :: Science/Research",
     "Topic :: Scientific/Engineering",
     "License :: OSI Approved :: MIT License",
 ]
-dependencies = ["numpy", "msgpack", "attrs"]
+dependencies = ["numpy", "scipy"]
 
 [project.urls]
-Documentation = "https://github.com/kahojyun/Bosing#readme"
+Documentation = "https://bosing.readthedocs.io"
 Issues = "https://github.com/kahojyun/Bosing/issues"
 Source = "https://github.com/kahojyun/Bosing"
 
-[tool.hatch.version]
-path = "VERSION.txt"
-pattern = "(?P<version>.*)"
-
-[tool.hatch.build.hooks.custom]
-
-[tool.hatch.build.targets.wheel]
-packages = ["python/bosing"]
+[tool.maturin]
+features = ["pyo3/extension-module"]
 
 [tool.hatch.envs.default]
-dependencies = ["scipy", "matplotlib", "ipython"]
+dependencies = [
+    "maturin>=1.5,<2.0",
+    "matplotlib",
+    "ipython",
+    "sphinx",
+    "furo",
+    "mypy",
+]
 
-[tool.hatch.envs.docs]
-dependencies = ["sphinx", "furo", "matplotlib"]
+[tool.hatch.envs.default.scripts]
+mip = "maturin develop && ipython"
+stubcheck = "maturin develop && stubtest bosing --allowlist stubtest-allowlist.txt"
+build_docs = "maturin develop && sphinx-build -M html docs docs/_build {args}"
+clean_docs = "rm -rf docs/_build docs/generated"
 
-[tool.hatch.envs.docs.scripts]
-build = "sphinx-build -M html python/docs python/docs/_build {args}"
-clean = "rm -rf python/docs/_build docs/_autosummary"
-
-[tool.hatch.envs.docs.overrides]
+[tool.hatch.envs.default.overrides]
 platform.windows.scripts = [
-    'clean=rmdir /s /q python\\docs\\_build python\\docs\\_autosummary',
+    'clean_docs=rmdir /s /q docs\\_build docs\\generated',
 ]
 
 [tool.hatch.envs.test]
@@ -62,14 +60,11 @@ python = ["3.8", "3.9", "3.10", "3.11", "3.12"]
 run = "pytest {args}"
 
 [tool.pytest.ini_options]
-addopts = [
-    "--import-mode=importlib",
-]
-testpaths = ["python/tests"]
+addopts = ["--import-mode=importlib"]
+testpaths = ["tests"]
 
 [tool.hatch.envs.hatch-static-analysis]
 config-path = "ruff_defaults.toml"
 
 [tool.ruff]
 extend = "ruff_defaults.toml"
-include = ["python/bosing/*.py", "python/tests/*.py"]

@@ -1,0 +1,26 @@
+[package]
+name = "bosing"
+version = "0.0.0-dev"
+edition = "2021"
+license = "MIT"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[lib]
+name = "bosing"
+crate-type = ["cdylib"]
+
+[dependencies]
+anyhow = "1.0.82"
+bspline = "1.1.0"
+cached = "0.49.3"
+enum_dispatch = "0.3.13"
+float-cmp = "0.9.0"
+hashbrown = { version = "0.14.3", features = ["rayon"] }
+indoc = "2.0.5"
+itertools = "0.12.1"
+ndarray = { version = "0.15.6", features = ["rayon"] }
+num = "0.4.1"
+numpy = "0.21.0"
+ordered-float = "4.2.0"
+pyo3 = { version = "0.21.0", features = ["hashbrown"] }
+rayon = "1.10.0"
