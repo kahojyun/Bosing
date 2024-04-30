@@ -276,7 +276,9 @@ fn mix_add_envelope(
     for (mut y, env, slope) in izip!(waveform.columns_mut(), envelope.iter().copied(), slope_iter) {
         let w = carrier * (amplitude * env + drag_amp * slope);
         y[0] += w.re;
-        y[1] += w.im;
+        if let Some(y1) = y.get_mut(1) {
+            *y1 += w.im;
+        }
         carrier *= dcarrier;
     }
 }
@@ -291,7 +293,9 @@ fn mix_add_plateau(
     let dcarrier = Complex64::from_polar(1.0, dphase);
     for mut y in waveform.columns_mut() {
         y[0] += carrier.re;
-        y[1] += carrier.im;
+        if let Some(y1) = y.get_mut(1) {
+            *y1 += carrier.im;
+        }
         carrier *= dcarrier;
     }
 }

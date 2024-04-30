@@ -6,8 +6,7 @@ use std::sync::Arc;
 use hashbrown::HashMap;
 use indoc::indoc;
 use numpy::{
-    dot_bound, prelude::*, pyarray_bound, AllowTypeChange, PyArray1, PyArray2, PyArrayLike1,
-    PyArrayLike2,
+    dot_bound, prelude::*, AllowTypeChange, PyArray1, PyArray2, PyArrayLike1, PyArrayLike2,
 };
 use pulse::PulseList;
 use pyo3::{
@@ -36,6 +35,14 @@ mod shape;
 /// :math:`\Delta t` and `align_level` :math:`n`, start of pulse is aligned to
 /// the nearest multiple of :math:`2^n \Delta t`.
 ///
+/// Each channel can be either real or complex. If the channel is complex, the
+/// filter will be applied to both I and Q components. If the channel is real,
+/// `iq_matrix` will be ignored.
+///
+/// .. caution::
+///
+///     Crosstalk matrix will not be applied to offset.
+///
 /// Args:
 ///     base_freq (float): Base frequency of the channel.
 ///     sample_rate (float): Sample rate of the channel.
@@ -43,15 +50,17 @@ mod shape;
 ///     delay (float): Delay of the channel. Defaults to 0.0.
 ///     align_level (int): Time axis alignment granularity. Defaults to -10.
 ///     iq_matrix (array_like[2, 2] | None): IQ matrix of the channel. Defaults
-///         to None.
-///     iq_offset (tuple[float, float]): IQ offset of the channel. Defaults to
-///         (0.0, 0.0).
+///         to ``None``.
+///     offset (Sequence[float] | None): Offsets of the channel. The length of the
+///         sequence should be 2 if the channel is complex, or 1 if the channel is
+///         real. Defaults to ``None``.
 ///     iir (array_like[N, 6] | None): IIR filter of the channel. The format of
 ///         the array is ``[[b0, b1, b2, a0, a1, a2], ...]``, which is the same
-///         as `sos` parameter of :func:`scipy.signal.sosfilt`. Defaults to None.
+///         as `sos` parameter of :func:`scipy.signal.sosfilt`. Defaults to ``None``.
 ///     fir (array_like[M] | None): FIR filter of the channel. Defaults to None.
 ///     filter_offset (bool): Whether to apply filter to the offset. Defaults to
-///         False.
+///         ``False``.
+///     is_real (bool): Whether the channel is real. Defaults to ``False``.
 #[pyclass(get_all, frozen)]
 #[derive(Debug, Clone)]
 struct Channel {
@@ -61,10 +70,11 @@ struct Channel {
     delay: f64,
     align_level: i32,
     iq_matrix: Option<Py<PyArray2<f64>>>,
-    iq_offset: (f64, f64),
+    offset: Option<Py<PyArray1<f64>>>,
     iir: Option<Py<PyArray2<f64>>>,
     fir: Option<Py<PyArray1<f64>>>,
     filter_offset: bool,
+    is_real: bool,
 }
 
 #[pymethods]
@@ -78,10 +88,11 @@ impl Channel {
         delay=0.0,
         align_level=-10,
         iq_matrix=None,
-        iq_offset=(0.0, 0.0),
+        offset=None,
         iir=None,
         fir=None,
         filter_offset=false,
+        is_real=false,
     ))]
     fn new(
         py: Python<'_>,
@@ -90,12 +101,16 @@ impl Channel {
         length: usize,
         delay: f64,
         align_level: i32,
-        iq_matrix: Option<PyArrayLike2<f64, AllowTypeChange>>,
-        iq_offset: (f64, f64),
+        mut iq_matrix: Option<PyArrayLike2<f64, AllowTypeChange>>,
+        offset: Option<PyArrayLike1<f64, AllowTypeChange>>,
         iir: Option<PyArrayLike2<f64, AllowTypeChange>>,
         fir: Option<PyArrayLike1<f64, AllowTypeChange>>,
         filter_offset: bool,
+        is_real: bool,
     ) -> PyResult<Self> {
+        if is_real {
+            iq_matrix = None;
+        }
         let iq_matrix = if let Some(iq_matrix) = iq_matrix {
             if iq_matrix.shape() != [2, 2] {
                 return Err(PyValueError::new_err("iq_matrix should be a 2x2 matrix"));
@@ -104,6 +119,19 @@ impl Channel {
             kwargs.set_item("write", false)?;
             iq_matrix.getattr("setflags")?.call((), Some(&kwargs))?;
             Some(Bound::clone(&iq_matrix).unbind())
+        } else {
+            None
+        };
+        let offset = if let Some(offset) = offset {
+            if !matches!((offset.len(), is_real), (1, true) | (2, false)) {
+                return Err(PyValueError::new_err(
+                    "offset length does not match is_real",
+                ));
+            }
+            let kwargs = PyDict::new_bound(py);
+            kwargs.set_item("write", false)?;
+            offset.getattr("setflags")?.call((), Some(&kwargs))?;
+            Some(Bound::clone(&offset).unbind())
         } else {
             None
         };
@@ -133,10 +161,11 @@ impl Channel {
             delay,
             align_level,
             iq_matrix,
-            iq_offset,
+            offset,
             iir,
             fir,
             filter_offset,
+            is_real,
         })
     }
 }
@@ -2019,6 +2048,10 @@ impl Grid {
 
 /// Generate waveforms from a schedule.
 ///
+/// .. caution::
+///
+///     Crosstalk matrix will not be applied to offset of the channels.
+///
 /// Args:
 ///     channels (Mapping[str, Channel]): Information of the channels.
 ///     shapes (Mapping[str, Shape]): Shapes used in the schedule.
@@ -2032,7 +2065,8 @@ impl Grid {
 /// Returns:
 ///     Dict[str, numpy.ndarray]: Waveforms of the channels. The key is the
 ///         channel name and the value is the waveform. The shape of the
-///         waveform is ``(2, length)``.
+///         waveform is ``(n, length)``, where ``n`` is 2 for complex waveform
+///         and 1 for real waveform.
 /// Raises:
 ///     ValueError: If some input is invalid.
 ///     TypeError: If some input has an invalid type.
@@ -2148,9 +2182,10 @@ fn sample_waveform(
     let waveforms: HashMap<_, _> = channels
         .iter()
         .map(|(n, c)| {
+            let n_w = if c.is_real { 1 } else { 2 };
             (
                 n.clone(),
-                PyArray2::zeros_bound(py, (2, c.length), false).unbind(),
+                PyArray2::zeros_bound(py, (n_w, c.length), false).unbind(),
             )
         })
         .collect();
@@ -2182,7 +2217,9 @@ fn post_process<'py>(
         *w = dot_bound(iq_matrix.bind(py), w)?;
     }
     if c.filter_offset {
-        apply_offset(py, w, c.iq_offset)?;
+        if let Some(offset) = &c.offset {
+            apply_offset(py, w, offset.bind(py))?;
+        }
         if let Some(iir) = &c.iir {
             apply_iir(py, w, iir.bind(py))?;
         }
@@ -2196,18 +2233,21 @@ fn post_process<'py>(
         if let Some(fir) = &c.fir {
             apply_fir(py, w, fir.bind(py))?;
         }
-        apply_offset(py, w, c.iq_offset)?;
+        if let Some(offset) = &c.offset {
+            apply_offset(py, w, offset.bind(py))?;
+        }
     }
     Ok(())
 }
 
-fn apply_offset(py: Python<'_>, w: &Bound<'_, PyArray2<f64>>, offset: (f64, f64)) -> PyResult<()> {
-    if offset.0 == 0.0 && offset.1 == 0.0 {
-        return Ok(());
-    }
+fn apply_offset(
+    py: Python<'_>,
+    w: &Bound<'_, PyArray2<f64>>,
+    offset: &Bound<'_, PyArray1<f64>>,
+) -> PyResult<()> {
     let locals = PyDict::new_bound(py);
     locals.set_item("w", w)?;
-    locals.set_item("offset", pyarray_bound![py, offset.0, offset.1])?;
+    locals.set_item("offset", offset)?;
     py.run_bound(
         indoc! {"
             import numpy as np
