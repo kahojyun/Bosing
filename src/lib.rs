@@ -9,11 +9,13 @@ use numpy::{
     dot_bound, prelude::*, pyarray_bound, AllowTypeChange, PyArray1, PyArray2, PyArrayLike1,
     PyArrayLike2,
 };
+use pulse::PulseList;
 use pyo3::{
     exceptions::{PyRuntimeError, PyTypeError, PyValueError},
     prelude::*,
     types::PyDict,
 };
+use rayon::prelude::*;
 
 use crate::{
     executor::Executor,
@@ -2068,7 +2070,7 @@ fn generate_waveforms(
     py: Python<'_>,
     channels: HashMap<String, Channel>,
     shapes: HashMap<String, Py<Shape>>,
-    schedule: &Bound<'_, Element>,
+    schedule: Bound<'_, Element>,
     time_tolerance: f64,
     amp_tolerance: f64,
     allow_oversize: bool,
@@ -2082,7 +2084,41 @@ fn generate_waveforms(
             ));
         }
     }
-    let root = schedule.downcast::<Element>()?.get().0.clone();
+    let pulse_lists = build_pulse_lists(
+        py,
+        schedule,
+        &channels,
+        &shapes,
+        time_tolerance,
+        amp_tolerance,
+        allow_oversize,
+    )?;
+    let waveforms = sample_waveform(py, &channels, pulse_lists, crosstalk, time_tolerance);
+    py.allow_threads(|| {
+        waveforms
+            .into_par_iter()
+            .map(|(n, w)| {
+                Python::with_gil(|py| {
+                    let mut w = w.into_bound(py);
+                    let c = &channels[&n];
+                    post_process(py, &mut w, c)?;
+                    Ok((n, w.unbind()))
+                })
+            })
+            .collect::<PyResult<_>>()
+    })
+}
+
+fn build_pulse_lists(
+    py: Python<'_>,
+    schedule: Bound<'_, Element>,
+    channels: &HashMap<String, Channel>,
+    shapes: &HashMap<String, Py<Shape>>,
+    time_tolerance: f64,
+    amp_tolerance: f64,
+    allow_oversize: bool,
+) -> PyResult<HashMap<String, PulseList>> {
+    let root = schedule.get().0.clone();
     let measured = schedule::measure(root, f64::INFINITY);
     let arrange_options = schedule::ScheduleOptions {
         time_tolerance,
@@ -2091,65 +2127,78 @@ fn generate_waveforms(
     let arranged = schedule::arrange(&measured, 0.0, measured.duration(), &arrange_options)
         .map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
     let mut executor = Executor::new(amp_tolerance, time_tolerance);
-    for (n, c) in &channels {
+    for (n, c) in channels {
         executor.add_channel(n.clone(), c.base_freq);
     }
-    for (n, s) in &shapes {
+    for (n, s) in shapes {
         let s = s.bind(py);
         executor.add_shape(n.clone(), Shape::get_rust_shape(s)?);
     }
     executor.execute(&arranged);
-    let results = executor.into_result();
-    let waveforms: HashMap<String, Bound<PyArray2<f64>>> = channels
+    Ok(executor.into_result())
+}
+
+fn sample_waveform(
+    py: Python<'_>,
+    channels: &HashMap<String, Channel>,
+    pulse_lists: HashMap<String, PulseList>,
+    crosstalk: Option<(PyArrayLike2<'_, f64, AllowTypeChange>, Vec<String>)>,
+    time_tolerance: f64,
+) -> HashMap<String, Py<PyArray2<f64>>> {
+    let waveforms: HashMap<_, _> = channels
         .iter()
-        .map(|(n, c)| (n.clone(), PyArray2::zeros_bound(py, (2, c.length), false)))
-        .collect();
-    {
-        let mut sampler = Sampler::new(results);
-        for (n, c) in &channels {
-            // SAFETY: These arrays are just created.
-            let array = unsafe { waveforms[n].as_array_mut() };
-            sampler.add_channel(
+        .map(|(n, c)| {
+            (
                 n.clone(),
-                array,
-                Frequency::new(c.sample_rate).unwrap(),
-                Time::new(c.delay).unwrap(),
-                c.align_level,
-            );
-        }
-        if let Some((crosstalk, names)) = &crosstalk {
-            sampler.set_crosstalk(crosstalk.as_array(), names.clone());
-        }
-        sampler.sample(time_tolerance);
-    }
-    let waveforms = waveforms
-        .into_iter()
-        .map(|(n, mut w)| {
-            let c = &channels[&n];
-            if let Some(iq_matrix) = &c.iq_matrix {
-                w = dot_bound(iq_matrix.bind(py), &w)?;
-            }
-            if c.filter_offset {
-                apply_offset(py, &w, c.iq_offset)?;
-                if let Some(iir) = &c.iir {
-                    apply_iir(py, &w, iir.bind(py))?;
-                }
-                if let Some(fir) = &c.fir {
-                    apply_fir(py, &w, fir.bind(py))?;
-                }
-            } else {
-                if let Some(iir) = &c.iir {
-                    apply_iir(py, &w, iir.bind(py))?;
-                }
-                if let Some(fir) = &c.fir {
-                    apply_fir(py, &w, fir.bind(py))?;
-                }
-                apply_offset(py, &w, c.iq_offset)?;
-            }
-            Ok((n, w.unbind()))
+                PyArray2::zeros_bound(py, (2, c.length), false).unbind(),
+            )
         })
-        .collect::<PyResult<_>>()?;
-    Ok(waveforms)
+        .collect();
+    let mut sampler = Sampler::new(pulse_lists);
+    for (n, c) in channels {
+        // SAFETY: These arrays are just created.
+        let array = unsafe { waveforms[n].bind(py).as_array_mut() };
+        sampler.add_channel(
+            n.clone(),
+            array,
+            Frequency::new(c.sample_rate).unwrap(),
+            Time::new(c.delay).unwrap(),
+            c.align_level,
+        );
+    }
+    if let Some((crosstalk, names)) = &crosstalk {
+        sampler.set_crosstalk(crosstalk.as_array(), names.clone());
+    }
+    sampler.sample(time_tolerance);
+    waveforms
+}
+
+fn post_process<'py>(
+    py: Python<'py>,
+    w: &mut Bound<'py, PyArray2<f64>>,
+    c: &Channel,
+) -> PyResult<()> {
+    if let Some(iq_matrix) = &c.iq_matrix {
+        *w = dot_bound(iq_matrix.bind(py), w)?;
+    }
+    if c.filter_offset {
+        apply_offset(py, w, c.iq_offset)?;
+        if let Some(iir) = &c.iir {
+            apply_iir(py, w, iir.bind(py))?;
+        }
+        if let Some(fir) = &c.fir {
+            apply_fir(py, w, fir.bind(py))?;
+        }
+    } else {
+        if let Some(iir) = &c.iir {
+            apply_iir(py, w, iir.bind(py))?;
+        }
+        if let Some(fir) = &c.fir {
+            apply_fir(py, w, fir.bind(py))?;
+        }
+        apply_offset(py, w, c.iq_offset)?;
+    }
+    Ok(())
 }
 
 fn apply_offset(py: Python<'_>, w: &Bound<'_, PyArray2<f64>>, offset: (f64, f64)) -> PyResult<()> {
