@@ -48,12 +48,12 @@ impl Executor {
     }
 
     fn execute_dispatch(&mut self, element: &ArrangedElement, time: f64) {
-        if element.element().common().phantom() {
+        if element.element().common.phantom() {
             return;
         }
         let time = time + element.inner_time();
         let duration = element.inner_duration();
-        match element.element().variant() {
+        match &element.element().variant {
             ElementVariant::Play(e) => self.execute_play(e, time, duration),
             ElementVariant::ShiftPhase(e) => self.execute_shift_phase(e),
             ElementVariant::SetPhase(e) => self.execute_set_phase(e, time),
