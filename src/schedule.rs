@@ -21,8 +21,8 @@ pub type ElementRef = Arc<Element>;
 
 #[derive(Debug, Clone)]
 pub struct Element {
-    common: ElementCommon,
-    variant: ElementVariant,
+    pub common: ElementCommon,
+    pub variant: ElementVariant,
 }
 
 impl Element {
@@ -30,91 +30,6 @@ impl Element {
         Self {
             common,
             variant: variant.into(),
-        }
-    }
-
-    pub fn common(&self) -> &ElementCommon {
-        &self.common
-    }
-
-    pub fn variant(&self) -> &ElementVariant {
-        &self.variant
-    }
-
-    pub fn try_get_play(&self) -> Option<&Play> {
-        match &self.variant {
-            ElementVariant::Play(v) => Some(v),
-            _ => None,
-        }
-    }
-
-    pub fn try_get_shift_phase(&self) -> Option<&ShiftPhase> {
-        match &self.variant {
-            ElementVariant::ShiftPhase(v) => Some(v),
-            _ => None,
-        }
-    }
-
-    pub fn try_get_set_phase(&self) -> Option<&SetPhase> {
-        match &self.variant {
-            ElementVariant::SetPhase(v) => Some(v),
-            _ => None,
-        }
-    }
-
-    pub fn try_get_shift_freq(&self) -> Option<&ShiftFreq> {
-        match &self.variant {
-            ElementVariant::ShiftFreq(v) => Some(v),
-            _ => None,
-        }
-    }
-
-    pub fn try_get_set_freq(&self) -> Option<&SetFreq> {
-        match &self.variant {
-            ElementVariant::SetFreq(v) => Some(v),
-            _ => None,
-        }
-    }
-
-    pub fn try_get_swap_phase(&self) -> Option<&SwapPhase> {
-        match &self.variant {
-            ElementVariant::SwapPhase(v) => Some(v),
-            _ => None,
-        }
-    }
-
-    pub fn try_get_barrier(&self) -> Option<&Barrier> {
-        match &self.variant {
-            ElementVariant::Barrier(v) => Some(v),
-            _ => None,
-        }
-    }
-
-    pub fn try_get_repeat(&self) -> Option<&Repeat> {
-        match &self.variant {
-            ElementVariant::Repeat(v) => Some(v),
-            _ => None,
-        }
-    }
-
-    pub fn try_get_stack(&self) -> Option<&Stack> {
-        match &self.variant {
-            ElementVariant::Stack(v) => Some(v),
-            _ => None,
-        }
-    }
-
-    pub fn try_get_absolute(&self) -> Option<&Absolute> {
-        match &self.variant {
-            ElementVariant::Absolute(v) => Some(v),
-            _ => None,
-        }
-    }
-
-    pub fn try_get_grid(&self) -> Option<&Grid> {
-        match &self.variant {
-            ElementVariant::Grid(v) => Some(v),
-            _ => None,
         }
     }
 }
