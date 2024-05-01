@@ -42,6 +42,12 @@ pub struct Grid {
     channel_ids: Vec<String>,
 }
 
+impl Default for Grid {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Grid {
     pub fn new() -> Self {
         Self {

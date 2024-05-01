@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use anyhow::{bail, Result};
-use enum_dispatch::enum_dispatch;
 
 use crate::Alignment;
 pub use absolute::{Absolute, AbsoluteEntry};
@@ -204,7 +203,6 @@ struct ArrangeContext<'a> {
     measured_self: &'a MeasuredElement,
 }
 
-#[enum_dispatch]
 trait Schedule {
     /// Measure the element and return desired inner size and measured children.
     fn measure(&self, context: &MeasureContext) -> MeasureResult;
@@ -417,18 +415,66 @@ impl ElementCommonBuilder {
     }
 }
 
-#[enum_dispatch(Schedule)]
+macro_rules! impl_variant {
+    ($($variant:ident),*$(,)?) => {
 #[derive(Debug, Clone)]
 pub enum ElementVariant {
-    Play,
-    ShiftPhase,
-    SetPhase,
-    ShiftFreq,
-    SetFreq,
-    SwapPhase,
-    Barrier,
-    Repeat,
-    Stack,
-    Absolute,
-    Grid,
+    $($variant($variant),)*
 }
+
+$(
+impl From<$variant> for ElementVariant {
+    fn from(v: $variant) -> Self {
+        Self::$variant(v)
+    }
+}
+
+impl TryFrom<ElementVariant> for $variant {
+    type Error = anyhow::Error;
+
+    fn try_from(value: ElementVariant) -> Result<Self, Self::Error> {
+        match value {
+            ElementVariant::$variant(v) => Ok(v),
+            _ => bail!("Expected {} variant", stringify!($variant)),
+        }
+    }
+}
+
+impl<'a> TryFrom<&'a ElementVariant> for &'a $variant {
+    type Error = anyhow::Error;
+
+    fn try_from(value: &'a ElementVariant) -> Result<Self, Self::Error> {
+        match value {
+            ElementVariant::$variant(v) => Ok(v),
+            _ => bail!("Expected {} variant", stringify!($variant)),
+        }
+    }
+}
+)*
+
+impl Schedule for ElementVariant {
+    fn measure(&self, context: &MeasureContext) -> MeasureResult {
+        match self {
+            $(ElementVariant::$variant(v) => v.measure(context),)*
+        }
+    }
+
+    fn arrange(&self, context: &ArrangeContext) -> Result<ArrangeResult> {
+        match self {
+            $(ElementVariant::$variant(v) => v.arrange(context),)*
+        }
+    }
+
+    fn channels(&self) -> &[String] {
+        match self {
+            $(ElementVariant::$variant(v) => v.channels(),)*
+        }
+    }
+}
+    };
+}
+
+impl_variant!(
+    Play, ShiftPhase, SetPhase, ShiftFreq, SetFreq, SwapPhase, Barrier, Repeat, Stack, Absolute,
+    Grid,
+);
