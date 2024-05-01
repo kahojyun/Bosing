@@ -15,6 +15,12 @@ pub struct Stack {
     channel_ids: Vec<String>,
 }
 
+impl Default for Stack {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Stack {
     pub fn new() -> Self {
         Self {

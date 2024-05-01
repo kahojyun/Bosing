@@ -8,7 +8,6 @@ use indoc::indoc;
 use numpy::{
     dot_bound, prelude::*, AllowTypeChange, PyArray1, PyArray2, PyArrayLike1, PyArrayLike2,
 };
-use pulse::PulseList;
 use pyo3::{
     exceptions::{PyRuntimeError, PyTypeError, PyValueError},
     prelude::*,
@@ -16,12 +15,10 @@ use pyo3::{
 };
 use rayon::prelude::*;
 
-use crate::{
-    executor::Executor,
-    pulse::Sampler,
-    quant::{Frequency, Time},
-    schedule::ElementCommonBuilder,
-};
+use executor::Executor;
+use pulse::{PulseList, Sampler};
+use quant::{Frequency, Time};
+use schedule::ElementCommonBuilder;
 
 mod executor;
 mod pulse;
@@ -94,6 +91,7 @@ impl Channel {
         filter_offset=false,
         is_real=false,
     ))]
+    #[allow(clippy::too_many_arguments)]
     fn new(
         py: Python<'_>,
         base_freq: f64,
@@ -181,7 +179,7 @@ impl Channel {
 /// - :attr:`Alignment.Stretch`: Stretch the element to fill the parent.
 #[pyclass(frozen)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Alignment {
+pub enum Alignment {
     End,
     Start,
     Center,
@@ -1320,7 +1318,7 @@ impl Repeat {
 ///     possible.
 #[pyclass(frozen)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Direction {
+pub enum Direction {
     Backward,
     Forward,
 }
@@ -1696,7 +1694,7 @@ enum GridLengthUnit {
 /// or automatically.
 #[pyclass(get_all, frozen)]
 #[derive(Debug, Clone)]
-struct GridLength {
+pub struct GridLength {
     value: f64,
     unit: GridLengthUnit,
 }

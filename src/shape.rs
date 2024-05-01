@@ -1,9 +1,8 @@
 use std::{hash::Hash, sync::Arc};
 
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, bail, Result};
 use bspline::BSpline;
 use cached::proc_macro::cached;
-use enum_dispatch::enum_dispatch;
 use ordered_float::NotNan;
 
 /// A shape that can be used to modulate the amplitude of a signal.
@@ -75,14 +74,6 @@ fn get_shape_instance(a: ShapeKey) -> Arc<ShapeVariant> {
     Arc::new(variant)
 }
 
-#[enum_dispatch(ShapeTrait)]
-#[derive(Debug, Clone)]
-enum ShapeVariant {
-    Hann,
-    Interp,
-}
-
-#[enum_dispatch]
 trait ShapeTrait {
     /// Sample the shape at a given position x in the range \[-0.5, 0.5\].
     fn sample(&self, x: f64) -> f64;
@@ -120,6 +111,61 @@ impl ShapeTrait for Interp {
         self.0.point(x)
     }
 }
+
+macro_rules! impl_variant {
+    ($($variant:ident),*$(,)?) => {
+#[derive(Debug, Clone)]
+enum ShapeVariant {
+    $($variant($variant),)*
+}
+
+$(
+impl From<$variant> for ShapeVariant {
+    fn from(v: $variant) -> Self {
+        Self::$variant(v)
+    }
+}
+
+impl TryFrom<ShapeVariant> for $variant {
+    type Error = anyhow::Error;
+
+    fn try_from(value: ShapeVariant) -> Result<Self, Self::Error> {
+        match value {
+            ShapeVariant::$variant(v) => Ok(v),
+            _ => bail!("Expected {} variant", stringify!($variant)),
+        }
+    }
+}
+
+impl<'a> TryFrom<&'a ShapeVariant> for &'a $variant {
+    type Error = anyhow::Error;
+
+    fn try_from(value: &'a ShapeVariant) -> Result<Self, Self::Error> {
+        match value {
+            ShapeVariant::$variant(v) => Ok(v),
+            _ => bail!("Expected {} variant", stringify!($variant)),
+        }
+    }
+}
+)*
+
+impl ShapeTrait for ShapeVariant {
+    fn sample(&self, x: f64) -> f64{
+        match self {
+            $(ShapeVariant::$variant(v) => v.sample(x),)*
+        }
+    }
+
+    fn sample_array(&self, x0: f64, dx: f64, array: &mut [f64]) {
+        match self {
+            $(ShapeVariant::$variant(v) => v.sample_array(x0, dx, array),)*
+        }
+    }
+}
+    };
+}
+
+impl_variant!(Hann, Interp);
 
 #[cfg(test)]
 mod tests {

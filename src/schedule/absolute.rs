@@ -32,6 +32,12 @@ pub struct Absolute {
     channel_ids: Vec<String>,
 }
 
+impl Default for Absolute {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Absolute {
     pub fn new() -> Self {
         Self {
