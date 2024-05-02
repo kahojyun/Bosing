@@ -5,21 +5,25 @@ use super::{
     arrange, measure, ArrangeContext, ArrangeResult, ArrangeResultVariant, ElementRef,
     MeasureContext, MeasureResult, MeasureResultVariant, Schedule,
 };
+use crate::quant::Time;
 
 #[derive(Debug, Clone)]
 pub struct AbsoluteEntry {
-    time: f64,
+    time: Time,
     element: ElementRef,
 }
 
 impl AbsoluteEntry {
     pub fn new(element: ElementRef) -> Self {
-        Self { time: 0.0, element }
+        Self {
+            time: Time::ZERO,
+            element,
+        }
     }
 
-    pub fn with_time(mut self, time: f64) -> Result<Self> {
-        if !time.is_finite() {
-            bail!("Invalid time {}", time);
+    pub fn with_time(mut self, time: Time) -> Result<Self> {
+        if !time.value().is_finite() {
+            bail!("Invalid time {:?}", time);
         }
         self.time = time;
         Ok(self)
@@ -61,7 +65,7 @@ impl Absolute {
 
 impl Schedule for Absolute {
     fn measure(&self, context: &MeasureContext) -> MeasureResult {
-        let mut max_time: f64 = 0.0;
+        let mut max_time = Time::ZERO;
         let mut measured_children = vec![];
         for e in &self.children {
             let measured_child = measure(e.element.clone(), context.max_duration);

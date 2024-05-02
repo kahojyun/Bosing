@@ -4,17 +4,18 @@ use super::{
     ArrangeContext, ArrangeResult, ArrangeResultVariant, MeasureContext, MeasureResult,
     MeasureResultVariant, Schedule,
 };
+use crate::quant::{Amplitude, Frequency, Phase, Time};
 
 #[derive(Debug, Clone)]
 pub struct Play {
     channel_id: [String; 1],
     shape_id: Option<String>,
-    amplitude: f64,
-    width: f64,
-    plateau: f64,
+    amplitude: Amplitude,
+    width: Time,
+    plateau: Time,
     drag_coef: f64,
-    frequency: f64,
-    phase: f64,
+    frequency: Frequency,
+    phase: Phase,
     flexible: bool,
 }
 
@@ -22,31 +23,31 @@ impl Play {
     pub fn new(
         channel_id: String,
         shape_id: Option<String>,
-        amplitude: f64,
-        width: f64,
+        amplitude: Amplitude,
+        width: Time,
     ) -> Result<Self> {
-        if !amplitude.is_finite() {
-            bail!("Invalid amplitude {}", amplitude);
+        if !amplitude.value().is_finite() {
+            bail!("Invalid amplitude {:?}", amplitude);
         }
-        if !width.is_finite() || width < 0.0 {
-            bail!("Invalid width {}", width);
+        if !width.value().is_finite() || width.value() < 0.0 {
+            bail!("Invalid width {:?}", width);
         }
         Ok(Self {
             channel_id: [channel_id],
             shape_id,
             amplitude,
             width,
-            plateau: 0.0,
+            plateau: Time::ZERO,
             drag_coef: 0.0,
-            frequency: 0.0,
-            phase: 0.0,
+            frequency: Frequency::ZERO,
+            phase: Phase::ZERO,
             flexible: false,
         })
     }
 
-    pub fn with_plateau(mut self, plateau: f64) -> Result<Self> {
-        if !plateau.is_finite() || plateau < 0.0 {
-            bail!("Invalid plateau {}", plateau);
+    pub fn with_plateau(mut self, plateau: Time) -> Result<Self> {
+        if !plateau.value().is_finite() || plateau.value() < 0.0 {
+            bail!("Invalid plateau {:?}", plateau);
         }
         self.plateau = plateau;
         Ok(self)
@@ -60,17 +61,17 @@ impl Play {
         Ok(self)
     }
 
-    pub fn with_frequency(mut self, frequency: f64) -> Result<Self> {
-        if !frequency.is_finite() {
-            bail!("Invalid frequency {}", frequency);
+    pub fn with_frequency(mut self, frequency: Frequency) -> Result<Self> {
+        if !frequency.value().is_finite() {
+            bail!("Invalid frequency {:?}", frequency);
         }
         self.frequency = frequency;
         Ok(self)
     }
 
-    pub fn with_phase(mut self, phase: f64) -> Result<Self> {
-        if !phase.is_finite() {
-            bail!("Invalid phase {}", phase);
+    pub fn with_phase(mut self, phase: Phase) -> Result<Self> {
+        if !phase.value().is_finite() {
+            bail!("Invalid phase {:?}", phase);
         }
         self.phase = phase;
         Ok(self)
@@ -89,15 +90,15 @@ impl Play {
         self.shape_id.as_deref()
     }
 
-    pub fn amplitude(&self) -> f64 {
+    pub fn amplitude(&self) -> Amplitude {
         self.amplitude
     }
 
-    pub fn width(&self) -> f64 {
+    pub fn width(&self) -> Time {
         self.width
     }
 
-    pub fn plateau(&self) -> f64 {
+    pub fn plateau(&self) -> Time {
         self.plateau
     }
 
@@ -105,11 +106,11 @@ impl Play {
         self.drag_coef
     }
 
-    pub fn frequency(&self) -> f64 {
+    pub fn frequency(&self) -> Frequency {
         self.frequency
     }
 
-    pub fn phase(&self) -> f64 {
+    pub fn phase(&self) -> Phase {
         self.phase
     }
 

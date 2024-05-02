@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use anyhow::{bail, Result};
 
-use crate::Alignment;
+use crate::{quant::Time, Alignment};
 pub use absolute::{Absolute, AbsoluteEntry};
 pub use grid::{Grid, GridEntry};
 pub use play::Play;
@@ -38,14 +38,14 @@ impl Element {
 pub struct MeasuredElement {
     element: ElementRef,
     /// Desired duration without clipping. Doesn't include margin.
-    unclipped_duration: f64,
+    unclipped_duration: Time,
     /// Clipped desired duration. Used by scheduling system.
-    duration: f64,
+    duration: Time,
     data: MeasureResultVariant,
 }
 
 impl MeasuredElement {
-    pub fn duration(&self) -> f64 {
+    pub fn duration(&self) -> Time {
         self.duration
     }
 }
@@ -54,18 +54,18 @@ impl MeasuredElement {
 pub struct ArrangedElement {
     element: ElementRef,
     /// Start time of the inner block without margin relative to its parent.
-    inner_time: f64,
+    inner_time: Time,
     /// Duration of the inner block without margin.
-    inner_duration: f64,
+    inner_duration: Time,
     data: ArrangeResultVariant,
 }
 
 impl ArrangedElement {
-    pub fn inner_time(&self) -> f64 {
+    pub fn inner_time(&self) -> Time {
         self.inner_time
     }
 
-    pub fn inner_duration(&self) -> f64 {
+    pub fn inner_duration(&self) -> Time {
         self.inner_duration
     }
 
@@ -83,7 +83,7 @@ impl ArrangedElement {
 
 #[derive(Debug, Clone)]
 pub struct ScheduleOptions {
-    pub time_tolerance: f64,
+    pub time_tolerance: Time,
     pub allow_oversize: bool,
 }
 
@@ -91,11 +91,11 @@ pub struct ScheduleOptions {
 enum MeasureResultVariant {
     Simple,
     Multiple(Vec<MeasuredElement>),
-    Grid(Vec<MeasuredElement>, Vec<f64>),
+    Grid(Vec<MeasuredElement>, Vec<Time>),
 }
 
 #[derive(Debug, Clone)]
-struct MeasureResult(f64, MeasureResultVariant);
+struct MeasureResult(Time, MeasureResultVariant);
 
 #[derive(Debug, Clone)]
 pub enum ArrangeResultVariant {
@@ -104,16 +104,16 @@ pub enum ArrangeResultVariant {
 }
 
 #[derive(Debug, Clone)]
-struct ArrangeResult(f64, ArrangeResultVariant);
+struct ArrangeResult(Time, ArrangeResultVariant);
 
 #[derive(Debug, Clone)]
 struct MeasureContext {
-    max_duration: f64,
+    max_duration: Time,
 }
 
 #[derive(Debug, Clone)]
 struct ArrangeContext<'a> {
-    final_duration: f64,
+    final_duration: Time,
     options: &'a ScheduleOptions,
     measured_self: &'a MeasuredElement,
 }
@@ -127,33 +127,24 @@ trait Schedule {
     fn channels(&self) -> &[String];
 }
 
-fn clamp_duration(duration: f64, min_duration: f64, max_duration: f64) -> f64 {
+fn clamp_duration(duration: Time, min_duration: Time, max_duration: Time) -> Time {
     duration.min(max_duration).max(min_duration)
 }
 
-pub fn measure(element: ElementRef, available_duration: f64) -> MeasuredElement {
-    assert!(available_duration >= 0.0 || available_duration.is_infinite());
+pub fn measure(element: ElementRef, available_duration: Time) -> MeasuredElement {
+    assert!(available_duration.value() >= 0.0);
     let common = &element.common;
-    let total_margin = common.margin.0 + common.margin.1;
-    assert!(total_margin.is_finite());
-    let max_duration = clamp_duration(
-        common.duration.unwrap_or(f64::INFINITY),
-        common.min_duration,
-        common.max_duration,
-    );
-    let min_duration = clamp_duration(
-        common.duration.unwrap_or(0.0),
-        common.min_duration,
-        common.max_duration,
-    );
-    let inner_duration = (available_duration - total_margin).max(0.0);
+    let total_margin = common.total_margin();
+    assert!(total_margin.value().is_finite());
+    let (min_duration, max_duration) = common.clamp_min_max_duration();
+    let inner_duration = (available_duration - total_margin).max(Time::ZERO);
     let inner_duration = clamp_duration(inner_duration, min_duration, max_duration);
     let result = element.variant.measure(&MeasureContext {
         max_duration: inner_duration,
     });
-    let unclipped_duration = (result.0 + total_margin).max(0.0);
+    let unclipped_duration = (result.0 + total_margin).max(Time::ZERO);
     let duration = clamp_duration(unclipped_duration, min_duration, max_duration) + total_margin;
-    let duration = clamp_duration(duration, 0.0, available_duration);
+    let duration = clamp_duration(duration, Time::ZERO, available_duration);
     MeasuredElement {
         element,
         unclipped_duration,
@@ -164,8 +155,8 @@ pub fn measure(element: ElementRef, available_duration: f64) -> MeasuredElement 
 
 pub fn arrange(
     measured: &MeasuredElement,
-    time: f64,
-    duration: f64,
+    time: Time,
+    duration: Time,
     options: &ScheduleOptions,
 ) -> Result<ArrangedElement> {
     let MeasuredElement {
@@ -176,31 +167,22 @@ pub fn arrange(
     let common = &element.common;
     if duration < unclipped_duration - options.time_tolerance && !options.allow_oversize {
         bail!(
-            "Oversizing is configured to be disallowed: available duration {} < measured duration {}",
+            "Oversizing is configured to be disallowed: available duration {:?} < measured duration {:?}",
             duration,
             unclipped_duration
         );
     }
     let inner_time = time + common.margin.0;
-    assert!(inner_time.is_finite());
-    let max_duration = clamp_duration(
-        common.duration.unwrap_or(f64::INFINITY),
-        common.min_duration,
-        common.max_duration,
-    );
-    let min_duration = clamp_duration(
-        common.duration.unwrap_or(0.0),
-        common.min_duration,
-        common.max_duration,
-    );
-    let total_margin = common.margin.0 + common.margin.1;
-    let inner_duration = (duration - total_margin).max(0.0);
+    assert!(inner_time.value().is_finite());
+    let (min_duration, max_duration) = common.clamp_min_max_duration();
+    let total_margin = common.total_margin();
+    let inner_duration = (duration - total_margin).max(Time::ZERO);
     let inner_duration = clamp_duration(inner_duration, min_duration, max_duration);
     if inner_duration + total_margin < unclipped_duration - options.time_tolerance
         && !options.allow_oversize
     {
         bail!(
-            "Oversizing is configured to be disallowed: user requested duration {} < measured duration {}",
+            "Oversizing is configured to be disallowed: user requested duration {:?} < measured duration {:?}",
             inner_duration + total_margin,
             unclipped_duration
         );
@@ -220,16 +202,16 @@ pub fn arrange(
 
 #[derive(Debug, Clone)]
 pub struct ElementCommon {
-    margin: (f64, f64),
+    margin: (Time, Time),
     alignment: Alignment,
     phantom: bool,
-    duration: Option<f64>,
-    max_duration: f64,
-    min_duration: f64,
+    duration: Option<Time>,
+    max_duration: Time,
+    min_duration: Time,
 }
 
 impl ElementCommon {
-    pub fn margin(&self) -> (f64, f64) {
+    pub fn margin(&self) -> (Time, Time) {
         self.margin
     }
 
@@ -241,16 +223,34 @@ impl ElementCommon {
         self.phantom
     }
 
-    pub fn duration(&self) -> Option<f64> {
+    pub fn duration(&self) -> Option<Time> {
         self.duration
     }
 
-    pub fn max_duration(&self) -> f64 {
+    pub fn max_duration(&self) -> Time {
         self.max_duration
     }
 
-    pub fn min_duration(&self) -> f64 {
+    pub fn min_duration(&self) -> Time {
         self.min_duration
+    }
+
+    fn clamp_min_max_duration(&self) -> (Time, Time) {
+        let max_duration = clamp_duration(
+            self.duration.unwrap_or(Time::INFINITY),
+            self.min_duration,
+            self.max_duration,
+        );
+        let min_duration = clamp_duration(
+            self.duration.unwrap_or(Time::ZERO),
+            self.min_duration,
+            self.max_duration,
+        );
+        (min_duration, max_duration)
+    }
+
+    fn total_margin(&self) -> Time {
+        self.margin.0 + self.margin.1
     }
 }
 
@@ -260,12 +260,12 @@ pub struct ElementCommonBuilder(ElementCommon);
 impl Default for ElementCommonBuilder {
     fn default() -> Self {
         Self(ElementCommon {
-            margin: (0.0, 0.0),
+            margin: Default::default(),
             alignment: Alignment::End,
             phantom: false,
             duration: None,
-            max_duration: f64::INFINITY,
-            min_duration: 0.0,
+            max_duration: Time::INFINITY,
+            min_duration: Default::default(),
         })
     }
 }
@@ -275,7 +275,7 @@ impl ElementCommonBuilder {
         Self::default()
     }
 
-    pub fn margin(&mut self, margin: (f64, f64)) -> &mut Self {
+    pub fn margin(&mut self, margin: (Time, Time)) -> &mut Self {
         self.0.margin = margin;
         self
     }
@@ -290,36 +290,36 @@ impl ElementCommonBuilder {
         self
     }
 
-    pub fn duration(&mut self, duration: Option<f64>) -> &mut Self {
+    pub fn duration(&mut self, duration: Option<Time>) -> &mut Self {
         self.0.duration = duration;
         self
     }
 
-    pub fn max_duration(&mut self, max_duration: f64) -> &mut Self {
+    pub fn max_duration(&mut self, max_duration: Time) -> &mut Self {
         self.0.max_duration = max_duration;
         self
     }
 
-    pub fn min_duration(&mut self, min_duration: f64) -> &mut Self {
+    pub fn min_duration(&mut self, min_duration: Time) -> &mut Self {
         self.0.min_duration = min_duration;
         self
     }
 
     pub fn validate(&self) -> Result<()> {
         let v = &self.0;
-        if !v.margin.0.is_finite() || !v.margin.1.is_finite() {
+        if !v.margin.0.value().is_finite() || !v.margin.1.value().is_finite() {
             bail!("Invalid margin {:?}", v.margin);
         }
         if let Some(v) = v.duration {
-            if !v.is_finite() || v < 0.0 {
-                bail!("Invalid duration {}", v);
+            if !v.value().is_finite() || v.value() < 0.0 {
+                bail!("Invalid duration {:?}", v);
             }
         }
-        if !v.min_duration.is_finite() || v.min_duration < 0.0 {
-            bail!("Invalid min_duration {}", v.min_duration);
+        if !v.min_duration.value().is_finite() || v.min_duration.value() < 0.0 {
+            bail!("Invalid min_duration {:?}", v.min_duration);
         }
-        if v.max_duration.is_nan() || v.max_duration < 0.0 {
-            bail!("Invalid max_duration {}", v.max_duration);
+        if v.max_duration.value() < 0.0 {
+            bail!("Invalid max_duration {:?}", v.max_duration);
         }
         Ok(())
     }

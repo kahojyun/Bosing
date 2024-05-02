@@ -1,12 +1,11 @@
 use anyhow::{bail, Result};
 use itertools::Itertools as _;
-use ordered_float::OrderedFloat;
 
 use super::{
     arrange, measure, Alignment, ArrangeContext, ArrangeResult, ArrangeResultVariant, ElementRef,
     MeasureContext, MeasureResult, MeasureResultVariant, Schedule,
 };
-use crate::{GridLength, GridLengthUnit};
+use crate::{quant::Time, GridLength, GridLengthUnit};
 
 #[derive(Debug, Clone)]
 pub struct GridEntry {
@@ -95,8 +94,10 @@ impl Schedule for Grid {
         let mut col_sizes: Vec<_> = columns
             .iter()
             .map(|c| match c.unit {
-                GridLengthUnit::Seconds => c.value,
-                _ => 0.0,
+                GridLengthUnit::Seconds => {
+                    Time::new(c.value).expect("Should be checked in GridLenth")
+                }
+                _ => Time::ZERO,
             })
             .collect();
         let it = measured_children
@@ -116,7 +117,7 @@ impl Schedule for Grid {
             if span == 1 {
                 continue;
             }
-            let col_size: f64 = col_sizes.iter().skip(col).take(span).sum();
+            let col_size: Time = col_sizes.iter().skip(col).take(span).sum();
             if col_size >= dur {
                 continue;
             }
@@ -162,7 +163,7 @@ impl Schedule for Grid {
         };
         let columns = &self.columns;
         let n_col = columns.len();
-        let min_duration: f64 = col_sizes.iter().sum();
+        let min_duration: Time = col_sizes.iter().sum();
         expand_col_by_ratio(
             &mut col_sizes,
             0,
@@ -170,9 +171,9 @@ impl Schedule for Grid {
             context.final_duration - min_duration,
             columns,
         );
-        let col_starts: Vec<_> = std::iter::once(0.0)
+        let col_starts: Vec<_> = std::iter::once(Time::ZERO)
             .chain(col_sizes.iter().copied())
-            .scan(0.0, |state, x| {
+            .scan(Time::ZERO, |state, x| {
                 *state += x;
                 Some(*state)
             })
@@ -193,7 +194,7 @@ impl Schedule for Grid {
                 let child_time = match measured.element.common.alignment {
                     Alignment::End => span_duration - child_duration,
                     Alignment::Center => (span_duration - child_duration) / 2.0,
-                    _ => 0.0,
+                    _ => Time::ZERO,
                 } + col_starts[col];
                 arrange(measured, child_time, child_duration, context.options)
             })
@@ -210,10 +211,10 @@ impl Schedule for Grid {
 }
 
 fn expand_col_by_ratio(
-    col_sizes: &mut [f64],
+    col_sizes: &mut [Time],
     start: usize,
     span: usize,
-    mut left_dur: f64,
+    mut left_dur: Time,
     columns: &[GridLength],
 ) {
     let mut sorted: Vec<_> = col_sizes
@@ -223,14 +224,14 @@ fn expand_col_by_ratio(
         .take(span)
         .filter(|(_, c)| c.unit == GridLengthUnit::Star)
         .map(|(s, c)| (*s / c.value, s, c.value))
-        .sorted_by_key(|(k, _, _)| OrderedFloat(*k))
+        .sorted_by_key(|(k, _, _)| *k)
         .collect();
     let mut star_count = 0.0;
     for i in 0..sorted.len() {
         let next_ratio = if i + 1 < sorted.len() {
             sorted[i + 1].0
         } else {
-            f64::INFINITY
+            Time::INFINITY
         };
         star_count += sorted[i].2;
         left_dur += *sorted[i].1;

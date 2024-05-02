@@ -1,5 +1,4 @@
 use std::{
-    f64::consts::TAU,
     ops::{Add, Mul},
     sync::Arc,
 };
@@ -13,7 +12,7 @@ use numpy::Complex64;
 use rayon::prelude::*;
 
 use crate::{
-    quant::{AlignedIndex, Frequency, Time},
+    quant::{AlignedIndex, Amplitude, Frequency, Phase, Time},
     shape::Shape,
 };
 
@@ -32,9 +31,9 @@ impl Envelope {
     pub fn new(mut shape: Option<Shape>, mut width: Time, mut plateau: Time) -> Self {
         if shape.is_none() {
             plateau += width;
-            width = Time::new(0.0).unwrap();
+            width = Time::ZERO;
         }
-        if width.value() == 0.0 {
+        if width == Time::ZERO {
             shape = None
         }
         Self {
@@ -138,7 +137,7 @@ impl<'a> Sampler<'a> {
         self.crosstalk = Some(Crosstalk::new(crosstalk, names));
     }
 
-    pub fn sample(self, time_tolerance: f64) {
+    pub fn sample(self, time_tolerance: Time) {
         if let Some(crosstalk) = self.crosstalk {
             let ct_lookup = crosstalk
                 .names
@@ -194,12 +193,12 @@ struct Channel<'a> {
 #[derive(Debug, Clone)]
 pub struct PulseListBuilder {
     items: HashMap<ListBin, Vec<(Time, PulseAmplitude)>>,
-    amp_tolerance: f64,
-    time_tolerance: f64,
+    amp_tolerance: Amplitude,
+    time_tolerance: Time,
 }
 
 impl PulseListBuilder {
-    pub fn new(amp_tolerance: f64, time_tolerance: f64) -> Self {
+    pub fn new(amp_tolerance: Amplitude, time_tolerance: Time) -> Self {
         Self {
             items: HashMap::new(),
             amp_tolerance,
@@ -213,11 +212,16 @@ impl PulseListBuilder {
         global_freq: Frequency,
         local_freq: Frequency,
         time: Time,
-        amplitude: f64,
+        amplitude: Amplitude,
         drag_coef: f64,
-        phase: f64,
+        phase: Phase,
     ) {
-        if approx_eq!(f64, amplitude, 0.0, epsilon = self.amp_tolerance) {
+        if approx_eq!(
+            f64,
+            amplitude.value(),
+            0.0,
+            epsilon = self.amp_tolerance.value()
+        ) {
             return;
         }
         let bin = ListBin {
@@ -225,7 +229,7 @@ impl PulseListBuilder {
             global_freq,
             local_freq,
         };
-        let amp = Complex64::from_polar(amplitude, TAU * phase);
+        let amp = amplitude.value() * phase.phaser();
         let drag = amp * Complex64::i() * drag_coef;
         let amplitude = PulseAmplitude { amp, drag };
         self.items.entry(bin).or_default().push((time, amplitude));
@@ -240,7 +244,7 @@ impl PulseListBuilder {
                     f64,
                     pulses[i].0.value(),
                     pulses[j].0.value(),
-                    epsilon = self.time_tolerance
+                    epsilon = self.time_tolerance.value()
                 ) {
                     pulses[i].1 = pulses[i].1 + pulses[j].1;
                 } else {
@@ -259,11 +263,11 @@ fn mix_add_envelope(
     envelope: &[f64],
     amplitude: Complex64,
     drag_amp: Complex64,
-    phase0: f64,
-    dphase: f64,
+    phase0: Phase,
+    dphase: Phase,
 ) {
-    let mut carrier = Complex64::from_polar(1.0, phase0);
-    let dcarrier = Complex64::from_polar(1.0, dphase);
+    let mut carrier = phase0.phaser();
+    let dcarrier = dphase.phaser();
     let slope_iter = (0..envelope.len()).map(|i| {
         let left = if i > 0 { envelope[i - 1] } else { 0.0 };
         let right = if i < envelope.len() - 1 {
@@ -286,11 +290,11 @@ fn mix_add_envelope(
 fn mix_add_plateau(
     mut waveform: ArrayViewMut2<f64>,
     amplitude: Complex64,
-    phase: f64,
-    dphase: f64,
+    phase: Phase,
+    dphase: Phase,
 ) {
-    let mut carrier = Complex64::from_polar(1.0, phase) * amplitude;
-    let dcarrier = Complex64::from_polar(1.0, dphase);
+    let mut carrier = phase.phaser() * amplitude;
+    let dcarrier = dphase.phaser();
     for mut y in waveform.columns_mut() {
         y[0] += carrier.re;
         if let Some(y1) = y.get_mut(1) {
@@ -340,7 +344,7 @@ fn merge_and_sample<'a>(
     sample_rate: Frequency,
     delay: Time,
     align_level: i32,
-    time_tolerance: f64,
+    time_tolerance: Time,
 ) {
     let mut merged: HashMap<ListBin, Vec<_>> = HashMap::new();
     for (multiplier, list) in lists {
@@ -362,7 +366,12 @@ fn merge_and_sample<'a>(
                 .into_iter()
                 .kmerge_by(|a, b| a.0 < b.0)
                 .coalesce(|a, b| {
-                    if approx_eq!(f64, a.0.value(), b.0.value(), epsilon = time_tolerance) {
+                    if approx_eq!(
+                        f64,
+                        a.0.value(),
+                        b.0.value(),
+                        epsilon = time_tolerance.value()
+                    ) {
                         Ok((a.0, a.1 + b.1))
                     } else {
                         Err((a, b))
@@ -392,18 +401,14 @@ fn sample_pulse_list<PL, L>(
         for (time, PulseAmplitude { amp, drag }) in items {
             let t_start = time + delay;
             let i_frac_start = AlignedIndex::new(t_start, sample_rate, align_level).unwrap();
-            let i_start = i_frac_start.ceil();
-            let index_offset = i_frac_start.index_offset();
-            let global_freq = global_freq.value();
-            let local_freq = local_freq.value();
+            let i_start = i_frac_start.ceil_as_usize().unwrap();
+            let index_offset = i_frac_start.index_offset().unwrap();
             let total_freq = global_freq + local_freq;
-            let dt = 1.0 / sample_rate.value();
-            let phase0 = global_freq * (i_start.value() * dt - delay.value())
+            let dt = sample_rate.dt();
+            let phase0 = global_freq * (i_start as f64 * dt - delay)
                 + local_freq * index_offset.value() * dt;
             let dphase = total_freq * dt;
-            let phase0 = phase0 * TAU;
-            let dphase = dphase * TAU;
-            let mut waveform = waveform.slice_mut(s![.., i_start.value() as usize..]);
+            let mut waveform = waveform.slice_mut(s![.., i_start..]);
             if let Some(shape) = &envelope.shape {
                 let envelope = get_envelope(
                     shape.clone(),
