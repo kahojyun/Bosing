@@ -6,7 +6,7 @@ use super::{
     arrange, measure, ArrangeContext, ArrangeResult, ArrangeResultVariant, ElementRef,
     MeasureContext, MeasureResult, MeasureResultVariant, MeasuredElement, Schedule,
 };
-use crate::Direction;
+use crate::{quant::Time, Direction};
 
 #[derive(Debug, Clone)]
 pub struct Stack {
@@ -55,9 +55,9 @@ impl Stack {
 impl Schedule for Stack {
     fn measure(&self, context: &MeasureContext) -> MeasureResult {
         let mut used_duration = if self.channel_ids.is_empty() {
-            Either::Left(0.0)
+            Either::Left(Time::ZERO)
         } else {
-            Either::Right(HashMap::<String, f64>::new())
+            Either::Right(HashMap::<String, Time>::new())
         };
         let mapper = |child: &ElementRef| {
             let child_channels = child.variant.channels();
@@ -82,10 +82,7 @@ impl Schedule for Stack {
         }
         let total_used_duration = match used_duration {
             Either::Left(v) => v,
-            Either::Right(d) => d
-                .into_values()
-                .max_by(|a, b| a.total_cmp(b))
-                .unwrap_or_default(),
+            Either::Right(d) => d.into_values().max().unwrap_or_default(),
         };
         MeasureResult(
             total_used_duration,
@@ -95,9 +92,9 @@ impl Schedule for Stack {
 
     fn arrange(&self, context: &ArrangeContext) -> Result<ArrangeResult> {
         let mut used_duration = if self.channel_ids.is_empty() {
-            Either::Left(0.0)
+            Either::Left(Time::ZERO)
         } else {
-            Either::Right(HashMap::<String, f64>::new())
+            Either::Right(HashMap::<String, Time>::new())
         };
         let measured_children = match &context.measured_self.data {
             MeasureResultVariant::Multiple(v) => v,
@@ -142,8 +139,8 @@ impl Schedule for Stack {
 }
 
 fn update_channel_usage(
-    used_duration: &mut Either<f64, HashMap<String, f64>>,
-    new_duration: f64,
+    used_duration: &mut Either<Time, HashMap<String, Time>>,
+    new_duration: Time,
     channels: &[String],
 ) {
     match used_duration {
@@ -157,18 +154,15 @@ fn update_channel_usage(
 }
 
 fn get_channel_usage(
-    used_duration: &Either<f64, HashMap<String, f64>>,
+    used_duration: &Either<Time, HashMap<String, Time>>,
     channels: &[String],
-) -> f64 {
+) -> Time {
     match used_duration {
         Either::Left(v) => *v,
         Either::Right(d) => (if channels.is_empty() {
-            d.values().max_by(|a, b| a.total_cmp(b))
+            d.values().max()
         } else {
-            channels
-                .iter()
-                .filter_map(|i| d.get(i))
-                .max_by(|a, b| a.total_cmp(b))
+            channels.iter().filter_map(|i| d.get(i)).max()
         })
         .copied()
         .unwrap_or_default(),

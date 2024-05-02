@@ -1,6 +1,6 @@
 use std::{hash::Hash, sync::Arc};
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{bail, Result};
 use bspline::BSpline;
 use cached::proc_macro::cached;
 use ordered_float::NotNan;
@@ -23,13 +23,11 @@ impl Shape {
         let knots = knots
             .into_iter()
             .map(NotNan::new)
-            .collect::<Result<_, _>>()
-            .map_err(|_| anyhow!("Nan in knots"))?;
+            .collect::<Result<_, _>>()?;
         let controls = controls
             .into_iter()
             .map(NotNan::new)
-            .collect::<Result<_, _>>()
-            .map_err(|_| anyhow!("Nan in controls"))?;
+            .collect::<Result<_, _>>()?;
         let key = ShapeKey::Interp(knots, controls, degree);
         Ok(Self(get_shape_instance(key)))
     }

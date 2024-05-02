@@ -9,7 +9,7 @@ use numpy::{
     dot_bound, prelude::*, AllowTypeChange, PyArray1, PyArray2, PyArrayLike1, PyArrayLike2,
 };
 use pyo3::{
-    exceptions::{PyRuntimeError, PyTypeError, PyValueError},
+    exceptions::{PyTypeError, PyValueError},
     prelude::*,
     types::{DerefToPyAny, PyDict},
 };
@@ -17,7 +17,7 @@ use rayon::prelude::*;
 
 use executor::Executor;
 use pulse::{PulseList, Sampler};
-use quant::{Frequency, Time};
+use quant::{Amplitude, Frequency, Phase, Time};
 use schedule::{ElementCommonBuilder, ElementRef};
 
 mod executor;
@@ -61,10 +61,10 @@ mod shape;
 #[pyclass(get_all, frozen)]
 #[derive(Debug, Clone)]
 struct Channel {
-    base_freq: f64,
-    sample_rate: f64,
+    base_freq: Frequency,
+    sample_rate: Frequency,
     length: usize,
-    delay: f64,
+    delay: Time,
     align_level: i32,
     iq_matrix: Option<Py<PyArray2<f64>>>,
     offset: Option<Py<PyArray1<f64>>>,
@@ -153,10 +153,10 @@ impl Channel {
             None
         };
         Ok(Channel {
-            base_freq,
-            sample_rate,
+            base_freq: Frequency::new(base_freq)?,
+            sample_rate: Frequency::new(sample_rate)?,
             length,
-            delay,
+            delay: Time::new(delay)?,
             align_level,
             iq_matrix,
             offset,
@@ -255,12 +255,11 @@ impl Shape {
         }
         if let Ok(interp) = slf.downcast::<Interp>() {
             let interp = interp.get();
-            return shape::Shape::new_interp(
+            return Ok(shape::Shape::new_interp(
                 interp.knots.clone(),
                 interp.controls.clone(),
                 interp.degree,
-            )
-            .map_err(|e| PyValueError::new_err(e.to_string()));
+            )?);
         }
         Err(PyTypeError::new_err("Invalid shape type."))
     }
@@ -327,12 +326,15 @@ impl Interp {
     }
 }
 
-fn extract_margin(obj: &Bound<PyAny>) -> PyResult<(f64, f64)> {
+fn extract_margin(obj: &Bound<PyAny>) -> PyResult<(Time, Time)> {
     if let Ok(v) = obj.extract() {
-        return Ok((v, v));
+        let t = Time::new(v)?;
+        return Ok((t, t));
     }
     if let Ok((v1, v2)) = obj.extract() {
-        return Ok((v1, v2));
+        let t1 = Time::new(v1)?;
+        let t2 = Time::new(v2)?;
+        return Ok((t1, t2));
     }
     let msg = "Failed to convert the value to (float, float).";
     Err(PyValueError::new_err(msg))
@@ -420,7 +422,8 @@ struct Element(ElementRef);
 impl Element {
     #[getter]
     fn margin(&self) -> (f64, f64) {
-        self.0.common.margin()
+        let (t1, t2) = self.0.common.margin();
+        (t1.value(), t2.value())
     }
 
     #[getter]
@@ -435,36 +438,36 @@ impl Element {
 
     #[getter]
     fn duration(&self) -> Option<f64> {
-        self.0.common.duration()
+        self.0.common.duration().map(Into::into)
     }
 
     #[getter]
     fn max_duration(&self) -> f64 {
-        self.0.common.max_duration()
+        self.0.common.max_duration().value()
     }
 
     #[getter]
     fn min_duration(&self) -> f64 {
-        self.0.common.min_duration()
+        self.0.common.min_duration().value()
     }
 }
 
 trait ElementSubclass: Sized + DerefToPyAny
 where
     for<'a> &'a Self::Variant: TryFrom<&'a schedule::ElementVariant>,
+    for<'a> <&'a Self::Variant as TryFrom<&'a schedule::ElementVariant>>::Error: Debug,
 {
     type Variant: Into<schedule::ElementVariant>;
 
     fn variant<'a>(slf: &'a Bound<Self>) -> &'a Self::Variant {
         slf.downcast::<Element>()
-            .unwrap()
+            .expect("Self should be a subclass of Element")
             .get()
             .0
             .variant
             .borrow()
             .try_into()
-            .ok()
-            .unwrap()
+            .expect("Element should have a valid variant")
     }
 
     fn build_element(
@@ -483,14 +486,15 @@ where
         if let Some(obj) = alignment {
             builder.alignment(extract_alignment(obj)?);
         }
+        let duration = duration.map(Time::new).transpose()?;
+        let max_duration = Time::new(max_duration)?;
+        let min_duration = Time::new(min_duration)?;
         builder
             .phantom(phantom)
             .duration(duration)
             .max_duration(max_duration)
             .min_duration(min_duration);
-        let common = builder
-            .build()
-            .map_err(|e| PyValueError::new_err(e.to_string()))?;
+        let common = builder.build()?;
         Ok(Element(Arc::new(schedule::Element::new(common, variant))))
     }
 }
@@ -583,21 +587,17 @@ impl Play {
         max_duration: f64,
         min_duration: f64,
     ) -> PyResult<(Self, Element)> {
-        let variant = schedule::Play::new(channel_id, shape_id, amplitude, width)
-            .map_err(|e| PyValueError::new_err(e.to_string()))?;
-        let variant = variant
-            .with_plateau(plateau)
-            .map_err(|e| PyValueError::new_err(e.to_string()))?;
-        let variant = variant
-            .with_drag_coef(drag_coef)
-            .map_err(|e| PyValueError::new_err(e.to_string()))?;
-        let variant = variant
-            .with_frequency(frequency)
-            .map_err(|e| PyValueError::new_err(e.to_string()))?;
-        let variant = variant
-            .with_phase(phase)
-            .map_err(|e| PyValueError::new_err(e.to_string()))?;
-        let variant = variant.with_flexible(flexible);
+        let amplitude = Amplitude::new(amplitude)?;
+        let width = Time::new(width)?;
+        let plateau = Time::new(plateau)?;
+        let frequency = Frequency::new(frequency)?;
+        let phase = Phase::new(phase)?;
+        let variant = schedule::Play::new(channel_id, shape_id, amplitude, width)?
+            .with_plateau(plateau)?
+            .with_drag_coef(drag_coef)?
+            .with_frequency(frequency)?
+            .with_phase(phase)?
+            .with_flexible(flexible);
         Ok((
             Self,
             Self::build_element(
@@ -624,17 +624,17 @@ impl Play {
 
     #[getter]
     fn amplitude(slf: &Bound<Self>) -> f64 {
-        Self::variant(slf).amplitude()
+        Self::variant(slf).amplitude().value()
     }
 
     #[getter]
     fn width(slf: &Bound<Self>) -> f64 {
-        Self::variant(slf).width()
+        Self::variant(slf).width().value()
     }
 
     #[getter]
     fn plateau(slf: &Bound<Self>) -> f64 {
-        Self::variant(slf).plateau()
+        Self::variant(slf).plateau().value()
     }
 
     #[getter]
@@ -644,12 +644,12 @@ impl Play {
 
     #[getter]
     fn frequency(slf: &Bound<Self>) -> f64 {
-        Self::variant(slf).frequency()
+        Self::variant(slf).frequency().value()
     }
 
     #[getter]
     fn phase(slf: &Bound<Self>) -> f64 {
-        Self::variant(slf).phase()
+        Self::variant(slf).phase().value()
     }
 
     #[getter]
@@ -704,8 +704,8 @@ impl ShiftPhase {
         max_duration: f64,
         min_duration: f64,
     ) -> PyResult<(Self, Element)> {
-        let variant = schedule::ShiftPhase::new(channel_id, phase)
-            .map_err(|e| PyValueError::new_err(e.to_string()))?;
+        let phase = Phase::new(phase)?;
+        let variant = schedule::ShiftPhase::new(channel_id, phase)?;
         Ok((
             Self,
             Self::build_element(
@@ -727,7 +727,7 @@ impl ShiftPhase {
 
     #[getter]
     fn phase(slf: &Bound<Self>) -> f64 {
-        Self::variant(slf).phase()
+        Self::variant(slf).phase().value()
     }
 }
 
@@ -785,8 +785,8 @@ impl SetPhase {
         max_duration: f64,
         min_duration: f64,
     ) -> PyResult<(Self, Element)> {
-        let variant = schedule::SetPhase::new(channel_id, phase)
-            .map_err(|e| PyValueError::new_err(e.to_string()))?;
+        let phase = Phase::new(phase)?;
+        let variant = schedule::SetPhase::new(channel_id, phase)?;
         Ok((
             Self,
             Self::build_element(
@@ -808,7 +808,7 @@ impl SetPhase {
 
     #[getter]
     fn phase(slf: &Bound<Self>) -> f64 {
-        Self::variant(slf).phase()
+        Self::variant(slf).phase().value()
     }
 }
 
@@ -854,8 +854,8 @@ impl ShiftFreq {
         max_duration: f64,
         min_duration: f64,
     ) -> PyResult<(Self, Element)> {
-        let variant = schedule::ShiftFreq::new(channel_id, frequency)
-            .map_err(|e| PyValueError::new_err(e.to_string()))?;
+        let frequency = Frequency::new(frequency)?;
+        let variant = schedule::ShiftFreq::new(channel_id, frequency)?;
         Ok((
             Self,
             Self::build_element(
@@ -877,7 +877,7 @@ impl ShiftFreq {
 
     #[getter]
     fn frequency(slf: &Bound<Self>) -> f64 {
-        Self::variant(slf).frequency()
+        Self::variant(slf).frequency().value()
     }
 }
 
@@ -924,8 +924,8 @@ impl SetFreq {
         max_duration: f64,
         min_duration: f64,
     ) -> PyResult<(Self, Element)> {
-        let variant = schedule::SetFreq::new(channel_id, frequency)
-            .map_err(|e| PyValueError::new_err(e.to_string()))?;
+        let frequency = Frequency::new(frequency)?;
+        let variant = schedule::SetFreq::new(channel_id, frequency)?;
         Ok((
             Self,
             Self::build_element(
@@ -947,7 +947,7 @@ impl SetFreq {
 
     #[getter]
     fn frequency(slf: &Bound<Self>) -> f64 {
-        Self::variant(slf).frequency()
+        Self::variant(slf).frequency().value()
     }
 }
 
@@ -1129,9 +1129,8 @@ impl Repeat {
         min_duration: f64,
     ) -> PyResult<(Self, Element)> {
         let rust_child = child.get().0.clone();
-        let variant = schedule::Repeat::new(rust_child, count)
-            .with_spacing(spacing)
-            .map_err(|e| PyValueError::new_err(e.to_string()))?;
+        let spacing = Time::new(spacing)?;
+        let variant = schedule::Repeat::new(rust_child, count).with_spacing(spacing)?;
         Ok((
             Self { child },
             Self::build_element(
@@ -1153,7 +1152,7 @@ impl Repeat {
 
     #[getter]
     fn spacing(slf: &Bound<Self>) -> f64 {
-        Self::variant(slf).spacing()
+        Self::variant(slf).spacing().value()
     }
 }
 
@@ -1332,7 +1331,7 @@ impl Stack {
 #[pyclass(get_all, frozen)]
 #[derive(Debug, Clone)]
 struct AbsoluteEntry {
-    time: f64,
+    time: Time,
     element: Py<Element>,
 }
 
@@ -1343,6 +1342,7 @@ impl AbsoluteEntry {
         if !time.is_finite() {
             return Err(PyValueError::new_err("Time must be finite"));
         }
+        let time = Time::new(time)?;
         Ok(AbsoluteEntry { time, element })
     }
 
@@ -1445,9 +1445,7 @@ impl Absolute {
             .iter()
             .map(|x| {
                 let element = x.element.get().0.clone();
-                schedule::AbsoluteEntry::new(element)
-                    .with_time(x.time)
-                    .map_err(|e| PyValueError::new_err(e.to_string()))
+                Ok(schedule::AbsoluteEntry::new(element).with_time(x.time)?)
             })
             .collect::<PyResult<_>>()?;
         let variant = schedule::Absolute::new().with_children(rust_children);
@@ -1493,9 +1491,7 @@ impl Absolute {
             .iter()
             .map(|x| {
                 let element = x.element.get().0.clone();
-                schedule::AbsoluteEntry::new(element)
-                    .with_time(x.time)
-                    .map_err(|e| PyValueError::new_err(e.to_string()))
+                Ok(schedule::AbsoluteEntry::new(element).with_time(x.time)?)
             })
             .collect::<PyResult<_>>()?;
         let rust_base = &slf.downcast::<Element>()?.get().0;
@@ -1943,6 +1939,8 @@ fn generate_waveforms(
             ));
         }
     }
+    let time_tolerance = Time::new(time_tolerance)?;
+    let amp_tolerance = Amplitude::new(amp_tolerance)?;
     let pulse_lists = build_pulse_lists(
         py,
         schedule,
@@ -1973,18 +1971,17 @@ fn build_pulse_lists(
     schedule: Bound<Element>,
     channels: &HashMap<String, Channel>,
     shapes: &HashMap<String, Py<Shape>>,
-    time_tolerance: f64,
-    amp_tolerance: f64,
+    time_tolerance: Time,
+    amp_tolerance: Amplitude,
     allow_oversize: bool,
 ) -> PyResult<HashMap<String, PulseList>> {
     let root = schedule.get().0.clone();
-    let measured = schedule::measure(root, f64::INFINITY);
+    let measured = schedule::measure(root, Time::INFINITY);
     let arrange_options = schedule::ScheduleOptions {
         time_tolerance,
         allow_oversize,
     };
-    let arranged = schedule::arrange(&measured, 0.0, measured.duration(), &arrange_options)
-        .map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
+    let arranged = schedule::arrange(&measured, Time::ZERO, measured.duration(), &arrange_options)?;
     let mut executor = Executor::new(amp_tolerance, time_tolerance);
     for (n, c) in channels {
         executor.add_channel(n.clone(), c.base_freq);
@@ -2002,7 +1999,7 @@ fn sample_waveform(
     channels: &HashMap<String, Channel>,
     pulse_lists: HashMap<String, PulseList>,
     crosstalk: Option<(PyArrayLike2<f64, AllowTypeChange>, Vec<String>)>,
-    time_tolerance: f64,
+    time_tolerance: Time,
 ) -> HashMap<String, Py<PyArray2<f64>>> {
     let waveforms: HashMap<_, _> = channels
         .iter()
@@ -2018,13 +2015,7 @@ fn sample_waveform(
     for (n, c) in channels {
         // SAFETY: These arrays are just created.
         let array = unsafe { waveforms[n].bind(py).as_array_mut() };
-        sampler.add_channel(
-            n.clone(),
-            array,
-            Frequency::new(c.sample_rate).unwrap(),
-            Time::new(c.delay).unwrap(),
-            c.align_level,
-        );
+        sampler.add_channel(n.clone(), array, c.sample_rate, c.delay, c.align_level);
     }
     if let Some((crosstalk, names)) = &crosstalk {
         sampler.set_crosstalk(crosstalk.as_array(), names.clone());

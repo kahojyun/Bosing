@@ -4,6 +4,7 @@ use super::{
     ArrangeContext, ArrangeResult, ArrangeResultVariant, MeasureContext, MeasureResult,
     MeasureResultVariant, Schedule,
 };
+use crate::quant::{Frequency, Phase, Time};
 
 trait SimpleElement {
     fn channels(&self) -> &[String];
@@ -14,11 +15,11 @@ where
     T: SimpleElement,
 {
     fn measure(&self, _context: &MeasureContext) -> MeasureResult {
-        MeasureResult(0.0, MeasureResultVariant::Simple)
+        MeasureResult(Time::ZERO, MeasureResultVariant::Simple)
     }
 
     fn arrange(&self, _context: &ArrangeContext) -> Result<ArrangeResult> {
-        Ok(ArrangeResult(0.0, ArrangeResultVariant::Simple))
+        Ok(ArrangeResult(Time::ZERO, ArrangeResultVariant::Simple))
     }
 
     fn channels(&self) -> &[String] {
@@ -29,13 +30,13 @@ where
 #[derive(Debug, Clone)]
 pub struct ShiftPhase {
     channel_id: [String; 1],
-    phase: f64,
+    phase: Phase,
 }
 
 impl ShiftPhase {
-    pub fn new(channel_id: String, phase: f64) -> Result<Self> {
-        if !phase.is_finite() {
-            bail!("Invalid phase {}", phase);
+    pub fn new(channel_id: String, phase: Phase) -> Result<Self> {
+        if !phase.value().is_finite() {
+            bail!("Invalid phase {:?}", phase);
         }
         Ok(Self {
             channel_id: [channel_id],
@@ -47,7 +48,7 @@ impl ShiftPhase {
         &self.channel_id[0]
     }
 
-    pub fn phase(&self) -> f64 {
+    pub fn phase(&self) -> Phase {
         self.phase
     }
 }
@@ -61,13 +62,13 @@ impl SimpleElement for ShiftPhase {
 #[derive(Debug, Clone)]
 pub struct SetPhase {
     channel_id: [String; 1],
-    phase: f64,
+    phase: Phase,
 }
 
 impl SetPhase {
-    pub fn new(channel_id: String, phase: f64) -> Result<Self> {
-        if !phase.is_finite() {
-            bail!("Invalid phase {}", phase);
+    pub fn new(channel_id: String, phase: Phase) -> Result<Self> {
+        if !phase.value().is_finite() {
+            bail!("Invalid phase {:?}", phase);
         }
         Ok(Self {
             channel_id: [channel_id],
@@ -79,7 +80,7 @@ impl SetPhase {
         &self.channel_id[0]
     }
 
-    pub fn phase(&self) -> f64 {
+    pub fn phase(&self) -> Phase {
         self.phase
     }
 }
@@ -93,13 +94,13 @@ impl SimpleElement for SetPhase {
 #[derive(Debug, Clone)]
 pub struct ShiftFreq {
     channel_id: [String; 1],
-    frequency: f64,
+    frequency: Frequency,
 }
 
 impl ShiftFreq {
-    pub fn new(channel_id: String, frequency: f64) -> Result<Self> {
-        if !frequency.is_finite() {
-            bail!("Invalid frequency {}", frequency);
+    pub fn new(channel_id: String, frequency: Frequency) -> Result<Self> {
+        if !frequency.value().is_finite() {
+            bail!("Invalid frequency {:?}", frequency);
         }
         Ok(Self {
             channel_id: [channel_id],
@@ -111,7 +112,7 @@ impl ShiftFreq {
         &self.channel_id[0]
     }
 
-    pub fn frequency(&self) -> f64 {
+    pub fn frequency(&self) -> Frequency {
         self.frequency
     }
 }
@@ -125,13 +126,13 @@ impl SimpleElement for ShiftFreq {
 #[derive(Debug, Clone)]
 pub struct SetFreq {
     channel_id: [String; 1],
-    frequency: f64,
+    frequency: Frequency,
 }
 
 impl SetFreq {
-    pub fn new(channel_id: String, frequency: f64) -> Result<Self> {
-        if !frequency.is_finite() {
-            bail!("Invalid frequency {}", frequency);
+    pub fn new(channel_id: String, frequency: Frequency) -> Result<Self> {
+        if !frequency.value().is_finite() {
+            bail!("Invalid frequency {:?}", frequency);
         }
         Ok(Self {
             channel_id: [channel_id],
@@ -143,7 +144,7 @@ impl SetFreq {
         &self.channel_id[0]
     }
 
-    pub fn frequency(&self) -> f64 {
+    pub fn frequency(&self) -> Frequency {
         self.frequency
     }
 }
