@@ -17,7 +17,7 @@ use rayon::prelude::*;
 
 use executor::Executor;
 use pulse::{PulseList, Sampler};
-use quant::{Amplitude, Frequency, Phase, Time};
+use quant::{Amplitude, ChannelId, Frequency, Phase, ShapeId, Time};
 use schedule::{ElementCommonBuilder, ElementRef};
 
 mod executor;
@@ -82,7 +82,7 @@ impl Channel {
         sample_rate,
         length,
         *,
-        delay=0.0,
+        delay=Time::ZERO,
         align_level=-10,
         iq_matrix=None,
         offset=None,
@@ -94,10 +94,10 @@ impl Channel {
     #[allow(clippy::too_many_arguments)]
     fn new(
         py: Python,
-        base_freq: f64,
-        sample_rate: f64,
+        base_freq: Frequency,
+        sample_rate: Frequency,
         length: usize,
-        delay: f64,
+        delay: Time,
         align_level: i32,
         mut iq_matrix: Option<PyArrayLike2<f64, AllowTypeChange>>,
         offset: Option<PyArrayLike1<f64, AllowTypeChange>>,
@@ -153,10 +153,10 @@ impl Channel {
             None
         };
         Ok(Channel {
-            base_freq: Frequency::new(base_freq)?,
-            sample_rate: Frequency::new(sample_rate)?,
+            base_freq,
+            sample_rate,
             length,
-            delay: Time::new(delay)?,
+            delay,
             align_level,
             iq_matrix,
             offset,
@@ -421,9 +421,8 @@ struct Element(ElementRef);
 #[pymethods]
 impl Element {
     #[getter]
-    fn margin(&self) -> (f64, f64) {
-        let (t1, t2) = self.0.common.margin();
-        (t1.value(), t2.value())
+    fn margin(&self) -> (Time, Time) {
+        self.0.common.margin()
     }
 
     #[getter]
@@ -437,18 +436,18 @@ impl Element {
     }
 
     #[getter]
-    fn duration(&self) -> Option<f64> {
-        self.0.common.duration().map(Into::into)
+    fn duration(&self) -> Option<Time> {
+        self.0.common.duration()
     }
 
     #[getter]
-    fn max_duration(&self) -> f64 {
-        self.0.common.max_duration().value()
+    fn max_duration(&self) -> Time {
+        self.0.common.max_duration()
     }
 
     #[getter]
-    fn min_duration(&self) -> f64 {
-        self.0.common.min_duration().value()
+    fn min_duration(&self) -> Time {
+        self.0.common.min_duration()
     }
 }
 
@@ -475,9 +474,9 @@ where
         margin: Option<&Bound<PyAny>>,
         alignment: Option<&Bound<PyAny>>,
         phantom: bool,
-        duration: Option<f64>,
-        max_duration: f64,
-        min_duration: f64,
+        duration: Option<Time>,
+        max_duration: Time,
+        min_duration: Time,
     ) -> PyResult<Element> {
         let mut builder = ElementCommonBuilder::new();
         if let Some(obj) = margin {
@@ -486,9 +485,6 @@ where
         if let Some(obj) = alignment {
             builder.alignment(extract_alignment(obj)?);
         }
-        let duration = duration.map(Time::new).transpose()?;
-        let max_duration = Time::new(max_duration)?;
-        let min_duration = Time::new(min_duration)?;
         builder
             .phantom(phantom)
             .duration(duration)
@@ -557,41 +553,36 @@ impl Play {
         amplitude,
         width,
         *,
-        plateau=0.0,
+        plateau=Time::ZERO,
         drag_coef=0.0,
-        frequency=0.0,
-        phase=0.0,
+        frequency=Frequency::ZERO,
+        phase=Phase::ZERO,
         flexible=false,
         margin=None,
         alignment=None,
         phantom=false,
         duration=None,
-        max_duration=f64::INFINITY,
-        min_duration=0.0,
+        max_duration=Time::INFINITY,
+        min_duration=Time::ZERO,
     ))]
     #[allow(clippy::too_many_arguments)]
     fn new(
-        channel_id: String,
-        shape_id: Option<String>,
-        amplitude: f64,
-        width: f64,
-        plateau: f64,
+        channel_id: ChannelId,
+        shape_id: Option<ShapeId>,
+        amplitude: Amplitude,
+        width: Time,
+        plateau: Time,
         drag_coef: f64,
-        frequency: f64,
-        phase: f64,
+        frequency: Frequency,
+        phase: Phase,
         flexible: bool,
         margin: Option<&Bound<PyAny>>,
         alignment: Option<&Bound<PyAny>>,
         phantom: bool,
-        duration: Option<f64>,
-        max_duration: f64,
-        min_duration: f64,
+        duration: Option<Time>,
+        max_duration: Time,
+        min_duration: Time,
     ) -> PyResult<(Self, Element)> {
-        let amplitude = Amplitude::new(amplitude)?;
-        let width = Time::new(width)?;
-        let plateau = Time::new(plateau)?;
-        let frequency = Frequency::new(frequency)?;
-        let phase = Phase::new(phase)?;
         let variant = schedule::Play::new(channel_id, shape_id, amplitude, width)?
             .with_plateau(plateau)?
             .with_drag_coef(drag_coef)?
@@ -613,28 +604,28 @@ impl Play {
     }
 
     #[getter]
-    fn channel_id<'a>(slf: &'a Bound<Self>) -> &'a str {
+    fn channel_id<'a>(slf: &'a Bound<Self>) -> &'a ChannelId {
         Self::variant(slf).channel_id()
     }
 
     #[getter]
-    fn shape_id<'a>(slf: &'a Bound<Self>) -> Option<&'a str> {
+    fn shape_id<'a>(slf: &'a Bound<Self>) -> Option<&'a ShapeId> {
         Self::variant(slf).shape_id()
     }
 
     #[getter]
-    fn amplitude(slf: &Bound<Self>) -> f64 {
-        Self::variant(slf).amplitude().value()
+    fn amplitude(slf: &Bound<Self>) -> Amplitude {
+        Self::variant(slf).amplitude()
     }
 
     #[getter]
-    fn width(slf: &Bound<Self>) -> f64 {
-        Self::variant(slf).width().value()
+    fn width(slf: &Bound<Self>) -> Time {
+        Self::variant(slf).width()
     }
 
     #[getter]
-    fn plateau(slf: &Bound<Self>) -> f64 {
-        Self::variant(slf).plateau().value()
+    fn plateau(slf: &Bound<Self>) -> Time {
+        Self::variant(slf).plateau()
     }
 
     #[getter]
@@ -643,13 +634,13 @@ impl Play {
     }
 
     #[getter]
-    fn frequency(slf: &Bound<Self>) -> f64 {
-        Self::variant(slf).frequency().value()
+    fn frequency(slf: &Bound<Self>) -> Frequency {
+        Self::variant(slf).frequency()
     }
 
     #[getter]
-    fn phase(slf: &Bound<Self>) -> f64 {
-        Self::variant(slf).phase().value()
+    fn phase(slf: &Bound<Self>) -> Phase {
+        Self::variant(slf).phase()
     }
 
     #[getter]
@@ -690,21 +681,20 @@ impl ShiftPhase {
         alignment=None,
         phantom=false,
         duration=None,
-        max_duration=f64::INFINITY,
-        min_duration=0.0,
+        max_duration=Time::INFINITY,
+        min_duration=Time::ZERO,
     ))]
     #[allow(clippy::too_many_arguments)]
     fn new(
-        channel_id: String,
-        phase: f64,
+        channel_id: ChannelId,
+        phase: Phase,
         margin: Option<&Bound<PyAny>>,
         alignment: Option<&Bound<PyAny>>,
         phantom: bool,
-        duration: Option<f64>,
-        max_duration: f64,
-        min_duration: f64,
+        duration: Option<Time>,
+        max_duration: Time,
+        min_duration: Time,
     ) -> PyResult<(Self, Element)> {
-        let phase = Phase::new(phase)?;
         let variant = schedule::ShiftPhase::new(channel_id, phase)?;
         Ok((
             Self,
@@ -721,13 +711,13 @@ impl ShiftPhase {
     }
 
     #[getter]
-    fn channel_id<'a>(slf: &'a Bound<Self>) -> &'a str {
+    fn channel_id<'a>(slf: &'a Bound<Self>) -> &'a ChannelId {
         Self::variant(slf).channel_id()
     }
 
     #[getter]
-    fn phase(slf: &Bound<Self>) -> f64 {
-        Self::variant(slf).phase().value()
+    fn phase(slf: &Bound<Self>) -> Phase {
+        Self::variant(slf).phase()
     }
 }
 
@@ -771,21 +761,20 @@ impl SetPhase {
         alignment=None,
         phantom=false,
         duration=None,
-        max_duration=f64::INFINITY,
-        min_duration=0.0,
+        max_duration=Time::INFINITY,
+        min_duration=Time::ZERO,
     ))]
     #[allow(clippy::too_many_arguments)]
     fn new(
-        channel_id: String,
-        phase: f64,
+        channel_id: ChannelId,
+        phase: Phase,
         margin: Option<&Bound<PyAny>>,
         alignment: Option<&Bound<PyAny>>,
         phantom: bool,
-        duration: Option<f64>,
-        max_duration: f64,
-        min_duration: f64,
+        duration: Option<Time>,
+        max_duration: Time,
+        min_duration: Time,
     ) -> PyResult<(Self, Element)> {
-        let phase = Phase::new(phase)?;
         let variant = schedule::SetPhase::new(channel_id, phase)?;
         Ok((
             Self,
@@ -802,13 +791,13 @@ impl SetPhase {
     }
 
     #[getter]
-    fn channel_id<'a>(slf: &'a Bound<Self>) -> &'a str {
+    fn channel_id<'a>(slf: &'a Bound<Self>) -> &'a ChannelId {
         Self::variant(slf).channel_id()
     }
 
     #[getter]
-    fn phase(slf: &Bound<Self>) -> f64 {
-        Self::variant(slf).phase().value()
+    fn phase(slf: &Bound<Self>) -> Phase {
+        Self::variant(slf).phase()
     }
 }
 
@@ -840,21 +829,20 @@ impl ShiftFreq {
         alignment=None,
         phantom=false,
         duration=None,
-        max_duration=f64::INFINITY,
-        min_duration=0.0,
+        max_duration=Time::INFINITY,
+        min_duration=Time::ZERO,
     ))]
     #[allow(clippy::too_many_arguments)]
     fn new(
-        channel_id: String,
-        frequency: f64,
+        channel_id: ChannelId,
+        frequency: Frequency,
         margin: Option<&Bound<PyAny>>,
         alignment: Option<&Bound<PyAny>>,
         phantom: bool,
-        duration: Option<f64>,
-        max_duration: f64,
-        min_duration: f64,
+        duration: Option<Time>,
+        max_duration: Time,
+        min_duration: Time,
     ) -> PyResult<(Self, Element)> {
-        let frequency = Frequency::new(frequency)?;
         let variant = schedule::ShiftFreq::new(channel_id, frequency)?;
         Ok((
             Self,
@@ -871,13 +859,13 @@ impl ShiftFreq {
     }
 
     #[getter]
-    fn channel_id<'a>(slf: &'a Bound<Self>) -> &'a str {
+    fn channel_id<'a>(slf: &'a Bound<Self>) -> &'a ChannelId {
         Self::variant(slf).channel_id()
     }
 
     #[getter]
-    fn frequency(slf: &Bound<Self>) -> f64 {
-        Self::variant(slf).frequency().value()
+    fn frequency(slf: &Bound<Self>) -> Frequency {
+        Self::variant(slf).frequency()
     }
 }
 
@@ -910,21 +898,20 @@ impl SetFreq {
         alignment=None,
         phantom=false,
         duration=None,
-        max_duration=f64::INFINITY,
-        min_duration=0.0,
+        max_duration=Time::INFINITY,
+        min_duration=Time::ZERO,
     ))]
     #[allow(clippy::too_many_arguments)]
     fn new(
-        channel_id: String,
-        frequency: f64,
+        channel_id: ChannelId,
+        frequency: Frequency,
         margin: Option<&Bound<PyAny>>,
         alignment: Option<&Bound<PyAny>>,
         phantom: bool,
-        duration: Option<f64>,
-        max_duration: f64,
-        min_duration: f64,
+        duration: Option<Time>,
+        max_duration: Time,
+        min_duration: Time,
     ) -> PyResult<(Self, Element)> {
-        let frequency = Frequency::new(frequency)?;
         let variant = schedule::SetFreq::new(channel_id, frequency)?;
         Ok((
             Self,
@@ -941,13 +928,13 @@ impl SetFreq {
     }
 
     #[getter]
-    fn channel_id<'a>(slf: &'a Bound<Self>) -> &'a str {
+    fn channel_id<'a>(slf: &'a Bound<Self>) -> &'a ChannelId {
         Self::variant(slf).channel_id()
     }
 
     #[getter]
-    fn frequency(slf: &Bound<Self>) -> f64 {
-        Self::variant(slf).frequency().value()
+    fn frequency(slf: &Bound<Self>) -> Frequency {
+        Self::variant(slf).frequency()
     }
 }
 
@@ -982,19 +969,19 @@ impl SwapPhase {
         alignment=None,
         phantom=false,
         duration=None,
-        max_duration=f64::INFINITY,
-        min_duration=0.0,
+        max_duration=Time::INFINITY,
+        min_duration=Time::ZERO,
     ))]
     #[allow(clippy::too_many_arguments)]
     fn new(
-        channel_id1: String,
-        channel_id2: String,
+        channel_id1: ChannelId,
+        channel_id2: ChannelId,
         margin: Option<&Bound<PyAny>>,
         alignment: Option<&Bound<PyAny>>,
         phantom: bool,
-        duration: Option<f64>,
-        max_duration: f64,
-        min_duration: f64,
+        duration: Option<Time>,
+        max_duration: Time,
+        min_duration: Time,
     ) -> PyResult<(Self, Element)> {
         let variant = schedule::SwapPhase::new(channel_id1, channel_id2);
         Ok((
@@ -1012,12 +999,12 @@ impl SwapPhase {
     }
 
     #[getter]
-    fn channel_id1<'a>(slf: &'a Bound<Self>) -> &'a str {
+    fn channel_id1<'a>(slf: &'a Bound<Self>) -> &'a ChannelId {
         Self::variant(slf).channel_id1()
     }
 
     #[getter]
-    fn channel_id2<'a>(slf: &'a Bound<Self>) -> &'a str {
+    fn channel_id2<'a>(slf: &'a Bound<Self>) -> &'a ChannelId {
         Self::variant(slf).channel_id2()
     }
 }
@@ -1050,17 +1037,17 @@ impl Barrier {
         alignment=None,
         phantom=false,
         duration=None,
-        max_duration=f64::INFINITY,
-        min_duration=0.0,
+        max_duration=Time::INFINITY,
+        min_duration=Time::ZERO,
     ))]
     fn new(
-        channel_ids: Vec<String>,
+        channel_ids: Vec<ChannelId>,
         margin: Option<&Bound<PyAny>>,
         alignment: Option<&Bound<PyAny>>,
         phantom: bool,
-        duration: Option<f64>,
-        max_duration: f64,
-        min_duration: f64,
+        duration: Option<Time>,
+        max_duration: Time,
+        min_duration: Time,
     ) -> PyResult<(Self, Element)> {
         let variant = schedule::Barrier::new(channel_ids);
         Ok((
@@ -1078,7 +1065,7 @@ impl Barrier {
     }
 
     #[getter]
-    fn channel_ids(slf: &Bound<Self>) -> Vec<String> {
+    fn channel_ids(slf: &Bound<Self>) -> Vec<ChannelId> {
         Self::variant(slf).channel_ids().to_vec()
     }
 }
@@ -1107,29 +1094,28 @@ impl Repeat {
     #[pyo3(signature = (
         child,
         count,
-        spacing=0.0,
+        spacing=Time::ZERO,
         *,
         margin=None,
         alignment=None,
         phantom=false,
         duration=None,
-        max_duration=f64::INFINITY,
-        min_duration=0.0,
+        max_duration=Time::INFINITY,
+        min_duration=Time::ZERO,
     ))]
     #[allow(clippy::too_many_arguments)]
     fn new(
         child: Py<Element>,
         count: usize,
-        spacing: f64,
+        spacing: Time,
         margin: Option<&Bound<PyAny>>,
         alignment: Option<&Bound<PyAny>>,
         phantom: bool,
-        duration: Option<f64>,
-        max_duration: f64,
-        min_duration: f64,
+        duration: Option<Time>,
+        max_duration: Time,
+        min_duration: Time,
     ) -> PyResult<(Self, Element)> {
         let rust_child = child.get().0.clone();
-        let spacing = Time::new(spacing)?;
         let variant = schedule::Repeat::new(rust_child, count).with_spacing(spacing)?;
         Ok((
             Self { child },
@@ -1151,8 +1137,8 @@ impl Repeat {
     }
 
     #[getter]
-    fn spacing(slf: &Bound<Self>) -> f64 {
-        Self::variant(slf).spacing().value()
+    fn spacing(slf: &Bound<Self>) -> Time {
+        Self::variant(slf).spacing()
     }
 }
 
@@ -1247,8 +1233,8 @@ impl Stack {
         alignment=None,
         phantom=false,
         duration=None,
-        max_duration=f64::INFINITY,
-        min_duration=0.0,
+        max_duration=Time::INFINITY,
+        min_duration=Time::ZERO,
     ))]
     #[allow(clippy::too_many_arguments)]
     fn new(
@@ -1257,9 +1243,9 @@ impl Stack {
         margin: Option<&Bound<PyAny>>,
         alignment: Option<&Bound<PyAny>>,
         phantom: bool,
-        duration: Option<f64>,
-        max_duration: f64,
-        min_duration: f64,
+        duration: Option<Time>,
+        max_duration: Time,
+        min_duration: Time,
     ) -> PyResult<(Self, Element)> {
         let rust_children = children.iter().map(|x| x.get().0.clone()).collect();
         let variant = schedule::Stack::new().with_children(rust_children);
@@ -1338,11 +1324,10 @@ struct AbsoluteEntry {
 #[pymethods]
 impl AbsoluteEntry {
     #[new]
-    fn new(time: f64, element: Py<Element>) -> PyResult<Self> {
-        if !time.is_finite() {
+    fn new(time: Time, element: Py<Element>) -> PyResult<Self> {
+        if !time.value().is_finite() {
             return Err(PyValueError::new_err("Time must be finite"));
         }
-        let time = Time::new(time)?;
         Ok(AbsoluteEntry { time, element })
     }
 
@@ -1367,7 +1352,7 @@ impl AbsoluteEntry {
             return Ok(slf);
         }
         if let Ok(element) = obj.extract() {
-            return Py::new(py, AbsoluteEntry::new(0.0, element)?);
+            return Py::new(py, AbsoluteEntry::new(Time::ZERO, element)?);
         }
         if let Ok((time, element)) = obj.extract() {
             return Py::new(py, AbsoluteEntry::new(time, element)?);
@@ -1423,8 +1408,8 @@ impl Absolute {
         alignment=None,
         phantom=false,
         duration=None,
-        max_duration=f64::INFINITY,
-        min_duration=0.0,
+        max_duration=Time::INFINITY,
+        min_duration=Time::ZERO,
     ))]
     #[allow(clippy::too_many_arguments)]
     fn new(
@@ -1433,9 +1418,9 @@ impl Absolute {
         margin: Option<&Bound<PyAny>>,
         alignment: Option<&Bound<PyAny>>,
         phantom: bool,
-        duration: Option<f64>,
-        max_duration: f64,
-        min_duration: f64,
+        duration: Option<Time>,
+        max_duration: Time,
+        min_duration: Time,
     ) -> PyResult<(Self, Element)> {
         let children: Vec<AbsoluteEntry> = children
             .into_iter()
@@ -1767,8 +1752,8 @@ impl Grid {
         alignment=None,
         phantom=false,
         duration=None,
-        max_duration=f64::INFINITY,
-        min_duration=0.0,
+        max_duration=Time::INFINITY,
+        min_duration=Time::ZERO,
     ))]
     #[allow(clippy::too_many_arguments)]
     fn new(
@@ -1778,9 +1763,9 @@ impl Grid {
         margin: Option<&Bound<PyAny>>,
         alignment: Option<&Bound<PyAny>>,
         phantom: bool,
-        duration: Option<f64>,
-        max_duration: f64,
-        min_duration: f64,
+        duration: Option<Time>,
+        max_duration: Time,
+        min_duration: Time,
     ) -> PyResult<(Self, Element)> {
         let children: Vec<_> = children
             .into_iter()
@@ -1915,22 +1900,22 @@ impl Grid {
     shapes,
     schedule,
     *,
-    time_tolerance=1e-12,
-    amp_tolerance=0.1 / 2f64.powi(16),
+    time_tolerance=Time::new(1e-12).unwrap(),
+    amp_tolerance=Amplitude::new(0.1 / 2f64.powi(16)).unwrap(),
     allow_oversize=false,
     crosstalk=None,
 ))]
 #[allow(clippy::too_many_arguments)]
 fn generate_waveforms(
     py: Python,
-    channels: HashMap<String, Channel>,
-    shapes: HashMap<String, Py<Shape>>,
+    channels: HashMap<ChannelId, Channel>,
+    shapes: HashMap<ShapeId, Py<Shape>>,
     schedule: Bound<Element>,
-    time_tolerance: f64,
-    amp_tolerance: f64,
+    time_tolerance: Time,
+    amp_tolerance: Amplitude,
     allow_oversize: bool,
-    crosstalk: Option<(PyArrayLike2<f64, AllowTypeChange>, Vec<String>)>,
-) -> PyResult<HashMap<String, Py<PyArray2<f64>>>> {
+    crosstalk: Option<(PyArrayLike2<f64, AllowTypeChange>, Vec<ChannelId>)>,
+) -> PyResult<HashMap<ChannelId, Py<PyArray2<f64>>>> {
     if let Some((crosstalk, names)) = &crosstalk {
         let nl = names.len();
         if crosstalk.shape() != [nl, nl] {
@@ -1939,8 +1924,6 @@ fn generate_waveforms(
             ));
         }
     }
-    let time_tolerance = Time::new(time_tolerance)?;
-    let amp_tolerance = Amplitude::new(amp_tolerance)?;
     let pulse_lists = build_pulse_lists(
         py,
         schedule,
@@ -1969,12 +1952,12 @@ fn generate_waveforms(
 fn build_pulse_lists(
     py: Python,
     schedule: Bound<Element>,
-    channels: &HashMap<String, Channel>,
-    shapes: &HashMap<String, Py<Shape>>,
+    channels: &HashMap<ChannelId, Channel>,
+    shapes: &HashMap<ShapeId, Py<Shape>>,
     time_tolerance: Time,
     amp_tolerance: Amplitude,
     allow_oversize: bool,
-) -> PyResult<HashMap<String, PulseList>> {
+) -> PyResult<HashMap<ChannelId, PulseList>> {
     let root = schedule.get().0.clone();
     let measured = schedule::measure(root, Time::INFINITY);
     let arrange_options = schedule::ScheduleOptions {
@@ -1996,11 +1979,11 @@ fn build_pulse_lists(
 
 fn sample_waveform(
     py: Python,
-    channels: &HashMap<String, Channel>,
-    pulse_lists: HashMap<String, PulseList>,
-    crosstalk: Option<(PyArrayLike2<f64, AllowTypeChange>, Vec<String>)>,
+    channels: &HashMap<ChannelId, Channel>,
+    pulse_lists: HashMap<ChannelId, PulseList>,
+    crosstalk: Option<(PyArrayLike2<f64, AllowTypeChange>, Vec<ChannelId>)>,
     time_tolerance: Time,
-) -> HashMap<String, Py<PyArray2<f64>>> {
+) -> HashMap<ChannelId, Py<PyArray2<f64>>> {
     let waveforms: HashMap<_, _> = channels
         .iter()
         .map(|(n, c)| {
