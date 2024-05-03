@@ -4,7 +4,7 @@ use super::{
     arrange, measure, ArrangeContext, ArrangeResult, ArrangeResultVariant, ElementRef,
     MeasureContext, MeasureResult, MeasureResultVariant, Schedule,
 };
-use crate::quant::Time;
+use crate::quant::{ChannelId, Time};
 
 #[derive(Debug, Clone)]
 pub struct Repeat {
@@ -77,7 +77,7 @@ impl Schedule for Repeat {
         ))
     }
 
-    fn channels(&self) -> &[String] {
+    fn channels(&self) -> &[ChannelId] {
         self.child.variant.channels()
     }
 }

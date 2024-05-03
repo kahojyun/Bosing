@@ -5,7 +5,10 @@ use super::{
     arrange, measure, Alignment, ArrangeContext, ArrangeResult, ArrangeResultVariant, ElementRef,
     MeasureContext, MeasureResult, MeasureResultVariant, Schedule,
 };
-use crate::{quant::Time, GridLength, GridLengthUnit};
+use crate::{
+    quant::{ChannelId, Time},
+    GridLength, GridLengthUnit,
+};
 
 #[derive(Debug, Clone)]
 pub struct GridEntry {
@@ -38,7 +41,7 @@ impl GridEntry {
 pub struct Grid {
     children: Vec<GridEntry>,
     columns: Vec<GridLength>,
-    channel_ids: Vec<String>,
+    channel_ids: Vec<ChannelId>,
 }
 
 impl Default for Grid {
@@ -205,7 +208,7 @@ impl Schedule for Grid {
         ))
     }
 
-    fn channels(&self) -> &[String] {
+    fn channels(&self) -> &[ChannelId] {
         &self.channel_ids
     }
 }

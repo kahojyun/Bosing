@@ -1,6 +1,7 @@
 use std::{
     iter::Sum,
     ops::{Add, AddAssign, Div, Mul, Neg, Sub, SubAssign},
+    sync::Arc,
 };
 
 use anyhow::{bail, Result};
@@ -53,6 +54,13 @@ macro_rules! impl_quant {
 
             pub const INFINITY: Self = Self(unsafe { NotNan::new_unchecked(f64::INFINITY) });
             pub const ZERO: Self = Self(unsafe { NotNan::new_unchecked(0.0) });
+        }
+
+        impl<'py> FromPyObject<'py> for $t {
+            fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
+                let value = ob.extract()?;
+                Ok(Self::new(value)?)
+            }
         }
 
         impl Add for $t {
@@ -127,7 +135,7 @@ macro_rules! impl_quant {
 
         impl<'a> Sum<&'a $t> for $t {
             fn sum<I: Iterator<Item = &'a Self>>(iter: I) -> Self {
-                iter.cloned().sum()
+                iter.copied().sum()
             }
         }
 
@@ -223,3 +231,38 @@ impl AlignedIndex {
         Self::from_value(self.0.ceil() - self.0.into_inner())
     }
 }
+
+macro_rules! impl_id {
+    ($t:ident) => {
+        #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+        pub struct $t(Arc<str>);
+
+        impl $t {
+            pub fn new(name: impl Into<Arc<str>>) -> Self {
+                Self(name.into())
+            }
+        }
+
+        impl<'py> FromPyObject<'py> for $t {
+            fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
+                let name = ob.extract::<&str>()?;
+                Ok(Self::new(name))
+            }
+        }
+
+        impl IntoPy<PyObject> for $t {
+            fn into_py(self, py: Python) -> PyObject {
+                self.0.into_py(py)
+            }
+        }
+
+        impl<'a> IntoPy<PyObject> for &'a $t {
+            fn into_py(self, py: Python) -> PyObject {
+                self.0.to_object(py)
+            }
+        }
+    };
+}
+
+impl_id!(ChannelId);
+impl_id!(ShapeId);

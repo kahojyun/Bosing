@@ -5,7 +5,7 @@ use super::{
     arrange, measure, ArrangeContext, ArrangeResult, ArrangeResultVariant, ElementRef,
     MeasureContext, MeasureResult, MeasureResultVariant, Schedule,
 };
-use crate::quant::Time;
+use crate::quant::{ChannelId, Time};
 
 #[derive(Debug, Clone)]
 pub struct AbsoluteEntry {
@@ -33,7 +33,7 @@ impl AbsoluteEntry {
 #[derive(Debug, Clone)]
 pub struct Absolute {
     children: Vec<AbsoluteEntry>,
-    channel_ids: Vec<String>,
+    channel_ids: Vec<ChannelId>,
 }
 
 impl Default for Absolute {
@@ -93,7 +93,7 @@ impl Schedule for Absolute {
         ))
     }
 
-    fn channels(&self) -> &[String] {
+    fn channels(&self) -> &[ChannelId] {
         &self.channel_ids
     }
 }

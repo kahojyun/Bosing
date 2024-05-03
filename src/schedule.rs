@@ -2,7 +2,10 @@ use std::sync::Arc;
 
 use anyhow::{bail, Result};
 
-use crate::{quant::Time, Alignment};
+use crate::{
+    quant::{ChannelId, Time},
+    Alignment,
+};
 pub use absolute::{Absolute, AbsoluteEntry};
 pub use grid::{Grid, GridEntry};
 pub use play::Play;
@@ -124,7 +127,7 @@ trait Schedule {
     /// Arrange the element and return final inner size and arranged children.
     fn arrange(&self, context: &ArrangeContext) -> Result<ArrangeResult>;
     /// Channels used by this element. Empty means all of parent's channels.
-    fn channels(&self) -> &[String];
+    fn channels(&self) -> &[ChannelId];
 }
 
 fn clamp_duration(duration: Time, min_duration: Time, max_duration: Time) -> Time {
@@ -380,7 +383,7 @@ impl Schedule for ElementVariant {
         }
     }
 
-    fn channels(&self) -> &[String] {
+    fn channels(&self) -> &[ChannelId] {
         match self {
             $(ElementVariant::$variant(v) => v.channels(),)*
         }

@@ -2,15 +2,15 @@ use hashbrown::HashMap;
 
 use crate::{
     pulse::{Envelope, PulseList, PulseListBuilder},
-    quant::{Amplitude, Frequency, Phase, Time},
+    quant::{Amplitude, ChannelId, Frequency, Phase, ShapeId, Time},
     schedule::{self, ArrangedElement, ElementVariant},
     shape::Shape,
 };
 
 #[derive(Debug, Clone)]
 pub struct Executor {
-    channels: HashMap<String, Channel>,
-    shapes: HashMap<String, Shape>,
+    channels: HashMap<ChannelId, Channel>,
+    shapes: HashMap<ShapeId, Shape>,
     amp_tolerance: Amplitude,
     time_tolerance: Time,
 }
@@ -25,14 +25,14 @@ impl Executor {
         }
     }
 
-    pub fn add_channel(&mut self, name: String, base_freq: Frequency) {
+    pub fn add_channel(&mut self, name: ChannelId, base_freq: Frequency) {
         self.channels.insert(
             name,
             Channel::new(base_freq, self.amp_tolerance, self.time_tolerance),
         );
     }
 
-    pub fn add_shape(&mut self, name: String, shape: Shape) {
+    pub fn add_shape(&mut self, name: ShapeId, shape: Shape) {
         self.shapes.insert(name, shape);
     }
 
@@ -40,7 +40,7 @@ impl Executor {
         self.execute_dispatch(element, Time::ZERO);
     }
 
-    pub fn into_result(self) -> HashMap<String, PulseList> {
+    pub fn into_result(self) -> HashMap<ChannelId, PulseList> {
         self.channels
             .into_iter()
             .map(|(n, b)| (n, b.pulses.build()))

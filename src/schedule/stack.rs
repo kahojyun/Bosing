@@ -6,13 +6,16 @@ use super::{
     arrange, measure, ArrangeContext, ArrangeResult, ArrangeResultVariant, ElementRef,
     MeasureContext, MeasureResult, MeasureResultVariant, MeasuredElement, Schedule,
 };
-use crate::{quant::Time, Direction};
+use crate::{
+    quant::{ChannelId, Time},
+    Direction,
+};
 
 #[derive(Debug, Clone)]
 pub struct Stack {
     children: Vec<ElementRef>,
     direction: Direction,
-    channel_ids: Vec<String>,
+    channel_ids: Vec<ChannelId>,
 }
 
 impl Default for Stack {
@@ -57,7 +60,7 @@ impl Schedule for Stack {
         let mut used_duration = if self.channel_ids.is_empty() {
             Either::Left(Time::ZERO)
         } else {
-            Either::Right(HashMap::<String, Time>::new())
+            Either::Right(HashMap::<ChannelId, Time>::new())
         };
         let mapper = |child: &ElementRef| {
             let child_channels = child.variant.channels();
@@ -94,7 +97,7 @@ impl Schedule for Stack {
         let mut used_duration = if self.channel_ids.is_empty() {
             Either::Left(Time::ZERO)
         } else {
-            Either::Right(HashMap::<String, Time>::new())
+            Either::Right(HashMap::<ChannelId, Time>::new())
         };
         let measured_children = match &context.measured_self.data {
             MeasureResultVariant::Multiple(v) => v,
@@ -133,15 +136,15 @@ impl Schedule for Stack {
         ))
     }
 
-    fn channels(&self) -> &[String] {
+    fn channels(&self) -> &[ChannelId] {
         &self.channel_ids
     }
 }
 
 fn update_channel_usage(
-    used_duration: &mut Either<Time, HashMap<String, Time>>,
+    used_duration: &mut Either<Time, HashMap<ChannelId, Time>>,
     new_duration: Time,
-    channels: &[String],
+    channels: &[ChannelId],
 ) {
     match used_duration {
         Either::Left(v) => *v = new_duration,
@@ -154,8 +157,8 @@ fn update_channel_usage(
 }
 
 fn get_channel_usage(
-    used_duration: &Either<Time, HashMap<String, Time>>,
-    channels: &[String],
+    used_duration: &Either<Time, HashMap<ChannelId, Time>>,
+    channels: &[ChannelId],
 ) -> Time {
     match used_duration {
         Either::Left(v) => *v,

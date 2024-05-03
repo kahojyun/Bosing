@@ -4,12 +4,12 @@ use super::{
     ArrangeContext, ArrangeResult, ArrangeResultVariant, MeasureContext, MeasureResult,
     MeasureResultVariant, Schedule,
 };
-use crate::quant::{Amplitude, Frequency, Phase, Time};
+use crate::quant::{Amplitude, ChannelId, Frequency, Phase, ShapeId, Time};
 
 #[derive(Debug, Clone)]
 pub struct Play {
-    channel_id: [String; 1],
-    shape_id: Option<String>,
+    channel_id: [ChannelId; 1],
+    shape_id: Option<ShapeId>,
     amplitude: Amplitude,
     width: Time,
     plateau: Time,
@@ -21,8 +21,8 @@ pub struct Play {
 
 impl Play {
     pub fn new(
-        channel_id: String,
-        shape_id: Option<String>,
+        channel_id: ChannelId,
+        shape_id: Option<ShapeId>,
         amplitude: Amplitude,
         width: Time,
     ) -> Result<Self> {
@@ -82,12 +82,12 @@ impl Play {
         self
     }
 
-    pub fn channel_id(&self) -> &str {
+    pub fn channel_id(&self) -> &ChannelId {
         &self.channel_id[0]
     }
 
-    pub fn shape_id(&self) -> Option<&str> {
-        self.shape_id.as_deref()
+    pub fn shape_id(&self) -> Option<&ShapeId> {
+        self.shape_id.as_ref()
     }
 
     pub fn amplitude(&self) -> Amplitude {
@@ -138,7 +138,7 @@ impl Schedule for Play {
         Ok(ArrangeResult(arranged, ArrangeResultVariant::Simple))
     }
 
-    fn channels(&self) -> &[String] {
+    fn channels(&self) -> &[ChannelId] {
         &self.channel_id
     }
 }

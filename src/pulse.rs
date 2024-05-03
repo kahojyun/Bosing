@@ -12,7 +12,7 @@ use numpy::Complex64;
 use rayon::prelude::*;
 
 use crate::{
-    quant::{AlignedIndex, Amplitude, Frequency, Phase, Time},
+    quant::{AlignedIndex, Amplitude, ChannelId, Frequency, Phase, Time},
     shape::Shape,
 };
 
@@ -89,24 +89,24 @@ pub struct PulseList {
 #[derive(Debug, Clone)]
 pub struct Crosstalk<'a> {
     matrix: ArrayView2<'a, f64>,
-    names: Vec<String>,
+    names: Vec<ChannelId>,
 }
 
 impl<'a> Crosstalk<'a> {
-    pub fn new(matrix: ArrayView2<'a, f64>, names: Vec<String>) -> Self {
+    pub fn new(matrix: ArrayView2<'a, f64>, names: Vec<ChannelId>) -> Self {
         Self { matrix, names }
     }
 }
 
 #[derive(Debug)]
 pub struct Sampler<'a> {
-    channels: HashMap<String, Channel<'a>>,
-    pulse_lists: HashMap<String, PulseList>,
+    channels: HashMap<ChannelId, Channel<'a>>,
+    pulse_lists: HashMap<ChannelId, PulseList>,
     crosstalk: Option<Crosstalk<'a>>,
 }
 
 impl<'a> Sampler<'a> {
-    pub fn new(pulse_lists: HashMap<String, PulseList>) -> Self {
+    pub fn new(pulse_lists: HashMap<ChannelId, PulseList>) -> Self {
         Self {
             channels: HashMap::new(),
             pulse_lists,
@@ -116,7 +116,7 @@ impl<'a> Sampler<'a> {
 
     pub fn add_channel(
         &mut self,
-        name: String,
+        name: ChannelId,
         waveform: ArrayViewMut2<'a, f64>,
         sample_rate: Frequency,
         delay: Time,
@@ -133,7 +133,7 @@ impl<'a> Sampler<'a> {
         );
     }
 
-    pub fn set_crosstalk(&mut self, crosstalk: ArrayView2<'a, f64>, names: Vec<String>) {
+    pub fn set_crosstalk(&mut self, crosstalk: ArrayView2<'a, f64>, names: Vec<ChannelId>) {
         self.crosstalk = Some(Crosstalk::new(crosstalk, names));
     }
 
@@ -143,10 +143,10 @@ impl<'a> Sampler<'a> {
                 .names
                 .iter()
                 .enumerate()
-                .map(|(i, name)| (name.as_str(), i))
+                .map(|(i, name)| (name, i))
                 .collect::<HashMap<_, _>>();
             self.channels.into_par_iter().for_each(|(n, c)| {
-                let row_index = ct_lookup.get(n.as_str()).copied();
+                let row_index = ct_lookup.get(&n).copied();
                 if let Some(row_index) = row_index {
                     let row = crosstalk.matrix.slice(s![row_index, ..]);
                     let lists = row
