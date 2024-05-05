@@ -1,10 +1,9 @@
-use anyhow::{bail, Result};
+use anyhow::Result;
 use hashbrown::HashMap;
-use itertools::Itertools as _;
 
 use super::{
-    arrange, measure, ArrangeContext, ArrangeResult, ArrangeResultVariant, ElementRef,
-    MeasureContext, MeasureResult, MeasureResultVariant, Schedule,
+    arrange, measure, merge_channel_ids, ArrangeContext, ArrangeResult, ArrangeResultVariant,
+    ElementRef, MeasureContext, MeasureResult, MeasureResultVariant, Schedule,
 };
 use crate::{
     quant::{ChannelId, Time},
@@ -39,12 +38,7 @@ impl Stack {
     }
 
     pub fn with_children(mut self, children: Vec<ElementRef>) -> Self {
-        let channel_ids = children
-            .iter()
-            .flat_map(|e| e.variant.channels())
-            .unique()
-            .cloned()
-            .collect();
+        let channel_ids = merge_channel_ids(children.iter().map(|e| e.variant.channels()));
         self.children = children;
         self.channel_ids = channel_ids;
         self

@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use anyhow::{bail, Result};
+use hashbrown::HashSet;
 
 use crate::{
     quant::{ChannelId, Time},
@@ -396,3 +397,12 @@ impl_variant!(
     Play, ShiftPhase, SetPhase, ShiftFreq, SetFreq, SwapPhase, Barrier, Repeat, Stack, Absolute,
     Grid,
 );
+
+fn merge_channel_ids<'a, I>(ids: I) -> Vec<ChannelId>
+where
+    I: IntoIterator,
+    I::Item: IntoIterator<Item = &'a ChannelId>,
+{
+    let set = ids.into_iter().flatten().collect::<HashSet<_>>();
+    set.into_iter().cloned().collect()
+}
