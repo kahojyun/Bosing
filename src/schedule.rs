@@ -2,6 +2,8 @@ use std::sync::Arc;
 
 use anyhow::{bail, Result};
 use hashbrown::HashSet;
+#[cfg(test)]
+use mockall::automock;
 
 use crate::{
     quant::{ChannelId, Time},
@@ -115,6 +117,12 @@ struct ArrangeContext<'a> {
     final_duration: Time,
     options: &'a ScheduleOptions,
     measured_self: &'a MeasuredElement,
+}
+
+#[cfg_attr(test, automock)]
+trait Measure {
+    fn measure(&self) -> Time;
+    fn channels(&self) -> &[ChannelId];
 }
 
 trait Schedule {
