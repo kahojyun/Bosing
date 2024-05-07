@@ -123,6 +123,7 @@ struct ArrangeContext<'a> {
 trait Measure {
     fn measure(&self) -> Time;
     fn channels(&self) -> &[ChannelId];
+    fn alignment(&self) -> Alignment;
 }
 
 trait Schedule {

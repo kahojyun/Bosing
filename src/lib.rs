@@ -1,7 +1,7 @@
 //! Although Element struct may contains [`Py<Element>`] as children, it is not
 //! possible to create cyclic references because we don't allow mutate the
 //! children after creation.
-use std::{borrow::Borrow, fmt::Debug, sync::Arc};
+use std::{borrow::Borrow, fmt::Debug, str::FromStr, sync::Arc};
 
 use hashbrown::HashMap;
 use indoc::indoc;
@@ -1595,23 +1595,46 @@ impl GridLength {
         if let Ok(v) = obj.extract() {
             return Py::new(py, GridLength::fixed(v)?);
         }
-        if let Ok(s) = obj.extract::<&str>() {
-            if s == "auto" {
-                return Py::new(py, GridLength::auto());
-            }
-            if s == "*" {
-                return Py::new(py, GridLength::star(1.0)?);
-            }
-            if let Some(v) = s.strip_suffix('*').and_then(|x| x.parse().ok()) {
-                return Py::new(py, GridLength::star(v)?);
-            }
-            if let Ok(v) = s.parse() {
-                return Py::new(py, GridLength::fixed(v)?);
-            }
+        if let Ok(s) = obj.extract() {
+            return Py::new(py, GridLength::from_str(s)?);
         }
         Err(PyValueError::new_err(
             "Failed to convert the value to GridLength.",
         ))
+    }
+}
+
+impl GridLength {
+    fn is_auto(&self) -> bool {
+        self.unit == GridLengthUnit::Auto
+    }
+
+    fn is_star(&self) -> bool {
+        self.unit == GridLengthUnit::Star
+    }
+
+    fn is_fixed(&self) -> bool {
+        self.unit == GridLengthUnit::Seconds
+    }
+}
+
+impl FromStr for GridLength {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if s == "auto" {
+            return Ok(GridLength::auto());
+        }
+        if s == "*" {
+            return Ok(GridLength::star(1.0)?);
+        }
+        if let Some(v) = s.strip_suffix('*').and_then(|x| x.parse().ok()) {
+            return Ok(GridLength::star(v)?);
+        }
+        if let Ok(v) = s.parse() {
+            return Ok(GridLength::fixed(v)?);
+        }
+        Err(anyhow::anyhow!("Invalid GridLength string: {}", s))
     }
 }
 
@@ -1782,6 +1805,7 @@ impl Grid {
                 schedule::GridEntry::new(element)
                     .with_column(x.column)
                     .with_span(x.span)
+                    .expect("Should be checked in GridEntry::new")
             })
             .collect();
         let variant = schedule::Grid::new()
@@ -1832,6 +1856,7 @@ impl Grid {
                 schedule::GridEntry::new(element)
                     .with_column(x.column)
                     .with_span(x.span)
+                    .expect("Should be checked in GridEntry::new")
             })
             .collect();
         let rust_base = &slf.downcast::<Element>()?.get().0;

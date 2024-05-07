@@ -3,11 +3,11 @@ use itertools::Itertools as _;
 
 use super::{
     arrange, measure, merge_channel_ids, Alignment, ArrangeContext, ArrangeResult,
-    ArrangeResultVariant, ElementRef, MeasureResult, MeasureResultVariant, Schedule,
+    ArrangeResultVariant, ElementRef, Measure, MeasureResult, MeasureResultVariant, Schedule,
 };
 use crate::{
     quant::{ChannelId, Time},
-    GridLength, GridLengthUnit,
+    GridLength,
 };
 
 #[derive(Debug, Clone)]
@@ -31,9 +31,12 @@ impl GridEntry {
         self
     }
 
-    pub fn with_span(mut self, span: usize) -> Self {
+    pub fn with_span(mut self, span: usize) -> Result<Self> {
+        if span == 0 {
+            bail!("Span should be greater than 0");
+        }
         self.span = span;
-        self
+        Ok(self)
     }
 }
 
@@ -82,71 +85,23 @@ impl Grid {
 
 impl Schedule for Grid {
     fn measure(&self) -> MeasureResult {
-        let columns = &self.columns;
-        let n_col = columns.len();
+        let mut helper = Helper::new(&self.columns);
         let measured_children: Vec<_> = self
             .children
             .iter()
             .map(|e| measure(e.element.clone()))
             .collect();
-        let mut col_sizes: Vec<_> = columns
-            .iter()
-            .map(|c| match c.unit {
-                GridLengthUnit::Seconds => {
-                    Time::new(c.value).expect("Should be checked in GridLenth")
-                }
-                _ => Time::ZERO,
-            })
-            .collect();
         let it = measured_children
             .iter()
-            .zip_eq(self.children.iter())
+            .zip(self.children.iter())
             .map(|(m, e)| (m.duration, e.column, e.span));
         for (dur, col, span) in it.clone() {
-            let col = col.min(n_col - 1);
-            let span = span.min(n_col - col);
-            if span == 1 && columns[col].unit != GridLengthUnit::Seconds {
-                col_sizes[col] = col_sizes[col].max(dur);
-            }
+            helper.expand_col_to_fit(col, span, dur);
         }
         for (dur, col, span) in it {
-            let col = col.min(n_col - 1);
-            let span = span.min(n_col - col);
-            if span == 1 {
-                continue;
-            }
-            let col_size: Time = col_sizes.iter().skip(col).take(span).sum();
-            if col_size >= dur {
-                continue;
-            }
-            let n_star = columns
-                .iter()
-                .skip(col)
-                .take(span)
-                .filter(|c| c.unit == GridLengthUnit::Star)
-                .count();
-            if n_star == 0 {
-                let n_auto = columns
-                    .iter()
-                    .skip(col)
-                    .take(span)
-                    .filter(|c| c.unit == GridLengthUnit::Auto)
-                    .count();
-                if n_auto == 0 {
-                    continue;
-                }
-                let inc = (dur - col_size) / n_auto as f64;
-                col_sizes
-                    .iter_mut()
-                    .zip(columns.iter())
-                    .skip(col)
-                    .take(span)
-                    .filter(|(_, c)| c.unit == GridLengthUnit::Auto)
-                    .for_each(|(s, _)| *s += inc);
-            } else {
-                expand_col_by_ratio(&mut col_sizes, col, span, dur - col_size, columns)
-            }
+            helper.expand_span_to_fit(col, span, dur);
         }
+        let col_sizes = helper.into_col_sizes();
         let wanted_duration = col_sizes.iter().sum();
         MeasureResult(
             wanted_duration,
@@ -155,34 +110,19 @@ impl Schedule for Grid {
     }
 
     fn arrange(&self, context: &ArrangeContext) -> Result<ArrangeResult> {
-        let (measured_children, mut col_sizes) = match &context.measured_self.data {
+        let (measured_children, col_sizes) = match &context.measured_self.data {
             MeasureResultVariant::Grid(children, col_sizes) => (children, col_sizes.clone()),
             _ => bail!("Invalid measure data"),
         };
-        let columns = &self.columns;
-        let n_col = columns.len();
-        let min_duration: Time = col_sizes.iter().sum();
-        expand_col_by_ratio(
-            &mut col_sizes,
-            0,
-            n_col,
-            context.final_duration - min_duration,
-            columns,
-        );
-        let col_starts: Vec<_> = std::iter::once(Time::ZERO)
-            .chain(col_sizes.iter().copied())
-            .scan(Time::ZERO, |state, x| {
-                *state += x;
-                Some(*state)
-            })
-            .collect();
+        let mut helper = Helper::new_with_col_sizes(&self.columns, col_sizes);
+        helper.expand_span_to_fit(0, self.columns.len(), context.final_duration);
+        let col_starts = helper.col_starts();
         let arranged_children = measured_children
             .iter()
             .zip(self.children.iter())
             .map(|(m, c)| (m, c.column, c.span))
             .map(|(measured, col, span)| {
-                let col = col.min(n_col - 1);
-                let span = span.min(n_col - col);
+                let (col, span) = helper.normalize_span(col, span);
                 let span_duration = col_starts[col + span] - col_starts[col];
                 let child_duration = match measured.element.common.alignment {
                     Alignment::Stretch => span_duration,
@@ -208,37 +148,184 @@ impl Schedule for Grid {
     }
 }
 
-fn expand_col_by_ratio(
-    col_sizes: &mut [Time],
-    start: usize,
-    span: usize,
-    mut left_dur: Time,
-    columns: &[GridLength],
-) {
-    let mut sorted: Vec<_> = col_sizes
-        .iter_mut()
-        .zip(columns)
-        .skip(start)
-        .take(span)
-        .filter(|(_, c)| c.unit == GridLengthUnit::Star)
-        .map(|(s, c)| (*s / c.value, s, c.value))
-        .sorted_by_key(|(k, _, _)| *k)
-        .collect();
-    let mut star_count = 0.0;
-    for i in 0..sorted.len() {
-        let next_ratio = if i + 1 < sorted.len() {
-            sorted[i + 1].0
-        } else {
-            Time::INFINITY
-        };
-        star_count += sorted[i].2;
-        left_dur += *sorted[i].1;
-        let new_ratio = left_dur / star_count;
-        if new_ratio < next_ratio {
-            for (_, s, v) in sorted.iter_mut().take(i + 1) {
-                **s = new_ratio * *v;
+/// Measure grid children and return a tuple of minimum duration, minimum column
+/// sizes and child offsets.
+fn measure_grid<I, M>(children: I, columns: &[GridLength]) -> (Time, Vec<Time>, Vec<Time>)
+where
+    I: IntoIterator<Item = (M, usize, usize)>,
+    I::IntoIter: DoubleEndedIterator,
+    M: Measure,
+{
+    let mut helper = Helper::new(columns);
+    let children = children
+        .into_iter()
+        .map(|(m, col, span)| {
+            let dur = m.measure();
+            let alignment = m.alignment();
+            (dur, col, span, alignment)
+        })
+        .collect::<Vec<_>>();
+    for (dur, col, span, _) in &children {
+        helper.expand_col_to_fit(*col, *span, *dur);
+    }
+    for (dur, col, span, _) in &children {
+        helper.expand_span_to_fit(*col, *span, *dur);
+    }
+    let col_starts = helper.col_starts();
+    let child_offsets = children
+        .into_iter()
+        .map(|(dur, col, span, alignment)| {
+            let (col, span) = helper.normalize_span(col, span);
+            let span_duration = col_starts[col + span] - col_starts[col];
+            let child_duration = match alignment {
+                Alignment::Stretch => span_duration,
+                _ => dur,
             }
-            break;
+            .min(span_duration);
+            col_starts[col]
+                + match alignment {
+                    Alignment::End => span_duration - child_duration,
+                    Alignment::Center => (span_duration - child_duration) / 2.0,
+                    _ => Time::ZERO,
+                }
+        })
+        .collect();
+    let col_sizes = helper.into_col_sizes();
+    let total = col_sizes.iter().sum();
+    (total, col_sizes, child_offsets)
+}
+
+#[derive(Debug)]
+struct Helper<'a> {
+    col_sizes: Vec<Time>,
+    columns: &'a [GridLength],
+}
+
+impl<'a> Helper<'a> {
+    fn new(columns: &'a [GridLength]) -> Self {
+        let col_sizes = columns
+            .iter()
+            .map(|c| {
+                if c.is_fixed() {
+                    Time::new(c.value).expect("Should be checked in GridLenth")
+                } else {
+                    Time::ZERO
+                }
+            })
+            .collect();
+        Self { col_sizes, columns }
+    }
+
+    fn new_with_col_sizes(columns: &'a [GridLength], col_sizes: Vec<Time>) -> Self {
+        assert!(columns.len() == col_sizes.len());
+        Self { col_sizes, columns }
+    }
+
+    fn normalize_span(&self, col: usize, span: usize) -> (usize, usize) {
+        let n_col = self.columns.len();
+        let col = col.min(n_col - 1);
+        let span = span.min(n_col - col);
+        (col, span)
+    }
+
+    /// Expand span of columns to fit the new duration, return true if expanded
+    /// or already fit.
+    fn expand_span_to_fit(&mut self, col: usize, span: usize, new_dur: Time) -> bool {
+        let (col, span) = self.normalize_span(col, span);
+        let current_dur: Time = self.col_sizes.iter().skip(col).take(span).sum();
+        if current_dur >= new_dur {
+            return true;
         }
+        if span == 1 {
+            return if !self.columns[col].is_fixed() {
+                self.col_sizes[col] = new_dur;
+                true
+            } else {
+                false
+            };
+        }
+        let left_dur = new_dur - current_dur;
+        self.expand_span_by_star_ratio(col, span, left_dur)
+            || self.expand_span_by_auto_count(col, span, left_dur)
+    }
+
+    /// Expand only one column to fit the new duration, return true if expanded
+    fn expand_col_to_fit(&mut self, col: usize, span: usize, new_dur: Time) -> bool {
+        let (col, span) = self.normalize_span(col, span);
+        if span == 1 {
+            self.expand_span_to_fit(col, span, new_dur)
+        } else {
+            false
+        }
+    }
+
+    fn expand_span_by_auto_count(&mut self, col: usize, span: usize, left_dur: Time) -> bool {
+        let n_auto = self
+            .columns
+            .iter()
+            .skip(col)
+            .take(span)
+            .filter(|c| c.is_auto())
+            .count();
+        if n_auto == 0 {
+            return false;
+        }
+        let inc = left_dur / n_auto as f64;
+        self.col_sizes
+            .iter_mut()
+            .zip(self.columns)
+            .skip(col)
+            .take(span)
+            .filter(|(_, c)| c.is_auto())
+            .for_each(|(s, _)| *s += inc);
+        true
+    }
+
+    fn expand_span_by_star_ratio(&mut self, col: usize, span: usize, mut left_dur: Time) -> bool {
+        let mut sorted: Vec<_> = self
+            .col_sizes
+            .iter_mut()
+            .zip(self.columns)
+            .skip(col)
+            .take(span)
+            .filter(|(_, c)| c.is_star())
+            .map(|(s, c)| (*s / c.value, s, c.value))
+            .sorted_by_key(|(k, _, _)| *k)
+            .collect();
+        if sorted.is_empty() {
+            return false;
+        }
+        let mut star_count = 0.0;
+        for i in 0..sorted.len() {
+            let next_ratio = if i + 1 < sorted.len() {
+                sorted[i + 1].0
+            } else {
+                Time::INFINITY
+            };
+            star_count += sorted[i].2;
+            left_dur += *sorted[i].1;
+            let new_ratio = left_dur / star_count;
+            if new_ratio < next_ratio {
+                for (_, s, v) in sorted.iter_mut().take(i + 1) {
+                    **s = new_ratio * *v;
+                }
+                break;
+            }
+        }
+        true
+    }
+
+    fn col_starts(&self) -> Vec<Time> {
+        std::iter::once(Time::ZERO)
+            .chain(self.col_sizes.iter().copied())
+            .scan(Time::ZERO, |state, x| {
+                *state += x;
+                Some(*state)
+            })
+            .collect()
+    }
+
+    fn into_col_sizes(self) -> Vec<Time> {
+        self.col_sizes
     }
 }
