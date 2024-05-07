@@ -3,8 +3,7 @@ use itertools::Itertools as _;
 
 use super::{
     arrange, measure, merge_channel_ids, Alignment, ArrangeContext, ArrangeResult,
-    ArrangeResultVariant, ElementRef, MeasureContext, MeasureResult, MeasureResultVariant,
-    Schedule,
+    ArrangeResultVariant, ElementRef, MeasureResult, MeasureResultVariant, Schedule,
 };
 use crate::{
     quant::{ChannelId, Time},
@@ -82,13 +81,13 @@ impl Grid {
 }
 
 impl Schedule for Grid {
-    fn measure(&self, context: &MeasureContext) -> MeasureResult {
+    fn measure(&self) -> MeasureResult {
         let columns = &self.columns;
         let n_col = columns.len();
         let measured_children: Vec<_> = self
             .children
             .iter()
-            .map(|e| measure(e.element.clone(), context.max_duration))
+            .map(|e| measure(e.element.clone()))
             .collect();
         let mut col_sizes: Vec<_> = columns
             .iter()

@@ -1,8 +1,8 @@
 use anyhow::{bail, Result};
 
 use super::{
-    ArrangeContext, ArrangeResult, ArrangeResultVariant, MeasureContext, MeasureResult,
-    MeasureResultVariant, Schedule,
+    ArrangeContext, ArrangeResult, ArrangeResultVariant, MeasureResult, MeasureResultVariant,
+    Schedule,
 };
 use crate::quant::{Amplitude, ChannelId, Frequency, Phase, ShapeId, Time};
 
@@ -120,7 +120,7 @@ impl Play {
 }
 
 impl Schedule for Play {
-    fn measure(&self, _context: &MeasureContext) -> MeasureResult {
+    fn measure(&self) -> MeasureResult {
         let wanted_duration = if self.flexible {
             self.width
         } else {

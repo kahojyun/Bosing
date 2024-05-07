@@ -2,7 +2,7 @@ use anyhow::{bail, Result};
 
 use super::{
     arrange, measure, merge_channel_ids, ArrangeContext, ArrangeResult, ArrangeResultVariant,
-    ElementRef, MeasureContext, MeasureResult, MeasureResultVariant, Schedule,
+    ElementRef, MeasureResult, MeasureResultVariant, Schedule,
 };
 use crate::quant::{ChannelId, Time};
 
@@ -58,11 +58,11 @@ impl Absolute {
 }
 
 impl Schedule for Absolute {
-    fn measure(&self, context: &MeasureContext) -> MeasureResult {
+    fn measure(&self) -> MeasureResult {
         let mut max_time = Time::ZERO;
         let mut measured_children = vec![];
         for e in &self.children {
-            let measured_child = measure(e.element.clone(), context.max_duration);
+            let measured_child = measure(e.element.clone());
             max_time = max_time.max(e.time + measured_child.duration);
             measured_children.push(measured_child);
         }

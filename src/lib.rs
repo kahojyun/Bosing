@@ -1959,7 +1959,7 @@ fn build_pulse_lists(
     allow_oversize: bool,
 ) -> PyResult<HashMap<ChannelId, PulseList>> {
     let root = schedule.get().0.clone();
-    let measured = schedule::measure(root, Time::INFINITY);
+    let measured = schedule::measure(root);
     let arrange_options = schedule::ScheduleOptions {
         time_tolerance,
         allow_oversize,

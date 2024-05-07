@@ -2,7 +2,7 @@ use anyhow::{bail, Result};
 
 use super::{
     arrange, measure, ArrangeContext, ArrangeResult, ArrangeResultVariant, ElementRef,
-    MeasureContext, MeasureResult, MeasureResultVariant, Schedule,
+    MeasureResult, MeasureResultVariant, Schedule,
 };
 use crate::quant::{ChannelId, Time};
 
@@ -40,13 +40,12 @@ impl Repeat {
 }
 
 impl Schedule for Repeat {
-    fn measure(&self, context: &MeasureContext) -> MeasureResult {
+    fn measure(&self) -> MeasureResult {
         if self.count == 0 {
             return MeasureResult(Time::ZERO, MeasureResultVariant::Simple);
         }
         let n = self.count as f64;
-        let duration_per_repeat = (context.max_duration - self.spacing * (n - 1.0)) / n;
-        let measured_child = measure(self.child.clone(), duration_per_repeat);
+        let measured_child = measure(self.child.clone());
         let wanted_duration = measured_child.duration * n + self.spacing * (n - 1.0);
         MeasureResult(
             wanted_duration,

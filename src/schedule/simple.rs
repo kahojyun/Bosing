@@ -1,8 +1,8 @@
 use anyhow::{bail, Result};
 
 use super::{
-    ArrangeContext, ArrangeResult, ArrangeResultVariant, MeasureContext, MeasureResult,
-    MeasureResultVariant, Schedule,
+    ArrangeContext, ArrangeResult, ArrangeResultVariant, MeasureResult, MeasureResultVariant,
+    Schedule,
 };
 use crate::quant::{ChannelId, Frequency, Phase, Time};
 
@@ -14,7 +14,7 @@ impl<T> Schedule for T
 where
     T: SimpleElement,
 {
-    fn measure(&self, _context: &MeasureContext) -> MeasureResult {
+    fn measure(&self) -> MeasureResult {
         MeasureResult(Time::ZERO, MeasureResultVariant::Simple)
     }
 

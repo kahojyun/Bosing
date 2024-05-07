@@ -3,7 +3,7 @@ use hashbrown::HashMap;
 
 use super::{
     arrange, measure, merge_channel_ids, ArrangeContext, ArrangeResult, ArrangeResultVariant,
-    ElementRef, MeasureContext, MeasureResult, MeasureResultVariant, Schedule,
+    ElementRef, MeasureResult, MeasureResultVariant, Schedule,
 };
 use crate::{
     quant::{ChannelId, Time},
@@ -50,14 +50,13 @@ impl Stack {
 }
 
 impl Schedule for Stack {
-    fn measure(&self, context: &MeasureContext) -> MeasureResult {
+    fn measure(&self) -> MeasureResult {
         let mut helper = Helper::new(self.channels());
         let measured_children =
             map_and_collect_by_direction(&self.children, self.direction, |child| {
                 let child_channels = child.variant.channels();
                 let channel_used_duration = helper.get_usage(child_channels);
-                let child_available_duration = context.max_duration - channel_used_duration;
-                let measured_child = measure(child.clone(), child_available_duration);
+                let measured_child = measure(child.clone());
                 let channel_used_duration = channel_used_duration + measured_child.duration;
                 helper.update_usage(channel_used_duration, child_channels);
                 Ok(measured_child)

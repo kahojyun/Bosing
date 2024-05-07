@@ -111,11 +111,6 @@ pub enum ArrangeResultVariant {
 struct ArrangeResult(Time, ArrangeResultVariant);
 
 #[derive(Debug, Clone)]
-struct MeasureContext {
-    max_duration: Time,
-}
-
-#[derive(Debug, Clone)]
 struct ArrangeContext<'a> {
     final_duration: Time,
     options: &'a ScheduleOptions,
@@ -124,7 +119,7 @@ struct ArrangeContext<'a> {
 
 trait Schedule {
     /// Measure the element and return desired inner size and measured children.
-    fn measure(&self, context: &MeasureContext) -> MeasureResult;
+    fn measure(&self) -> MeasureResult;
     /// Arrange the element and return final inner size and arranged children.
     fn arrange(&self, context: &ArrangeContext) -> Result<ArrangeResult>;
     /// Channels used by this element. Empty means all of parent's channels.
@@ -135,20 +130,15 @@ fn clamp_duration(duration: Time, min_duration: Time, max_duration: Time) -> Tim
     duration.min(max_duration).max(min_duration)
 }
 
-pub fn measure(element: ElementRef, available_duration: Time) -> MeasuredElement {
-    assert!(available_duration.value() >= 0.0);
+pub fn measure(element: ElementRef) -> MeasuredElement {
     let common = &element.common;
     let total_margin = common.total_margin();
     assert!(total_margin.value().is_finite());
     let (min_duration, max_duration) = common.clamp_min_max_duration();
-    let inner_duration = (available_duration - total_margin).max(Time::ZERO);
-    let inner_duration = clamp_duration(inner_duration, min_duration, max_duration);
-    let result = element.variant.measure(&MeasureContext {
-        max_duration: inner_duration,
-    });
+    let result = element.variant.measure();
     let unclipped_duration = (result.0 + total_margin).max(Time::ZERO);
     let duration = clamp_duration(unclipped_duration, min_duration, max_duration) + total_margin;
-    let duration = clamp_duration(duration, Time::ZERO, available_duration);
+    let duration = duration.max(Time::ZERO);
     MeasuredElement {
         element,
         unclipped_duration,
@@ -372,9 +362,9 @@ impl<'a> TryFrom<&'a ElementVariant> for &'a $variant {
 )*
 
 impl Schedule for ElementVariant {
-    fn measure(&self, context: &MeasureContext) -> MeasureResult {
+    fn measure(&self) -> MeasureResult {
         match self {
-            $(ElementVariant::$variant(v) => v.measure(context),)*
+            $(ElementVariant::$variant(v) => v.measure(),)*
         }
     }
 
