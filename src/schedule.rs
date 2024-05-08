@@ -16,6 +16,7 @@ use crate::{
     quant::{ChannelId, Time},
     Alignment,
 };
+
 pub(crate) use absolute::{Absolute, AbsoluteEntry};
 pub(crate) use grid::{Grid, GridEntry};
 pub(crate) use play::Play;
@@ -87,7 +88,6 @@ struct ArrangeContext<'a> {
 trait Measure {
     fn measure(&self) -> Time;
     fn channels(&self) -> &[ChannelId];
-    fn alignment(&self) -> Alignment;
 }
 
 trait Schedule {

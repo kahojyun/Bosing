@@ -160,7 +160,7 @@ impl Schedule for Grid {
 
 /// Measure grid children and return a tuple of minimum duration, minimum column
 /// sizes and child offsets.
-fn measure_grid<I, M>(children: I, columns: &[GridLength]) -> (Time, Vec<Time>, Vec<Time>)
+fn measure_grid<I, M>(children: I, columns: &[GridLength]) -> (Time, Vec<Time>)
 where
     I: IntoIterator<Item = (M, usize, usize)>,
     I::IntoIter: DoubleEndedIterator,
@@ -171,44 +171,62 @@ where
         .into_iter()
         .map(|(m, column, span)| {
             let duration = m.measure();
-            let alignment = m.alignment();
-            (duration, column, span, alignment)
+            (duration, column, span)
         })
         .collect::<Vec<_>>();
-    for &(duration, column, span, _) in &children {
+    for &(duration, column, span) in &children {
         let span = helper.normalize_span(column, span);
         if span.span() == 1 {
             helper.expand_span_to_fit(span, duration);
         }
     }
-    for &(duration, column, span, _) in &children {
+    for &(duration, column, span) in &children {
         let span = helper.normalize_span(column, span);
         if span.span() != 1 {
             helper.expand_span_to_fit(span, duration);
         }
     }
-    let column_starts = helper.column_starts();
-    let child_offsets = children
-        .into_iter()
-        .map(|(duration, column, span, alignment)| {
-            let span = helper.normalize_span(column, span);
-            let start = span.start();
-            let span = span.span();
-            let span_duration = column_starts[start + span] - column_starts[start];
-            let child_duration = match alignment {
-                Alignment::Stretch => span_duration,
-                _ => duration,
-            }
-            .min(span_duration);
-            column_starts[start]
-                + match alignment {
-                    Alignment::End => span_duration - child_duration,
-                    Alignment::Center => (span_duration - child_duration) / 2.0,
-                    _ => Time::ZERO,
-                }
-        })
-        .collect();
     let column_sizes = helper.into_column_sizes();
     let total_duration = column_sizes.iter().sum();
-    (total_duration, column_sizes, child_offsets)
+    (total_duration, column_sizes)
+}
+
+#[cfg(test)]
+mod tests {
+    use test_case::test_case;
+
+    use crate::schedule::MockMeasure;
+
+    use super::*;
+
+    fn time_vec(v: &[f64]) -> Vec<Time> {
+        v.iter().map(|&d| Time::new(d).unwrap()).collect()
+    }
+
+    fn create_mock(duration: f64) -> MockMeasure {
+        let mut mock = MockMeasure::new();
+        mock.expect_measure()
+            .return_const(Time::new(duration).unwrap())
+            .once();
+        mock
+    }
+
+    #[test_case(&[(40.0, 0, 1)], &["30"], (30.0, vec![30.0]); "not enough size")]
+    #[test_case(
+        &[(40.0, 0, 1), (40.0, 2, 1), (100.0, 0, 3)],
+        &["auto", "*", "auto"],
+        (100.0, vec![40.0, 20.0, 40.0]);
+        "sandwiched"
+    )]
+    #[test_case(&[], &["*"], (0.0, vec![0.0]); "empty star")]
+    #[test_case(&[], &["10"], (10.0, vec![10.0]); "empty fixed")]
+    fn measure_grid(children: &[(f64, usize, usize)], columns: &[&str], expected: (f64, Vec<f64>)) {
+        let children = children.iter().map(|&(d, c, s)| (create_mock(d), c, s));
+        let columns: Vec<GridLength> = columns.iter().map(|s| s.parse().unwrap()).collect();
+
+        let (total_duration, column_sizes) = super::measure_grid(children, &columns);
+
+        assert_eq!(total_duration, Time::new(expected.0).unwrap());
+        assert_eq!(column_sizes, time_vec(&expected.1));
+    }
 }
