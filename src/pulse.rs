@@ -21,14 +21,14 @@ use crate::{
 /// If `shape` is `None`, constructor will set `plateau` to `width + plateau`
 /// and `width` to `0`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct Envelope {
+pub(crate) struct Envelope {
     shape: Option<Shape>,
     width: Time,
     plateau: Time,
 }
 
 impl Envelope {
-    pub fn new(mut shape: Option<Shape>, mut width: Time, mut plateau: Time) -> Self {
+    pub(crate) fn new(mut shape: Option<Shape>, mut width: Time, mut plateau: Time) -> Self {
         if shape.is_none() {
             plateau += width;
             width = Time::ZERO;
@@ -82,31 +82,31 @@ impl Mul<f64> for PulseAmplitude {
 }
 
 #[derive(Debug, Clone)]
-pub struct PulseList {
+pub(crate) struct PulseList {
     items: HashMap<ListBin, Vec<(Time, PulseAmplitude)>>,
 }
 
 #[derive(Debug, Clone)]
-pub struct Crosstalk<'a> {
+pub(crate) struct Crosstalk<'a> {
     matrix: ArrayView2<'a, f64>,
     names: Vec<ChannelId>,
 }
 
 impl<'a> Crosstalk<'a> {
-    pub fn new(matrix: ArrayView2<'a, f64>, names: Vec<ChannelId>) -> Self {
+    pub(crate) fn new(matrix: ArrayView2<'a, f64>, names: Vec<ChannelId>) -> Self {
         Self { matrix, names }
     }
 }
 
 #[derive(Debug)]
-pub struct Sampler<'a> {
+pub(crate) struct Sampler<'a> {
     channels: HashMap<ChannelId, Channel<'a>>,
     pulse_lists: HashMap<ChannelId, PulseList>,
     crosstalk: Option<Crosstalk<'a>>,
 }
 
 impl<'a> Sampler<'a> {
-    pub fn new(pulse_lists: HashMap<ChannelId, PulseList>) -> Self {
+    pub(crate) fn new(pulse_lists: HashMap<ChannelId, PulseList>) -> Self {
         Self {
             channels: HashMap::new(),
             pulse_lists,
@@ -114,7 +114,7 @@ impl<'a> Sampler<'a> {
         }
     }
 
-    pub fn add_channel(
+    pub(crate) fn add_channel(
         &mut self,
         name: ChannelId,
         waveform: ArrayViewMut2<'a, f64>,
@@ -133,11 +133,11 @@ impl<'a> Sampler<'a> {
         );
     }
 
-    pub fn set_crosstalk(&mut self, crosstalk: ArrayView2<'a, f64>, names: Vec<ChannelId>) {
+    pub(crate) fn set_crosstalk(&mut self, crosstalk: ArrayView2<'a, f64>, names: Vec<ChannelId>) {
         self.crosstalk = Some(Crosstalk::new(crosstalk, names));
     }
 
-    pub fn sample(self, time_tolerance: Time) {
+    pub(crate) fn sample(self, time_tolerance: Time) {
         if let Some(crosstalk) = self.crosstalk {
             let ct_lookup = crosstalk
                 .names
@@ -191,14 +191,14 @@ struct Channel<'a> {
 }
 
 #[derive(Debug, Clone)]
-pub struct PulseListBuilder {
+pub(crate) struct PulseListBuilder {
     items: HashMap<ListBin, Vec<(Time, PulseAmplitude)>>,
     amp_tolerance: Amplitude,
     time_tolerance: Time,
 }
 
 impl PulseListBuilder {
-    pub fn new(amp_tolerance: Amplitude, time_tolerance: Time) -> Self {
+    pub(crate) fn new(amp_tolerance: Amplitude, time_tolerance: Time) -> Self {
         Self {
             items: HashMap::new(),
             amp_tolerance,
@@ -206,7 +206,7 @@ impl PulseListBuilder {
         }
     }
 
-    pub fn push(
+    pub(crate) fn push(
         &mut self,
         envelope: Envelope,
         global_freq: Frequency,
@@ -235,7 +235,7 @@ impl PulseListBuilder {
         self.items.entry(bin).or_default().push((time, amplitude));
     }
 
-    pub fn build(mut self) -> PulseList {
+    pub(crate) fn build(mut self) -> PulseList {
         for pulses in self.items.values_mut() {
             pulses.sort_unstable_by_key(|(time, _)| *time);
             let mut i = 0;

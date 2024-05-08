@@ -12,14 +12,14 @@ use ordered_float::NotNan;
 /// Internally, shape instances are cached such that we can compare and hash
 /// by instance address.
 #[derive(Debug, Clone)]
-pub struct Shape(Arc<ShapeVariant>);
+pub(crate) struct Shape(Arc<ShapeVariant>);
 
 impl Shape {
-    pub fn new_hann() -> Self {
+    pub(crate) fn new_hann() -> Self {
         Self(get_shape_instance(ShapeKey::Hann))
     }
 
-    pub fn new_interp(knots: Vec<f64>, controls: Vec<f64>, degree: usize) -> Result<Self> {
+    pub(crate) fn new_interp(knots: Vec<f64>, controls: Vec<f64>, degree: usize) -> Result<Self> {
         let knots = knots
             .into_iter()
             .map(NotNan::new)
@@ -32,7 +32,7 @@ impl Shape {
         Ok(Self(get_shape_instance(key)))
     }
 
-    pub fn sample_array(&self, x0: f64, dx: f64, array: &mut [f64]) {
+    pub(crate) fn sample_array(&self, x0: f64, dx: f64, array: &mut [f64]) {
         self.0.sample_array(x0, dx, array);
     }
 }

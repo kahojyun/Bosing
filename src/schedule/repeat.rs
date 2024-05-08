@@ -7,14 +7,14 @@ use super::{
 use crate::quant::{ChannelId, Time};
 
 #[derive(Debug, Clone)]
-pub struct Repeat {
+pub(crate) struct Repeat {
     child: ElementRef,
     count: usize,
     spacing: Time,
 }
 
 impl Repeat {
-    pub fn new(child: ElementRef, count: usize) -> Self {
+    pub(crate) fn new(child: ElementRef, count: usize) -> Self {
         Self {
             child,
             count,
@@ -22,7 +22,7 @@ impl Repeat {
         }
     }
 
-    pub fn with_spacing(mut self, spacing: Time) -> Result<Self> {
+    pub(crate) fn with_spacing(mut self, spacing: Time) -> Result<Self> {
         if !spacing.value().is_finite() {
             bail!("Invalid spacing {:?}", spacing);
         }
@@ -30,11 +30,11 @@ impl Repeat {
         Ok(self)
     }
 
-    pub fn count(&self) -> usize {
+    pub(crate) fn count(&self) -> usize {
         self.count
     }
 
-    pub fn spacing(&self) -> Time {
+    pub(crate) fn spacing(&self) -> Time {
         self.spacing
     }
 }

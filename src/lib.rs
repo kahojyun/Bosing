@@ -179,7 +179,7 @@ impl Channel {
 /// - :attr:`Alignment.Stretch`: Stretch the element to fill the parent.
 #[pyclass(frozen)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Alignment {
+enum Alignment {
     End,
     Start,
     Center,
@@ -1155,7 +1155,7 @@ impl Repeat {
 ///     possible.
 #[pyclass(frozen)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Direction {
+enum Direction {
     Backward,
     Forward,
 }
@@ -1514,7 +1514,7 @@ enum GridLengthUnit {
 /// or automatically.
 #[pyclass(get_all, frozen)]
 #[derive(Debug, Clone)]
-pub struct GridLength {
+struct GridLength {
     value: f64,
     unit: GridLengthUnit,
 }
@@ -1541,7 +1541,7 @@ impl GridLength {
     ///     GridLength: Ratio based grid length.
     #[staticmethod]
     fn star(value: f64) -> PyResult<Self> {
-        if !value.is_finite() || value <= 0.0 {
+        if !(value.is_finite() && value > 0.0) {
             return Err(PyValueError::new_err("The value must be greater than 0."));
         }
         Ok(GridLength {
@@ -1558,7 +1558,7 @@ impl GridLength {
     ///     GridLength: Fixed grid length.
     #[staticmethod]
     fn fixed(value: f64) -> PyResult<Self> {
-        if !value.is_finite() || value < 0.0 {
+        if !(value.is_finite() && value >= 0.0) {
             return Err(PyValueError::new_err(
                 "The value must be greater than or equal to 0.",
             ));

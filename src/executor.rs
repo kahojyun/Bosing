@@ -8,7 +8,7 @@ use crate::{
 };
 
 #[derive(Debug, Clone)]
-pub struct Executor {
+pub(crate) struct Executor {
     channels: HashMap<ChannelId, Channel>,
     shapes: HashMap<ShapeId, Shape>,
     amp_tolerance: Amplitude,
@@ -16,7 +16,7 @@ pub struct Executor {
 }
 
 impl Executor {
-    pub fn new(amp_tolerance: Amplitude, time_tolerance: Time) -> Self {
+    pub(crate) fn new(amp_tolerance: Amplitude, time_tolerance: Time) -> Self {
         Self {
             channels: HashMap::new(),
             shapes: HashMap::new(),
@@ -25,22 +25,22 @@ impl Executor {
         }
     }
 
-    pub fn add_channel(&mut self, name: ChannelId, base_freq: Frequency) {
+    pub(crate) fn add_channel(&mut self, name: ChannelId, base_freq: Frequency) {
         self.channels.insert(
             name,
             Channel::new(base_freq, self.amp_tolerance, self.time_tolerance),
         );
     }
 
-    pub fn add_shape(&mut self, name: ShapeId, shape: Shape) {
+    pub(crate) fn add_shape(&mut self, name: ShapeId, shape: Shape) {
         self.shapes.insert(name, shape);
     }
 
-    pub fn execute(&mut self, element: &ArrangedElement) {
+    pub(crate) fn execute(&mut self, element: &ArrangedElement) {
         self.execute_dispatch(element, Time::ZERO);
     }
 
-    pub fn into_result(self) -> HashMap<ChannelId, PulseList> {
+    pub(crate) fn into_result(self) -> HashMap<ChannelId, PulseList> {
         self.channels
             .into_iter()
             .map(|(n, b)| (n, b.pulses.build()))

@@ -7,20 +7,20 @@ use super::{
 use crate::quant::{ChannelId, Time};
 
 #[derive(Debug, Clone)]
-pub struct AbsoluteEntry {
+pub(crate) struct AbsoluteEntry {
     time: Time,
     element: ElementRef,
 }
 
 impl AbsoluteEntry {
-    pub fn new(element: ElementRef) -> Self {
+    pub(crate) fn new(element: ElementRef) -> Self {
         Self {
             time: Time::ZERO,
             element,
         }
     }
 
-    pub fn with_time(mut self, time: Time) -> Result<Self> {
+    pub(crate) fn with_time(mut self, time: Time) -> Result<Self> {
         if !time.value().is_finite() {
             bail!("Invalid time {:?}", time);
         }
@@ -30,7 +30,7 @@ impl AbsoluteEntry {
 }
 
 #[derive(Debug, Clone)]
-pub struct Absolute {
+pub(crate) struct Absolute {
     children: Vec<AbsoluteEntry>,
     channel_ids: Vec<ChannelId>,
 }
@@ -42,14 +42,14 @@ impl Default for Absolute {
 }
 
 impl Absolute {
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self {
             children: vec![],
             channel_ids: vec![],
         }
     }
 
-    pub fn with_children(mut self, children: Vec<AbsoluteEntry>) -> Self {
+    pub(crate) fn with_children(mut self, children: Vec<AbsoluteEntry>) -> Self {
         let channel_ids = merge_channel_ids(children.iter().map(|e| e.element.variant.channels()));
         self.children = children;
         self.channel_ids = channel_ids;

@@ -11,7 +11,7 @@ use crate::{
 };
 
 #[derive(Debug, Clone)]
-pub struct Stack {
+pub(crate) struct Stack {
     children: Vec<ElementRef>,
     direction: Direction,
     channel_ids: Vec<ChannelId>,
@@ -24,7 +24,7 @@ impl Default for Stack {
 }
 
 impl Stack {
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self {
             children: vec![],
             direction: Direction::Backward,
@@ -32,19 +32,19 @@ impl Stack {
         }
     }
 
-    pub fn with_direction(mut self, direction: Direction) -> Self {
+    pub(crate) fn with_direction(mut self, direction: Direction) -> Self {
         self.direction = direction;
         self
     }
 
-    pub fn with_children(mut self, children: Vec<ElementRef>) -> Self {
+    pub(crate) fn with_children(mut self, children: Vec<ElementRef>) -> Self {
         let channel_ids = merge_channel_ids(children.iter().map(|e| e.variant.channels()));
         self.children = children;
         self.channel_ids = channel_ids;
         self
     }
 
-    pub fn direction(&self) -> Direction {
+    pub(crate) fn direction(&self) -> Direction {
         self.direction
     }
 }
@@ -285,9 +285,13 @@ mod tests {
     /// Test case diagram:
     ///
     /// ```text
-    /// ch0: --| 10 |--|    |--| 20 |--
-    ///                | 20 |
-    /// ch1: --| 20 |--|    |--| 10 |--
+    ///            +----+   +----+   +----+
+    /// ch[0] -----| 10 |---|    |---| 20 |-----
+    ///            +----+   |    |   +----+
+    ///                     | 20 |
+    ///            +----+   |    |   +----+
+    /// ch[1] -----| 20 |---|    |---| 10 |-----
+    ///            +----+   +----+   +----+
     /// ```
     #[test_case(Direction::Forward, &[0.0, 0.0, 20.0, 40.0, 40.0]; "forward")]
     #[test_case(Direction::Backward, &[40.0, 40.0, 20.0, 0.0, 0.0]; "backward")]

@@ -1,3 +1,10 @@
+mod absolute;
+mod grid;
+mod play;
+mod repeat;
+mod simple;
+mod stack;
+
 use std::sync::Arc;
 
 use anyhow::{bail, Result};
@@ -9,39 +16,23 @@ use crate::{
     quant::{ChannelId, Time},
     Alignment,
 };
-pub use absolute::{Absolute, AbsoluteEntry};
-pub use grid::{Grid, GridEntry};
-pub use play::Play;
-pub use repeat::Repeat;
-pub use simple::{Barrier, SetFreq, SetPhase, ShiftFreq, ShiftPhase, SwapPhase};
-pub use stack::Stack;
+pub(crate) use absolute::{Absolute, AbsoluteEntry};
+pub(crate) use grid::{Grid, GridEntry};
+pub(crate) use play::Play;
+pub(crate) use repeat::Repeat;
+pub(crate) use simple::{Barrier, SetFreq, SetPhase, ShiftFreq, ShiftPhase, SwapPhase};
+pub(crate) use stack::Stack;
 
-mod absolute;
-mod grid;
-mod play;
-mod repeat;
-mod simple;
-mod stack;
-
-pub type ElementRef = Arc<Element>;
+pub(crate) type ElementRef = Arc<Element>;
 
 #[derive(Debug, Clone)]
-pub struct Element {
-    pub common: ElementCommon,
-    pub variant: ElementVariant,
-}
-
-impl Element {
-    pub fn new(common: ElementCommon, variant: impl Into<ElementVariant>) -> Self {
-        Self {
-            common,
-            variant: variant.into(),
-        }
-    }
+pub(crate) struct Element {
+    pub(crate) common: ElementCommon,
+    pub(crate) variant: ElementVariant,
 }
 
 #[derive(Debug, Clone)]
-pub struct MeasuredElement {
+pub(crate) struct MeasuredElement {
     element: ElementRef,
     /// Desired duration without clipping. Doesn't include margin.
     unclipped_duration: Time,
@@ -50,14 +41,8 @@ pub struct MeasuredElement {
     data: MeasureResultVariant,
 }
 
-impl MeasuredElement {
-    pub fn duration(&self) -> Time {
-        self.duration
-    }
-}
-
 #[derive(Debug, Clone)]
-pub struct ArrangedElement {
+pub(crate) struct ArrangedElement {
     element: ElementRef,
     /// Start time of the inner block without margin relative to its parent.
     inner_time: Time,
@@ -66,31 +51,10 @@ pub struct ArrangedElement {
     data: ArrangeResultVariant,
 }
 
-impl ArrangedElement {
-    pub fn inner_time(&self) -> Time {
-        self.inner_time
-    }
-
-    pub fn inner_duration(&self) -> Time {
-        self.inner_duration
-    }
-
-    pub fn element(&self) -> &ElementRef {
-        &self.element
-    }
-
-    pub fn try_get_children(&self) -> Option<&[ArrangedElement]> {
-        match &self.data {
-            ArrangeResultVariant::Multiple(v) => Some(v),
-            _ => None,
-        }
-    }
-}
-
 #[derive(Debug, Clone)]
-pub struct ScheduleOptions {
-    pub time_tolerance: Time,
-    pub allow_oversize: bool,
+pub(crate) struct ScheduleOptions {
+    pub(crate) time_tolerance: Time,
+    pub(crate) allow_oversize: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -101,13 +65,13 @@ enum MeasureResultVariant {
 }
 
 #[derive(Debug, Clone)]
-struct MeasureResult(Time, MeasureResultVariant);
-
-#[derive(Debug, Clone)]
-pub enum ArrangeResultVariant {
+enum ArrangeResultVariant {
     Simple,
     Multiple(Vec<ArrangedElement>),
 }
+
+#[derive(Debug, Clone)]
+struct MeasureResult(Time, MeasureResultVariant);
 
 #[derive(Debug, Clone)]
 struct ArrangeResult(Time, ArrangeResultVariant);
@@ -135,11 +99,7 @@ trait Schedule {
     fn channels(&self) -> &[ChannelId];
 }
 
-fn clamp_duration(duration: Time, min_duration: Time, max_duration: Time) -> Time {
-    duration.min(max_duration).max(min_duration)
-}
-
-pub fn measure(element: ElementRef) -> MeasuredElement {
+pub(crate) fn measure(element: ElementRef) -> MeasuredElement {
     let common = &element.common;
     let total_margin = common.total_margin();
     assert!(total_margin.value().is_finite());
@@ -156,7 +116,7 @@ pub fn measure(element: ElementRef) -> MeasuredElement {
     }
 }
 
-pub fn arrange(
+pub(crate) fn arrange(
     measured: &MeasuredElement,
     time: Time,
     duration: Time,
@@ -204,7 +164,7 @@ pub fn arrange(
 }
 
 #[derive(Debug, Clone)]
-pub struct ElementCommon {
+pub(crate) struct ElementCommon {
     margin: (Time, Time),
     alignment: Alignment,
     phantom: bool,
@@ -213,28 +173,131 @@ pub struct ElementCommon {
     min_duration: Time,
 }
 
+#[derive(Debug, Clone)]
+pub(crate) struct ElementCommonBuilder(ElementCommon);
+
+macro_rules! impl_variant {
+    ($($variant:ident),*$(,)?) => {
+        #[derive(Debug, Clone)]
+        pub(crate) enum ElementVariant {
+            $($variant($variant),)*
+        }
+
+        $(
+        impl From<$variant> for ElementVariant {
+            fn from(v: $variant) -> Self {
+                Self::$variant(v)
+            }
+        }
+
+        impl TryFrom<ElementVariant> for $variant {
+            type Error = anyhow::Error;
+
+            fn try_from(value: ElementVariant) -> Result<Self, Self::Error> {
+                match value {
+                    ElementVariant::$variant(v) => Ok(v),
+                    _ => bail!("Expected {} variant", stringify!($variant)),
+                }
+            }
+        }
+
+        impl<'a> TryFrom<&'a ElementVariant> for &'a $variant {
+            type Error = anyhow::Error;
+
+            fn try_from(value: &'a ElementVariant) -> Result<Self, Self::Error> {
+                match value {
+                    ElementVariant::$variant(v) => Ok(v),
+                    _ => bail!("Expected {} variant", stringify!($variant)),
+                }
+            }
+        }
+        )*
+
+        impl Schedule for ElementVariant {
+            fn measure(&self) -> MeasureResult {
+                match self {
+                    $(ElementVariant::$variant(v) => v.measure(),)*
+                }
+            }
+
+            fn arrange(&self, context: &ArrangeContext) -> Result<ArrangeResult> {
+                match self {
+                    $(ElementVariant::$variant(v) => v.arrange(context),)*
+                }
+            }
+
+            fn channels(&self) -> &[ChannelId] {
+                match self {
+                    $(ElementVariant::$variant(v) => v.channels(),)*
+                }
+            }
+        }
+    };
+}
+
+impl_variant!(
+    Play, ShiftPhase, SetPhase, ShiftFreq, SetFreq, SwapPhase, Barrier, Repeat, Stack, Absolute,
+    Grid,
+);
+
+impl Element {
+    pub(crate) fn new(common: ElementCommon, variant: impl Into<ElementVariant>) -> Self {
+        Self {
+            common,
+            variant: variant.into(),
+        }
+    }
+}
+
+impl MeasuredElement {
+    pub(crate) fn duration(&self) -> Time {
+        self.duration
+    }
+}
+
+impl ArrangedElement {
+    pub(crate) fn inner_time(&self) -> Time {
+        self.inner_time
+    }
+
+    pub(crate) fn inner_duration(&self) -> Time {
+        self.inner_duration
+    }
+
+    pub(crate) fn element(&self) -> &ElementRef {
+        &self.element
+    }
+
+    pub(crate) fn try_get_children(&self) -> Option<&[ArrangedElement]> {
+        match &self.data {
+            ArrangeResultVariant::Multiple(v) => Some(v),
+            _ => None,
+        }
+    }
+}
+
 impl ElementCommon {
-    pub fn margin(&self) -> (Time, Time) {
+    pub(crate) fn margin(&self) -> (Time, Time) {
         self.margin
     }
 
-    pub fn alignment(&self) -> Alignment {
+    pub(crate) fn alignment(&self) -> Alignment {
         self.alignment
     }
 
-    pub fn phantom(&self) -> bool {
+    pub(crate) fn phantom(&self) -> bool {
         self.phantom
     }
 
-    pub fn duration(&self) -> Option<Time> {
+    pub(crate) fn duration(&self) -> Option<Time> {
         self.duration
     }
 
-    pub fn max_duration(&self) -> Time {
+    pub(crate) fn max_duration(&self) -> Time {
         self.max_duration
     }
 
-    pub fn min_duration(&self) -> Time {
+    pub(crate) fn min_duration(&self) -> Time {
         self.min_duration
     }
 
@@ -257,58 +320,42 @@ impl ElementCommon {
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct ElementCommonBuilder(ElementCommon);
-
-impl Default for ElementCommonBuilder {
-    fn default() -> Self {
-        Self(ElementCommon {
-            margin: Default::default(),
-            alignment: Alignment::End,
-            phantom: false,
-            duration: None,
-            max_duration: Time::INFINITY,
-            min_duration: Default::default(),
-        })
-    }
-}
-
 impl ElementCommonBuilder {
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self::default()
     }
 
-    pub fn margin(&mut self, margin: (Time, Time)) -> &mut Self {
+    pub(crate) fn margin(&mut self, margin: (Time, Time)) -> &mut Self {
         self.0.margin = margin;
         self
     }
 
-    pub fn alignment(&mut self, alignment: Alignment) -> &mut Self {
+    pub(crate) fn alignment(&mut self, alignment: Alignment) -> &mut Self {
         self.0.alignment = alignment;
         self
     }
 
-    pub fn phantom(&mut self, phantom: bool) -> &mut Self {
+    pub(crate) fn phantom(&mut self, phantom: bool) -> &mut Self {
         self.0.phantom = phantom;
         self
     }
 
-    pub fn duration(&mut self, duration: Option<Time>) -> &mut Self {
+    pub(crate) fn duration(&mut self, duration: Option<Time>) -> &mut Self {
         self.0.duration = duration;
         self
     }
 
-    pub fn max_duration(&mut self, max_duration: Time) -> &mut Self {
+    pub(crate) fn max_duration(&mut self, max_duration: Time) -> &mut Self {
         self.0.max_duration = max_duration;
         self
     }
 
-    pub fn min_duration(&mut self, min_duration: Time) -> &mut Self {
+    pub(crate) fn min_duration(&mut self, min_duration: Time) -> &mut Self {
         self.0.min_duration = min_duration;
         self
     }
 
-    pub fn validate(&self) -> Result<()> {
+    pub(crate) fn validate(&self) -> Result<()> {
         let v = &self.0;
         if !v.margin.0.value().is_finite() || !v.margin.1.value().is_finite() {
             bail!("Invalid margin {:?}", v.margin);
@@ -327,75 +374,24 @@ impl ElementCommonBuilder {
         Ok(())
     }
 
-    pub fn build(&self) -> Result<ElementCommon> {
+    pub(crate) fn build(&self) -> Result<ElementCommon> {
         self.validate()?;
         Ok(self.0.clone())
     }
 }
 
-macro_rules! impl_variant {
-    ($($variant:ident),*$(,)?) => {
-#[derive(Debug, Clone)]
-pub enum ElementVariant {
-    $($variant($variant),)*
-}
-
-$(
-impl From<$variant> for ElementVariant {
-    fn from(v: $variant) -> Self {
-        Self::$variant(v)
+impl Default for ElementCommonBuilder {
+    fn default() -> Self {
+        Self(ElementCommon {
+            margin: Default::default(),
+            alignment: Alignment::End,
+            phantom: false,
+            duration: None,
+            max_duration: Time::INFINITY,
+            min_duration: Default::default(),
+        })
     }
 }
-
-impl TryFrom<ElementVariant> for $variant {
-    type Error = anyhow::Error;
-
-    fn try_from(value: ElementVariant) -> Result<Self, Self::Error> {
-        match value {
-            ElementVariant::$variant(v) => Ok(v),
-            _ => bail!("Expected {} variant", stringify!($variant)),
-        }
-    }
-}
-
-impl<'a> TryFrom<&'a ElementVariant> for &'a $variant {
-    type Error = anyhow::Error;
-
-    fn try_from(value: &'a ElementVariant) -> Result<Self, Self::Error> {
-        match value {
-            ElementVariant::$variant(v) => Ok(v),
-            _ => bail!("Expected {} variant", stringify!($variant)),
-        }
-    }
-}
-)*
-
-impl Schedule for ElementVariant {
-    fn measure(&self) -> MeasureResult {
-        match self {
-            $(ElementVariant::$variant(v) => v.measure(),)*
-        }
-    }
-
-    fn arrange(&self, context: &ArrangeContext) -> Result<ArrangeResult> {
-        match self {
-            $(ElementVariant::$variant(v) => v.arrange(context),)*
-        }
-    }
-
-    fn channels(&self) -> &[ChannelId] {
-        match self {
-            $(ElementVariant::$variant(v) => v.channels(),)*
-        }
-    }
-}
-    };
-}
-
-impl_variant!(
-    Play, ShiftPhase, SetPhase, ShiftFreq, SetFreq, SwapPhase, Barrier, Repeat, Stack, Absolute,
-    Grid,
-);
 
 fn merge_channel_ids<'a, I>(ids: I) -> Vec<ChannelId>
 where
@@ -404,4 +400,8 @@ where
 {
     let set = ids.into_iter().flatten().collect::<HashSet<_>>();
     set.into_iter().cloned().collect()
+}
+
+fn clamp_duration(duration: Time, min_duration: Time, max_duration: Time) -> Time {
+    duration.min(max_duration).max(min_duration)
 }

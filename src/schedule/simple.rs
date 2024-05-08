@@ -28,13 +28,13 @@ where
 }
 
 #[derive(Debug, Clone)]
-pub struct ShiftPhase {
+pub(crate) struct ShiftPhase {
     channel_id: [ChannelId; 1],
     phase: Phase,
 }
 
 impl ShiftPhase {
-    pub fn new(channel_id: ChannelId, phase: Phase) -> Result<Self> {
+    pub(crate) fn new(channel_id: ChannelId, phase: Phase) -> Result<Self> {
         if !phase.value().is_finite() {
             bail!("Invalid phase {:?}", phase);
         }
@@ -44,11 +44,11 @@ impl ShiftPhase {
         })
     }
 
-    pub fn channel_id(&self) -> &ChannelId {
+    pub(crate) fn channel_id(&self) -> &ChannelId {
         &self.channel_id[0]
     }
 
-    pub fn phase(&self) -> Phase {
+    pub(crate) fn phase(&self) -> Phase {
         self.phase
     }
 }
@@ -60,13 +60,13 @@ impl SimpleElement for ShiftPhase {
 }
 
 #[derive(Debug, Clone)]
-pub struct SetPhase {
+pub(crate) struct SetPhase {
     channel_id: [ChannelId; 1],
     phase: Phase,
 }
 
 impl SetPhase {
-    pub fn new(channel_id: ChannelId, phase: Phase) -> Result<Self> {
+    pub(crate) fn new(channel_id: ChannelId, phase: Phase) -> Result<Self> {
         if !phase.value().is_finite() {
             bail!("Invalid phase {:?}", phase);
         }
@@ -76,11 +76,11 @@ impl SetPhase {
         })
     }
 
-    pub fn channel_id(&self) -> &ChannelId {
+    pub(crate) fn channel_id(&self) -> &ChannelId {
         &self.channel_id[0]
     }
 
-    pub fn phase(&self) -> Phase {
+    pub(crate) fn phase(&self) -> Phase {
         self.phase
     }
 }
@@ -92,13 +92,13 @@ impl SimpleElement for SetPhase {
 }
 
 #[derive(Debug, Clone)]
-pub struct ShiftFreq {
+pub(crate) struct ShiftFreq {
     channel_id: [ChannelId; 1],
     frequency: Frequency,
 }
 
 impl ShiftFreq {
-    pub fn new(channel_id: ChannelId, frequency: Frequency) -> Result<Self> {
+    pub(crate) fn new(channel_id: ChannelId, frequency: Frequency) -> Result<Self> {
         if !frequency.value().is_finite() {
             bail!("Invalid frequency {:?}", frequency);
         }
@@ -108,11 +108,11 @@ impl ShiftFreq {
         })
     }
 
-    pub fn channel_id(&self) -> &ChannelId {
+    pub(crate) fn channel_id(&self) -> &ChannelId {
         &self.channel_id[0]
     }
 
-    pub fn frequency(&self) -> Frequency {
+    pub(crate) fn frequency(&self) -> Frequency {
         self.frequency
     }
 }
@@ -124,13 +124,13 @@ impl SimpleElement for ShiftFreq {
 }
 
 #[derive(Debug, Clone)]
-pub struct SetFreq {
+pub(crate) struct SetFreq {
     channel_id: [ChannelId; 1],
     frequency: Frequency,
 }
 
 impl SetFreq {
-    pub fn new(channel_id: ChannelId, frequency: Frequency) -> Result<Self> {
+    pub(crate) fn new(channel_id: ChannelId, frequency: Frequency) -> Result<Self> {
         if !frequency.value().is_finite() {
             bail!("Invalid frequency {:?}", frequency);
         }
@@ -140,11 +140,11 @@ impl SetFreq {
         })
     }
 
-    pub fn channel_id(&self) -> &ChannelId {
+    pub(crate) fn channel_id(&self) -> &ChannelId {
         &self.channel_id[0]
     }
 
-    pub fn frequency(&self) -> Frequency {
+    pub(crate) fn frequency(&self) -> Frequency {
         self.frequency
     }
 }
@@ -156,22 +156,22 @@ impl SimpleElement for SetFreq {
 }
 
 #[derive(Debug, Clone)]
-pub struct SwapPhase {
+pub(crate) struct SwapPhase {
     channel_ids: [ChannelId; 2],
 }
 
 impl SwapPhase {
-    pub fn new(channel_id1: ChannelId, channel_id2: ChannelId) -> Self {
+    pub(crate) fn new(channel_id1: ChannelId, channel_id2: ChannelId) -> Self {
         Self {
             channel_ids: [channel_id1, channel_id2],
         }
     }
 
-    pub fn channel_id1(&self) -> &ChannelId {
+    pub(crate) fn channel_id1(&self) -> &ChannelId {
         &self.channel_ids[0]
     }
 
-    pub fn channel_id2(&self) -> &ChannelId {
+    pub(crate) fn channel_id2(&self) -> &ChannelId {
         &self.channel_ids[1]
     }
 }
@@ -183,16 +183,16 @@ impl SimpleElement for SwapPhase {
 }
 
 #[derive(Debug, Clone)]
-pub struct Barrier {
+pub(crate) struct Barrier {
     channel_ids: Vec<ChannelId>,
 }
 
 impl Barrier {
-    pub fn new(channel_ids: Vec<ChannelId>) -> Self {
+    pub(crate) fn new(channel_ids: Vec<ChannelId>) -> Self {
         Self { channel_ids }
     }
 
-    pub fn channel_ids(&self) -> &[ChannelId] {
+    pub(crate) fn channel_ids(&self) -> &[ChannelId] {
         &self.channel_ids
     }
 }
