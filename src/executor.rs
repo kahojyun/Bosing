@@ -3,7 +3,7 @@ use hashbrown::HashMap;
 use crate::{
     pulse::{Envelope, PulseList, PulseListBuilder},
     quant::{Amplitude, ChannelId, Frequency, Phase, ShapeId, Time},
-    schedule::{self, ArrangedElement, ElementVariant},
+    schedule::{self, ElementVariant},
     shape::Shape,
 };
 

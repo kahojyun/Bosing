@@ -1,12 +1,11 @@
+use std::sync::OnceLock;
+
 use anyhow::Result;
 use hashbrown::HashMap;
 
-use super::{
-    arrange, measure, merge_channel_ids, ArrangeContext, ArrangeResult, ArrangeResultVariant,
-    ElementRef, Measure, MeasureResult, MeasureResultVariant, Schedule,
-};
 use crate::{
     quant::{ChannelId, Time},
+    schedule::{merge_channel_ids, ElementRef, Measure},
     Direction,
 };
 
@@ -15,90 +14,77 @@ pub(crate) struct Stack {
     children: Vec<ElementRef>,
     direction: Direction,
     channel_ids: Vec<ChannelId>,
-}
-
-impl Default for Stack {
-    fn default() -> Self {
-        Self::new()
-    }
+    measure_result: OnceLock<(Time, Vec<Time>)>,
 }
 
 impl Stack {
     pub(crate) fn new() -> Self {
-        Self {
-            children: vec![],
-            direction: Direction::Backward,
-            channel_ids: vec![],
-        }
+        Self::default()
     }
 
     pub(crate) fn with_direction(mut self, direction: Direction) -> Self {
         self.direction = direction;
+        self.measure_result.take();
         self
     }
 
     pub(crate) fn with_children(mut self, children: Vec<ElementRef>) -> Self {
-        let channel_ids = merge_channel_ids(children.iter().map(|e| e.variant.channels()));
+        let channel_ids = merge_channel_ids(children.iter().map(|e| e.channels()));
         self.children = children;
         self.channel_ids = channel_ids;
+        self.measure_result.take();
         self
     }
 
     pub(crate) fn direction(&self) -> Direction {
         self.direction
     }
+
+    fn measure_result(&self) -> &(Time, Vec<Time>) {
+        self.measure_result
+            .get_or_init(|| measure_stack(&self.children, &self.channel_ids, self.direction))
+    }
 }
 
-impl Schedule for Stack {
-    fn measure(&self) -> MeasureResult {
-        let mut helper = Helper::new(self.channels());
-        let measured_children =
-            map_and_collect_by_direction(&self.children, self.direction, |child| {
-                let child_channels = child.variant.channels();
-                let channel_used_duration = helper.get_usage(child_channels);
-                let measured_child = measure(child.clone());
-                let channel_used_duration = channel_used_duration + measured_child.duration;
-                helper.update_usage(channel_used_duration, child_channels);
-                Ok(measured_child)
-            })
-            .unwrap();
-        let total_used_duration = helper.into_max_usage();
-        MeasureResult(
-            total_used_duration,
-            MeasureResultVariant::Multiple(measured_children),
-        )
+impl Default for Stack {
+    fn default() -> Self {
+        Self {
+            children: vec![],
+            direction: Direction::Backward,
+            channel_ids: vec![],
+            measure_result: OnceLock::new(),
+        }
     }
+}
 
-    fn arrange(&self, context: &ArrangeContext) -> Result<ArrangeResult> {
-        let mut helper = Helper::new(self.channels());
-        let measured_children = match &context.measured_self.data {
-            MeasureResultVariant::Multiple(v) => v,
-            _ => panic!("Invalid measure data"),
-        };
-        let arranged_children =
-            map_and_collect_by_direction(measured_children, self.direction, |child| {
-                let child_channels = child.element.variant.channels();
-                let channel_used_duration = helper.get_usage(child_channels);
-                let measured_duration = child.duration;
-                let inner_time = match self.direction {
-                    Direction::Forward => channel_used_duration,
-                    Direction::Backward => {
-                        context.final_duration - channel_used_duration - measured_duration
-                    }
-                };
-                let channel_used_duration = channel_used_duration + measured_duration;
-                helper.update_usage(channel_used_duration, child_channels);
-                arrange(child, inner_time, measured_duration, context.options)
-            })?;
-        Ok(ArrangeResult(
-            context.final_duration,
-            ArrangeResultVariant::Multiple(arranged_children),
-        ))
+impl Measure for Stack {
+    fn measure(&self) -> Time {
+        let (total_duration, _) = self.measure_result();
+        *total_duration
     }
 
     fn channels(&self) -> &[ChannelId] {
         &self.channel_ids
     }
+}
+
+fn arrange_stack<I, M>(
+    children: I,
+    final_duration: Time,
+    direction: Direction,
+) -> impl IntoIterator<Item = (M, Time, Time)>
+where
+    I: IntoIterator<Item = (M, Time)>,
+    M: Measure,
+{
+    children.into_iter().map(move |(child, child_offset)| {
+        let child_duration = child.measure();
+        let final_offset = match direction {
+            Direction::Forward => child_offset,
+            Direction::Backward => final_duration - child_offset - child_duration,
+        };
+        (child, final_offset, child_duration)
+    })
 }
 
 fn measure_stack<I>(children: I, channels: &[ChannelId], direction: Direction) -> (Time, Vec<Time>)

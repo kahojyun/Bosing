@@ -1,6 +1,12 @@
 //! Although Element struct may contains [`Py<Element>`] as children, it is not
 //! possible to create cyclic references because we don't allow mutate the
 //! children after creation.
+mod executor;
+mod pulse;
+mod quant;
+mod schedule;
+mod shape;
+
 use std::{borrow::Borrow, fmt::Debug, str::FromStr, sync::Arc};
 
 use hashbrown::HashMap;
@@ -15,16 +21,12 @@ use pyo3::{
 };
 use rayon::prelude::*;
 
-use executor::Executor;
-use pulse::{PulseList, Sampler};
-use quant::{Amplitude, ChannelId, Frequency, Phase, ShapeId, Time};
-use schedule::{ElementCommonBuilder, ElementRef};
-
-mod executor;
-mod pulse;
-mod quant;
-mod schedule;
-mod shape;
+use crate::{
+    executor::Executor,
+    pulse::{PulseList, Sampler},
+    quant::{Amplitude, ChannelId, Frequency, Phase, ShapeId, Time},
+    schedule::{ElementCommonBuilder, ElementRef},
+};
 
 /// Channel configuration.
 ///
@@ -1983,23 +1985,24 @@ fn build_pulse_lists(
     amp_tolerance: Amplitude,
     allow_oversize: bool,
 ) -> PyResult<HashMap<ChannelId, PulseList>> {
-    let root = schedule.get().0.clone();
-    let measured = schedule::measure(root);
-    let arrange_options = schedule::ScheduleOptions {
-        time_tolerance,
-        allow_oversize,
-    };
-    let arranged = schedule::arrange(&measured, Time::ZERO, measured.duration(), &arrange_options)?;
-    let mut executor = Executor::new(amp_tolerance, time_tolerance);
-    for (n, c) in channels {
-        executor.add_channel(n.clone(), c.base_freq);
-    }
-    for (n, s) in shapes {
-        let s = s.bind(py);
-        executor.add_shape(n.clone(), Shape::get_rust_shape(s)?);
-    }
-    executor.execute(&arranged);
-    Ok(executor.into_result())
+    todo!()
+    // let root = schedule.get().0.clone();
+    // let measured = schedule::measure(root);
+    // let arrange_options = schedule::ScheduleOptions {
+    //     time_tolerance,
+    //     allow_oversize,
+    // };
+    // let arranged = schedule::arrange(&measured, Time::ZERO, measured.duration(), &arrange_options)?;
+    // let mut executor = Executor::new(amp_tolerance, time_tolerance);
+    // for (n, c) in channels {
+    //     executor.add_channel(n.clone(), c.base_freq);
+    // }
+    // for (n, s) in shapes {
+    //     let s = s.bind(py);
+    //     executor.add_shape(n.clone(), Shape::get_rust_shape(s)?);
+    // }
+    // executor.execute(&arranged);
+    // Ok(executor.into_result())
 }
 
 fn sample_waveform(

@@ -1,10 +1,11 @@
+use std::sync::OnceLock;
+
 use anyhow::{bail, Result};
 
-use super::{
-    arrange, measure, merge_channel_ids, ArrangeContext, ArrangeResult, ArrangeResultVariant,
-    ElementRef, MeasureResult, MeasureResultVariant, Schedule,
+use crate::{
+    quant::{ChannelId, Time},
+    schedule::{merge_channel_ids, ElementRef, Measure},
 };
-use crate::quant::{ChannelId, Time};
 
 #[derive(Debug, Clone)]
 pub(crate) struct AbsoluteEntry {
@@ -29,24 +30,16 @@ impl AbsoluteEntry {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub(crate) struct Absolute {
     children: Vec<AbsoluteEntry>,
     channel_ids: Vec<ChannelId>,
-}
-
-impl Default for Absolute {
-    fn default() -> Self {
-        Self::new()
-    }
+    measure_result: OnceLock<Time>,
 }
 
 impl Absolute {
     pub(crate) fn new() -> Self {
-        Self {
-            children: vec![],
-            channel_ids: vec![],
-        }
+        Self::default()
     }
 
     pub(crate) fn with_children(mut self, children: Vec<AbsoluteEntry>) -> Self {
@@ -55,39 +48,66 @@ impl Absolute {
         self.channel_ids = channel_ids;
         self
     }
+
+    fn measure_result(&self) -> &Time {
+        self.measure_result
+            .get_or_init(|| measure_absolute(self.children.iter().map(|e| (&e.element, e.time))))
+    }
 }
 
-impl Schedule for Absolute {
-    fn measure(&self) -> MeasureResult {
-        let mut max_time = Time::ZERO;
-        let mut measured_children = vec![];
-        for e in &self.children {
-            let measured_child = measure(e.element.clone());
-            max_time = max_time.max(e.time + measured_child.duration);
-            measured_children.push(measured_child);
-        }
-        MeasureResult(max_time, MeasureResultVariant::Multiple(measured_children))
-    }
-
-    fn arrange(&self, context: &ArrangeContext) -> Result<ArrangeResult> {
-        let measured_children = match &context.measured_self.data {
-            MeasureResultVariant::Multiple(v) => v,
-            _ => bail!("Invalid measure data"),
-        };
-        let arranged_children = self
-            .children
-            .iter()
-            .map(|e| e.time)
-            .zip(measured_children.iter())
-            .map(|(t, mc)| arrange(mc, t, mc.duration, context.options))
-            .collect::<Result<_>>()?;
-        Ok(ArrangeResult(
-            context.final_duration,
-            ArrangeResultVariant::Multiple(arranged_children),
-        ))
+impl Measure for Absolute {
+    fn measure(&self) -> Time {
+        *self.measure_result()
     }
 
     fn channels(&self) -> &[ChannelId] {
         &self.channel_ids
     }
 }
+
+fn measure_absolute<I, M>(children: I) -> Time
+where
+    I: IntoIterator<Item = (M, Time)>,
+    M: Measure,
+{
+    children
+        .into_iter()
+        .map(|(child, offset)| offset + child.measure())
+        .max()
+        .unwrap_or(Time::ZERO)
+}
+
+// impl Schedule for Absolute {
+//     fn measure(&self) -> MeasureResult {
+//         let mut max_time = Time::ZERO;
+//         let mut measured_children = vec![];
+//         for e in &self.children {
+//             let measured_child = measure(e.element.clone());
+//             max_time = max_time.max(e.time + measured_child.duration);
+//             measured_children.push(measured_child);
+//         }
+//         MeasureResult(max_time, MeasureResultVariant::Multiple(measured_children))
+//     }
+
+//     fn arrange(&self, context: &ArrangeContext) -> Result<ArrangeResult> {
+//         let measured_children = match &context.measured_self.data {
+//             MeasureResultVariant::Multiple(v) => v,
+//             _ => bail!("Invalid measure data"),
+//         };
+//         let arranged_children = self
+//             .children
+//             .iter()
+//             .map(|e| e.time)
+//             .zip(measured_children.iter())
+//             .map(|(t, mc)| arrange(mc, t, mc.duration, context.options))
+//             .collect::<Result<_>>()?;
+//         Ok(ArrangeResult(
+//             context.final_duration,
+//             ArrangeResultVariant::Multiple(arranged_children),
+//         ))
+//     }
+
+//     fn channels(&self) -> &[ChannelId] {
+//         &self.channel_ids
+//     }
+// }

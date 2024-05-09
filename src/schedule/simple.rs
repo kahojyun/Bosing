@@ -1,36 +1,42 @@
 use anyhow::{bail, Result};
 
-use super::{
-    ArrangeContext, ArrangeResult, ArrangeResultVariant, MeasureResult, MeasureResultVariant,
-    Schedule,
+use crate::{
+    quant::{ChannelId, Frequency, Phase, Time},
+    schedule::Measure,
 };
-use crate::quant::{ChannelId, Frequency, Phase, Time};
-
-trait SimpleElement {
-    fn channels(&self) -> &[ChannelId];
-}
-
-impl<T> Schedule for T
-where
-    T: SimpleElement,
-{
-    fn measure(&self) -> MeasureResult {
-        MeasureResult(Time::ZERO, MeasureResultVariant::Simple)
-    }
-
-    fn arrange(&self, _context: &ArrangeContext) -> Result<ArrangeResult> {
-        Ok(ArrangeResult(Time::ZERO, ArrangeResultVariant::Simple))
-    }
-
-    fn channels(&self) -> &[ChannelId] {
-        self.channels()
-    }
-}
 
 #[derive(Debug, Clone)]
 pub(crate) struct ShiftPhase {
-    channel_id: [ChannelId; 1],
+    channel_ids: [ChannelId; 1],
     phase: Phase,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct SetPhase {
+    channel_ids: [ChannelId; 1],
+    phase: Phase,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct ShiftFreq {
+    channel_ids: [ChannelId; 1],
+    frequency: Frequency,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct SetFreq {
+    channel_ids: [ChannelId; 1],
+    frequency: Frequency,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct SwapPhase {
+    channel_ids: [ChannelId; 2],
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct Barrier {
+    channel_ids: Vec<ChannelId>,
 }
 
 impl ShiftPhase {
@@ -39,30 +45,18 @@ impl ShiftPhase {
             bail!("Invalid phase {:?}", phase);
         }
         Ok(Self {
-            channel_id: [channel_id],
+            channel_ids: [channel_id],
             phase,
         })
     }
 
     pub(crate) fn channel_id(&self) -> &ChannelId {
-        &self.channel_id[0]
+        &self.channel_ids[0]
     }
 
     pub(crate) fn phase(&self) -> Phase {
         self.phase
     }
-}
-
-impl SimpleElement for ShiftPhase {
-    fn channels(&self) -> &[ChannelId] {
-        &self.channel_id
-    }
-}
-
-#[derive(Debug, Clone)]
-pub(crate) struct SetPhase {
-    channel_id: [ChannelId; 1],
-    phase: Phase,
 }
 
 impl SetPhase {
@@ -71,30 +65,18 @@ impl SetPhase {
             bail!("Invalid phase {:?}", phase);
         }
         Ok(Self {
-            channel_id: [channel_id],
+            channel_ids: [channel_id],
             phase,
         })
     }
 
     pub(crate) fn channel_id(&self) -> &ChannelId {
-        &self.channel_id[0]
+        &self.channel_ids[0]
     }
 
     pub(crate) fn phase(&self) -> Phase {
         self.phase
     }
-}
-
-impl SimpleElement for SetPhase {
-    fn channels(&self) -> &[ChannelId] {
-        &self.channel_id
-    }
-}
-
-#[derive(Debug, Clone)]
-pub(crate) struct ShiftFreq {
-    channel_id: [ChannelId; 1],
-    frequency: Frequency,
 }
 
 impl ShiftFreq {
@@ -103,30 +85,18 @@ impl ShiftFreq {
             bail!("Invalid frequency {:?}", frequency);
         }
         Ok(Self {
-            channel_id: [channel_id],
+            channel_ids: [channel_id],
             frequency,
         })
     }
 
     pub(crate) fn channel_id(&self) -> &ChannelId {
-        &self.channel_id[0]
+        &self.channel_ids[0]
     }
 
     pub(crate) fn frequency(&self) -> Frequency {
         self.frequency
     }
-}
-
-impl SimpleElement for ShiftFreq {
-    fn channels(&self) -> &[ChannelId] {
-        &self.channel_id
-    }
-}
-
-#[derive(Debug, Clone)]
-pub(crate) struct SetFreq {
-    channel_id: [ChannelId; 1],
-    frequency: Frequency,
 }
 
 impl SetFreq {
@@ -135,29 +105,18 @@ impl SetFreq {
             bail!("Invalid frequency {:?}", frequency);
         }
         Ok(Self {
-            channel_id: [channel_id],
+            channel_ids: [channel_id],
             frequency,
         })
     }
 
     pub(crate) fn channel_id(&self) -> &ChannelId {
-        &self.channel_id[0]
+        &self.channel_ids[0]
     }
 
     pub(crate) fn frequency(&self) -> Frequency {
         self.frequency
     }
-}
-
-impl SimpleElement for SetFreq {
-    fn channels(&self) -> &[ChannelId] {
-        &self.channel_id
-    }
-}
-
-#[derive(Debug, Clone)]
-pub(crate) struct SwapPhase {
-    channel_ids: [ChannelId; 2],
 }
 
 impl SwapPhase {
@@ -176,17 +135,6 @@ impl SwapPhase {
     }
 }
 
-impl SimpleElement for SwapPhase {
-    fn channels(&self) -> &[ChannelId] {
-        &self.channel_ids
-    }
-}
-
-#[derive(Debug, Clone)]
-pub(crate) struct Barrier {
-    channel_ids: Vec<ChannelId>,
-}
-
 impl Barrier {
     pub(crate) fn new(channel_ids: Vec<ChannelId>) -> Self {
         Self { channel_ids }
@@ -197,8 +145,23 @@ impl Barrier {
     }
 }
 
-impl SimpleElement for Barrier {
-    fn channels(&self) -> &[ChannelId] {
-        &self.channel_ids
-    }
+macro_rules! impl_measure {
+    ($t:ty) => {
+        impl Measure for $t {
+            fn measure(&self) -> Time {
+                Time::ZERO
+            }
+
+            fn channels(&self) -> &[ChannelId] {
+                &self.channel_ids
+            }
+        }
+    };
 }
+
+impl_measure!(ShiftPhase);
+impl_measure!(SetPhase);
+impl_measure!(ShiftFreq);
+impl_measure!(SetFreq);
+impl_measure!(SwapPhase);
+impl_measure!(Barrier);

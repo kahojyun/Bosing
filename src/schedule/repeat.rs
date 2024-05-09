@@ -1,16 +1,18 @@
+use std::sync::OnceLock;
+
 use anyhow::{bail, Result};
 
-use super::{
-    arrange, measure, ArrangeContext, ArrangeResult, ArrangeResultVariant, ElementRef,
-    MeasureResult, MeasureResultVariant, Schedule,
+use crate::{
+    quant::{ChannelId, Time},
+    schedule::{ElementRef, Measure},
 };
-use crate::quant::{ChannelId, Time};
 
 #[derive(Debug, Clone)]
 pub(crate) struct Repeat {
     child: ElementRef,
     count: usize,
     spacing: Time,
+    measure_result: OnceLock<Time>,
 }
 
 impl Repeat {
@@ -19,6 +21,7 @@ impl Repeat {
             child,
             count,
             spacing: Time::ZERO,
+            measure_result: OnceLock::new(),
         }
     }
 
@@ -27,6 +30,7 @@ impl Repeat {
             bail!("Invalid spacing {:?}", spacing);
         }
         self.spacing = spacing;
+        self.measure_result.take();
         Ok(self)
     }
 
@@ -39,44 +43,61 @@ impl Repeat {
     }
 }
 
-impl Schedule for Repeat {
-    fn measure(&self) -> MeasureResult {
-        if self.count == 0 {
-            return MeasureResult(Time::ZERO, MeasureResultVariant::Simple);
-        }
-        let n = self.count as f64;
-        let measured_child = measure(self.child.clone());
-        let wanted_duration = measured_child.duration * n + self.spacing * (n - 1.0);
-        MeasureResult(
-            wanted_duration,
-            MeasureResultVariant::Multiple(vec![measured_child]),
-        )
-    }
-
-    fn arrange(&self, context: &ArrangeContext) -> Result<ArrangeResult> {
-        if self.count == 0 {
-            return Ok(ArrangeResult(Time::ZERO, ArrangeResultVariant::Simple));
-        }
-        let n = self.count as f64;
-        let duration_per_repeat = (context.final_duration - self.spacing * (n - 1.0)) / n;
-        let measured_child = match &context.measured_self.data {
-            MeasureResultVariant::Multiple(c) if c.len() == 1 => &c[0],
-            _ => bail!("Invalid measure data"),
-        };
-        let arranged_child = arrange(
-            measured_child,
-            Time::ZERO,
-            duration_per_repeat,
-            context.options,
-        )?;
-        let arranged = arranged_child.inner_duration * n + self.spacing * (n - 1.0);
-        Ok(ArrangeResult(
-            arranged,
-            ArrangeResultVariant::Multiple(vec![arranged_child]),
-        ))
-    }
-
+impl Measure for Repeat {
     fn channels(&self) -> &[ChannelId] {
-        self.child.variant.channels()
+        self.child.channels()
+    }
+
+    fn measure(&self) -> Time {
+        if self.count == 0 {
+            return Time::ZERO;
+        }
+        *self.measure_result.get_or_init(|| {
+            let n = self.count as f64;
+            let child_duration = self.child.measure();
+            child_duration * n + self.spacing * (n - 1.0)
+        })
     }
 }
+
+// impl Schedule for Repeat {
+//     fn measure(&self) -> MeasureResult {
+//         if self.count == 0 {
+//             return MeasureResult(Time::ZERO, MeasureResultVariant::Simple);
+//         }
+//         let n = self.count as f64;
+//         let measured_child = measure(self.child.clone());
+//         let wanted_duration = measured_child.duration * n + self.spacing * (n - 1.0);
+//         MeasureResult(
+//             wanted_duration,
+//             MeasureResultVariant::Multiple(vec![measured_child]),
+//         )
+//     }
+
+//     fn arrange(&self, context: &ArrangeContext) -> Result<ArrangeResult> {
+//         if self.count == 0 {
+//             return Ok(ArrangeResult(Time::ZERO, ArrangeResultVariant::Simple));
+//         }
+//         let n = self.count as f64;
+//         let duration_per_repeat = (context.final_duration - self.spacing * (n - 1.0)) / n;
+//         let measured_child = match &context.measured_self.data {
+//             MeasureResultVariant::Multiple(c) if c.len() == 1 => &c[0],
+//             _ => bail!("Invalid measure data"),
+//         };
+//         let arranged_child = arrange(
+//             measured_child,
+//             Time::ZERO,
+//             duration_per_repeat,
+//             context.options,
+//         )?;
+//         let arranged = arranged_child.inner_duration * n + self.spacing * (n - 1.0);
+//         Ok(ArrangeResult(
+//             arranged,
+//             ArrangeResultVariant::Multiple(vec![arranged_child]),
+//         ))
+//     }
+
+//     fn channels(&self) -> &[ChannelId] {
+//         self.child.variant.channels()
+//     }
+// }

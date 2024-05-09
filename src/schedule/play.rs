@@ -1,10 +1,9 @@
 use anyhow::{bail, Result};
 
-use super::{
-    ArrangeContext, ArrangeResult, ArrangeResultVariant, MeasureResult, MeasureResultVariant,
-    Schedule,
+use crate::{
+    quant::{Amplitude, ChannelId, Frequency, Phase, ShapeId, Time},
+    schedule::Measure,
 };
-use crate::quant::{Amplitude, ChannelId, Frequency, Phase, ShapeId, Time};
 
 #[derive(Debug, Clone)]
 pub(crate) struct Play {
@@ -119,26 +118,40 @@ impl Play {
     }
 }
 
-impl Schedule for Play {
-    fn measure(&self) -> MeasureResult {
-        let wanted_duration = if self.flexible {
-            self.width
-        } else {
-            self.width + self.plateau
-        };
-        MeasureResult(wanted_duration, MeasureResultVariant::Simple)
-    }
-
-    fn arrange(&self, context: &ArrangeContext) -> Result<ArrangeResult> {
-        let arranged = if self.flexible {
-            context.final_duration
-        } else {
-            self.width + self.plateau
-        };
-        Ok(ArrangeResult(arranged, ArrangeResultVariant::Simple))
-    }
-
+impl Measure for Play {
     fn channels(&self) -> &[ChannelId] {
         &self.channel_id
     }
+
+    fn measure(&self) -> Time {
+        if self.flexible {
+            self.width
+        } else {
+            self.width + self.plateau
+        }
+    }
 }
+
+// impl Schedule for Play {
+//     fn measure(&self) -> MeasureResult {
+//         let wanted_duration = if self.flexible {
+//             self.width
+//         } else {
+//             self.width + self.plateau
+//         };
+//         MeasureResult(wanted_duration, MeasureResultVariant::Simple)
+//     }
+
+//     fn arrange(&self, context: &ArrangeContext) -> Result<ArrangeResult> {
+//         let arranged = if self.flexible {
+//             context.final_duration
+//         } else {
+//             self.width + self.plateau
+//         };
+//         Ok(ArrangeResult(arranged, ArrangeResultVariant::Simple))
+//     }
+
+//     fn channels(&self) -> &[ChannelId] {
+//         &self.channel_id
+//     }
+// }
