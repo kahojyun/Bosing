@@ -197,6 +197,16 @@ pub(crate) struct PulseListBuilder {
     time_tolerance: Time,
 }
 
+pub(crate) struct PushArgs {
+    pub(crate) envelope: Envelope,
+    pub(crate) global_freq: Frequency,
+    pub(crate) local_freq: Frequency,
+    pub(crate) time: Time,
+    pub(crate) amplitude: Amplitude,
+    pub(crate) drag_coef: f64,
+    pub(crate) phase: Phase,
+}
+
 impl PulseListBuilder {
     pub(crate) fn new(amp_tolerance: Amplitude, time_tolerance: Time) -> Self {
         Self {
@@ -208,13 +218,15 @@ impl PulseListBuilder {
 
     pub(crate) fn push(
         &mut self,
-        envelope: Envelope,
-        global_freq: Frequency,
-        local_freq: Frequency,
-        time: Time,
-        amplitude: Amplitude,
-        drag_coef: f64,
-        phase: Phase,
+        PushArgs {
+            envelope,
+            global_freq,
+            local_freq,
+            time,
+            amplitude,
+            drag_coef,
+            phase,
+        }: PushArgs,
     ) {
         if approx_eq!(
             f64,

@@ -85,11 +85,11 @@ impl Measure for Stack {
 }
 
 impl Visit for Stack {
-    fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time)
+    fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time) -> Result<()>
     where
         V: Visitor,
     {
-        visitor.visit_stack(self, time, duration);
+        visitor.visit_stack(self, time, duration)?;
         let MeasureResult { child_timings, .. } = self.measure_result();
         let arranged = arrange_stack(
             self.children
@@ -109,8 +109,9 @@ impl Visit for Stack {
             duration,
         } in arranged
         {
-            item.visit(visitor, time + offset, duration);
+            item.visit(visitor, time + offset, duration)?;
         }
+        Ok(())
     }
 }
 

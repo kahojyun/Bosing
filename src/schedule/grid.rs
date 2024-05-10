@@ -136,11 +136,11 @@ impl Measure for Grid {
 }
 
 impl Visit for Grid {
-    fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time)
+    fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time) -> Result<()>
     where
         V: Visitor,
     {
-        visitor.visit_grid(self, time, duration);
+        visitor.visit_grid(self, time, duration)?;
         let MeasureResult {
             column_sizes,
             child_durations,
@@ -167,8 +167,9 @@ impl Visit for Grid {
             duration,
         } in arranged
         {
-            item.visit(visitor, time + offset, duration);
+            item.visit(visitor, time + offset, duration)?;
         }
+        Ok(())
     }
 }
 

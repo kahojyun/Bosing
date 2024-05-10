@@ -133,10 +133,10 @@ impl Measure for Play {
 }
 
 impl Visit for Play {
-    fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time)
+    fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time) -> Result<()>
     where
         V: Visitor,
     {
-        visitor.visit_play(self, time, duration);
+        visitor.visit_play(self, time, duration)
     }
 }

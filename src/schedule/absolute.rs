@@ -66,18 +66,19 @@ impl Measure for Absolute {
 }
 
 impl Visit for Absolute {
-    fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time)
+    fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time) -> Result<()>
     where
         V: Visitor,
     {
-        visitor.visit_absolute(self, time, duration);
+        visitor.visit_absolute(self, time, duration)?;
         for AbsoluteEntry {
             time: offset,
             element,
         } in &self.children
         {
-            element.visit(visitor, offset + time, element.measure());
+            element.visit(visitor, offset + time, element.measure())?;
         }
+        Ok(())
     }
 }
 

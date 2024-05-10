@@ -1995,7 +1995,7 @@ fn build_pulse_lists(
         executor.add_shape(n.clone(), Shape::get_rust_shape(s)?);
     }
     let duration = root.measure();
-    root.visit(&mut executor, Time::ZERO, duration);
+    root.visit(&mut executor, Time::ZERO, duration)?;
     Ok(executor.into_result())
 }
 
