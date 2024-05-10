@@ -38,32 +38,11 @@ pub(crate) struct ScheduleOptions {
     pub(crate) allow_oversize: bool,
 }
 
-#[cfg_attr(test, automock)]
-trait Measure {
-    fn measure(&self) -> Time;
-    fn channels(&self) -> &[ChannelId];
+#[derive(Debug)]
+struct MinMax {
+    min: Time,
+    max: Time,
 }
-
-trait Arrange {
-    fn alignment(&self) -> Alignment;
-}
-
-// pub(crate) fn measure(element: ElementRef) -> MeasuredElement {
-//     let common = &element.common;
-//     let total_margin = common.total_margin();
-//     assert!(total_margin.value().is_finite());
-//     let (min_duration, max_duration) = common.clamp_min_max_duration();
-//     let result = element.variant.measure();
-//     let unclipped_duration = (result.0 + total_margin).max(Time::ZERO);
-//     let duration = clamp_duration(unclipped_duration, min_duration, max_duration) + total_margin;
-//     let duration = duration.max(Time::ZERO);
-//     MeasuredElement {
-//         element,
-//         unclipped_duration,
-//         duration,
-//         data: result.1,
-//     }
-// }
 
 // pub(crate) fn arrange(
 //     measured: &MeasuredElement,
@@ -124,6 +103,16 @@ pub(crate) struct ElementCommon {
 
 #[derive(Debug, Clone)]
 pub(crate) struct ElementCommonBuilder(ElementCommon);
+
+#[cfg_attr(test, automock)]
+trait Measure {
+    fn measure(&self) -> Time;
+    fn channels(&self) -> &[ChannelId];
+}
+
+trait Arrange {
+    fn alignment(&self) -> Alignment;
+}
 
 macro_rules! impl_variant {
     ($($variant:ident),*$(,)?) => {
@@ -217,18 +206,11 @@ impl ElementCommon {
         self.min_duration
     }
 
-    fn clamp_min_max_duration(&self) -> (Time, Time) {
-        let max_duration = clamp_duration(
-            self.duration.unwrap_or(Time::INFINITY),
-            self.min_duration,
-            self.max_duration,
-        );
-        let min_duration = clamp_duration(
-            self.duration.unwrap_or(Time::ZERO),
-            self.min_duration,
-            self.max_duration,
-        );
-        (min_duration, max_duration)
+    fn min_max_duration(&self) -> MinMax {
+        let min_max = MinMax::new(self.min_duration, self.max_duration);
+        let max = min_max.clamp(self.duration.unwrap_or(Time::INFINITY));
+        let min = min_max.clamp(self.duration.unwrap_or(Time::ZERO));
+        MinMax::new(min, max)
     }
 
     fn total_margin(&self) -> Time {
@@ -273,18 +255,18 @@ impl ElementCommonBuilder {
 
     pub(crate) fn validate(&self) -> Result<()> {
         let v = &self.0;
-        if !v.margin.0.value().is_finite() || !v.margin.1.value().is_finite() {
+        if !(v.margin.0.value().is_finite() && v.margin.1.value().is_finite()) {
             bail!("Invalid margin {:?}", v.margin);
         }
         if let Some(v) = v.duration {
-            if !v.value().is_finite() || v.value() < 0.0 {
+            if !(v.value().is_finite() && v.value() >= 0.0) {
                 bail!("Invalid duration {:?}", v);
             }
         }
-        if !v.min_duration.value().is_finite() || v.min_duration.value() < 0.0 {
+        if !(v.min_duration.value().is_finite() && v.min_duration.value() >= 0.0) {
             bail!("Invalid min_duration {:?}", v.min_duration);
         }
-        if v.max_duration.value() < 0.0 {
+        if !(v.max_duration.value() >= 0.0) {
             bail!("Invalid max_duration {:?}", v.max_duration);
         }
         Ok(())
@@ -293,6 +275,16 @@ impl ElementCommonBuilder {
     pub(crate) fn build(&self) -> Result<ElementCommon> {
         self.validate()?;
         Ok(self.0.clone())
+    }
+}
+
+impl MinMax {
+    fn new(min: Time, max: Time) -> Self {
+        Self { min, max }
+    }
+
+    fn clamp(&self, value: Time) -> Time {
+        value.min(self.max).max(self.min)
     }
 }
 
@@ -309,6 +301,29 @@ impl Default for ElementCommonBuilder {
     }
 }
 
+impl Measure for Element {
+    fn measure(&self) -> Time {
+        let inner_duration = self.variant.measure();
+        let min_max = self.common.min_max_duration();
+        let duration = min_max.clamp(inner_duration) + self.common.total_margin();
+        duration.max(Time::ZERO)
+    }
+
+    fn channels(&self) -> &[ChannelId] {
+        self.variant.channels()
+    }
+}
+
+impl Measure for ElementRef {
+    fn measure(&self) -> Time {
+        (**self).measure()
+    }
+
+    fn channels(&self) -> &[ChannelId] {
+        (**self).channels()
+    }
+}
+
 impl<T> Measure for &T
 where
     T: Measure + ?Sized,
@@ -322,23 +337,24 @@ where
     }
 }
 
-impl Measure for Element {
-    fn measure(&self) -> Time {
-        todo!()
-    }
-
-    fn channels(&self) -> &[ChannelId] {
-        todo!()
+impl Arrange for Element {
+    fn alignment(&self) -> Alignment {
+        self.common.alignment
     }
 }
 
-impl Measure for ElementRef {
-    fn measure(&self) -> Time {
-        todo!()
+impl Arrange for ElementRef {
+    fn alignment(&self) -> Alignment {
+        (**self).alignment()
     }
+}
 
-    fn channels(&self) -> &[ChannelId] {
-        todo!()
+impl<T> Arrange for &T
+where
+    T: Arrange + ?Sized,
+{
+    fn alignment(&self) -> Alignment {
+        (*self).alignment()
     }
 }
 
@@ -349,8 +365,4 @@ where
 {
     let set = ids.into_iter().flatten().collect::<HashSet<_>>();
     set.into_iter().cloned().collect()
-}
-
-fn clamp_duration(duration: Time, min_duration: Time, max_duration: Time) -> Time {
-    duration.min(max_duration).max(min_duration)
 }
