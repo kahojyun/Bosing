@@ -65,10 +65,10 @@ impl Measure for Absolute {
     }
 }
 
-impl<'a> Visit<'a> for Absolute {
+impl Visit for Absolute {
     fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time)
     where
-        V: Visitor<'a>,
+        V: Visitor,
     {
         visitor.visit_absolute(self, time, duration);
         for AbsoluteEntry {

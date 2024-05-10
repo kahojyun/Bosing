@@ -51,7 +51,7 @@ pub(crate) struct ElementCommon {
 #[derive(Debug, Clone)]
 pub(crate) struct ElementCommonBuilder(ElementCommon);
 
-pub(crate) trait Visitor<'a> {
+pub(crate) trait Visitor {
     fn visit_play(&mut self, variant: &Play, time: Time, duration: Time);
     fn visit_shift_phase(&mut self, variant: &ShiftPhase, time: Time, duration: Time);
     fn visit_set_phase(&mut self, variant: &SetPhase, time: Time, duration: Time);
@@ -85,10 +85,10 @@ trait Measure {
     fn channels(&self) -> &[ChannelId];
 }
 
-trait Visit<'a> {
+trait Visit {
     fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time)
     where
-        V: Visitor<'a>;
+        V: Visitor;
 }
 
 macro_rules! impl_variant {
@@ -142,10 +142,10 @@ macro_rules! impl_variant {
             }
         }
 
-        impl<'a> Visit<'a> for ElementVariant {
+        impl Visit for ElementVariant {
             fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time)
             where
-                V: Visitor<'a>,
+                V: Visitor,
             {
                 match self {
                     $(ElementVariant::$variant(v) => v.visit(visitor, time, duration),)*
@@ -325,10 +325,10 @@ where
     }
 }
 
-impl<'a> Visit<'a> for Element {
+impl Visit for Element {
     fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time)
     where
-        V: Visitor<'a>,
+        V: Visitor,
     {
         visitor.visit_common(&self.common, time, duration);
         let min_max = self.common.min_max_duration();

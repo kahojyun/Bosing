@@ -132,10 +132,10 @@ impl Measure for Play {
     }
 }
 
-impl<'a> Visit<'a> for Play {
+impl Visit for Play {
     fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time)
     where
-        V: Visitor<'a>,
+        V: Visitor,
     {
         visitor.visit_play(self, time, duration);
     }

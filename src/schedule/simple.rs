@@ -166,55 +166,55 @@ impl_measure!(SetFreq);
 impl_measure!(SwapPhase);
 impl_measure!(Barrier);
 
-impl<'a> Visit<'a> for ShiftPhase {
+impl Visit for ShiftPhase {
     fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time)
     where
-        V: Visitor<'a>,
+        V: Visitor,
     {
         visitor.visit_shift_phase(self, time, duration);
     }
 }
 
-impl<'a> Visit<'a> for SetPhase {
+impl Visit for SetPhase {
     fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time)
     where
-        V: Visitor<'a>,
+        V: Visitor,
     {
         visitor.visit_set_phase(self, time, duration);
     }
 }
 
-impl<'a> Visit<'a> for ShiftFreq {
+impl Visit for ShiftFreq {
     fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time)
     where
-        V: Visitor<'a>,
+        V: Visitor,
     {
         visitor.visit_shift_freq(self, time, duration);
     }
 }
 
-impl<'a> Visit<'a> for SetFreq {
+impl Visit for SetFreq {
     fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time)
     where
-        V: Visitor<'a>,
+        V: Visitor,
     {
         visitor.visit_set_freq(self, time, duration);
     }
 }
 
-impl<'a> Visit<'a> for SwapPhase {
+impl Visit for SwapPhase {
     fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time)
     where
-        V: Visitor<'a>,
+        V: Visitor,
     {
         visitor.visit_swap_phase(self, time, duration);
     }
 }
 
-impl<'a> Visit<'a> for Barrier {
+impl Visit for Barrier {
     fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time)
     where
-        V: Visitor<'a>,
+        V: Visitor,
     {
         visitor.visit_barrier(self, time, duration);
     }

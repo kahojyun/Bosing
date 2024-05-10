@@ -135,10 +135,10 @@ impl Measure for Grid {
     }
 }
 
-impl<'a> Visit<'a> for Grid {
+impl Visit for Grid {
     fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time)
     where
-        V: Visitor<'a>,
+        V: Visitor,
     {
         visitor.visit_grid(self, time, duration);
         let MeasureResult {

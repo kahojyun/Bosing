@@ -60,10 +60,10 @@ impl Measure for Repeat {
     }
 }
 
-impl<'a> Visit<'a> for Repeat {
+impl Visit for Repeat {
     fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time)
     where
-        V: Visitor<'a>,
+        V: Visitor,
     {
         visitor.visit_repeat(self, time, duration);
         let child_duration = self.child.measure();
