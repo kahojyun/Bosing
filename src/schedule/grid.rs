@@ -6,7 +6,10 @@ use anyhow::{bail, Result};
 
 use crate::{
     quant::{ChannelId, Time},
-    schedule::{grid::helper::Helper, merge_channel_ids, Alignment, Arranged, ElementRef, Measure},
+    schedule::{
+        grid::helper::Helper, merge_channel_ids, Alignment, Arranged, ElementRef, Measure, Visit,
+        Visitor,
+    },
     GridLength,
 };
 
@@ -129,6 +132,43 @@ impl Measure for Grid {
 
     fn channels(&self) -> &[ChannelId] {
         &self.channel_ids
+    }
+}
+
+impl<'a> Visit<'a> for Grid {
+    fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time)
+    where
+        V: Visitor<'a>,
+    {
+        visitor.visit_grid(self, time, duration);
+        let MeasureResult {
+            column_sizes,
+            child_durations,
+            ..
+        } = self.measure_result();
+        let arranged = arrange_grid(
+            self.children
+                .iter()
+                .zip(child_durations)
+                .map(|(c, t)| ArrangeItem {
+                    item: &c.element,
+                    column: c.column,
+                    span: c.span,
+                    duration: *t,
+                    alignment: c.element.common.alignment,
+                }),
+            &self.columns,
+            duration,
+            column_sizes.clone(),
+        );
+        for Arranged {
+            item,
+            offset,
+            duration,
+        } in arranged
+        {
+            item.visit(visitor, time + offset, duration);
+        }
     }
 }
 

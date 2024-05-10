@@ -38,53 +38,6 @@ pub(crate) struct ScheduleOptions {
     pub(crate) allow_oversize: bool,
 }
 
-// pub(crate) fn arrange(
-//     measured: &MeasuredElement,
-//     time: Time,
-//     duration: Time,
-//     options: &ScheduleOptions,
-// ) -> Result<ArrangedElement> {
-//     let MeasuredElement {
-//         element,
-//         unclipped_duration,
-//         ..
-//     } = measured;
-//     let common = &element.common;
-//     if duration < unclipped_duration - options.time_tolerance && !options.allow_oversize {
-//         bail!(
-//             "Oversizing is configured to be disallowed: available duration {:?} < measured duration {:?}",
-//             duration,
-//             unclipped_duration
-//         );
-//     }
-//     let inner_time = time + common.margin.0;
-//     assert!(inner_time.value().is_finite());
-//     let (min_duration, max_duration) = common.clamp_min_max_duration();
-//     let total_margin = common.total_margin();
-//     let inner_duration = (duration - total_margin).max(Time::ZERO);
-//     let inner_duration = clamp_duration(inner_duration, min_duration, max_duration);
-//     if inner_duration + total_margin < unclipped_duration - options.time_tolerance
-//         && !options.allow_oversize
-//     {
-//         bail!(
-//             "Oversizing is configured to be disallowed: user requested duration {:?} < measured duration {:?}",
-//             inner_duration + total_margin,
-//             unclipped_duration
-//         );
-//     }
-//     let result = element.variant.arrange(&ArrangeContext {
-//         final_duration: inner_duration,
-//         options,
-//         measured_self: measured,
-//     })?;
-//     Ok(ArrangedElement {
-//         element: element.clone(),
-//         inner_time,
-//         inner_duration: result.0,
-//         data: result.1,
-//     })
-// }
-
 #[derive(Debug, Clone)]
 pub(crate) struct ElementCommon {
     margin: (Time, Time),
@@ -97,6 +50,21 @@ pub(crate) struct ElementCommon {
 
 #[derive(Debug, Clone)]
 pub(crate) struct ElementCommonBuilder(ElementCommon);
+
+pub(crate) trait Visitor<'a> {
+    fn visit_play(&mut self, variant: &Play, time: Time, duration: Time);
+    fn visit_shift_phase(&mut self, variant: &ShiftPhase, time: Time, duration: Time);
+    fn visit_set_phase(&mut self, variant: &SetPhase, time: Time, duration: Time);
+    fn visit_shift_freq(&mut self, variant: &ShiftFreq, time: Time, duration: Time);
+    fn visit_set_freq(&mut self, variant: &SetFreq, time: Time, duration: Time);
+    fn visit_swap_phase(&mut self, variant: &SwapPhase, time: Time, duration: Time);
+    fn visit_barrier(&mut self, variant: &Barrier, time: Time, duration: Time);
+    fn visit_repeat(&mut self, variant: &Repeat, time: Time, duration: Time);
+    fn visit_stack(&mut self, variant: &Stack, time: Time, duration: Time);
+    fn visit_absolute(&mut self, variant: &Absolute, time: Time, duration: Time);
+    fn visit_grid(&mut self, variant: &Grid, time: Time, duration: Time);
+    fn visit_common(&mut self, common: &ElementCommon, time: Time, duration: Time);
+}
 
 #[derive(Debug)]
 struct MinMax {
@@ -115,6 +83,12 @@ struct Arranged<T> {
 trait Measure {
     fn measure(&self) -> Time;
     fn channels(&self) -> &[ChannelId];
+}
+
+trait Visit<'a> {
+    fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time)
+    where
+        V: Visitor<'a>;
 }
 
 macro_rules! impl_variant {
@@ -164,6 +138,17 @@ macro_rules! impl_variant {
             fn channels(&self) -> &[ChannelId] {
                 match self {
                     $(ElementVariant::$variant(v) => v.channels(),)*
+                }
+            }
+        }
+
+        impl<'a> Visit<'a> for ElementVariant {
+            fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time)
+            where
+                V: Visitor<'a>,
+            {
+                match self {
+                    $(ElementVariant::$variant(v) => v.visit(visitor, time, duration),)*
                 }
             }
         }
@@ -337,6 +322,20 @@ where
 
     fn channels(&self) -> &[ChannelId] {
         (*self).channels()
+    }
+}
+
+impl<'a> Visit<'a> for Element {
+    fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time)
+    where
+        V: Visitor<'a>,
+    {
+        visitor.visit_common(&self.common, time, duration);
+        let min_max = self.common.min_max_duration();
+        let inner_time = time + self.common.margin.0;
+        let inner_duration = (duration - self.common.total_margin()).max(Time::ZERO);
+        let inner_duration = min_max.clamp(inner_duration);
+        self.variant.visit(visitor, inner_time, inner_duration);
     }
 }
 

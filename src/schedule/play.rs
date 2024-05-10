@@ -2,7 +2,7 @@ use anyhow::{bail, Result};
 
 use crate::{
     quant::{Amplitude, ChannelId, Frequency, Phase, ShapeId, Time},
-    schedule::Measure,
+    schedule::{Measure, Visit, Visitor},
 };
 
 #[derive(Debug, Clone)]
@@ -129,5 +129,14 @@ impl Measure for Play {
         } else {
             self.width + self.plateau
         }
+    }
+}
+
+impl<'a> Visit<'a> for Play {
+    fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time)
+    where
+        V: Visitor<'a>,
+    {
+        visitor.visit_play(self, time, duration);
     }
 }

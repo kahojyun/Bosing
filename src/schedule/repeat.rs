@@ -4,7 +4,7 @@ use anyhow::{bail, Result};
 
 use crate::{
     quant::{ChannelId, Time},
-    schedule::{ElementRef, Measure},
+    schedule::{ElementRef, Measure, Visit, Visitor},
 };
 
 #[derive(Debug, Clone)]
@@ -57,5 +57,20 @@ impl Measure for Repeat {
             let child_duration = self.child.measure();
             child_duration * n + self.spacing * (n - 1.0)
         })
+    }
+}
+
+impl<'a> Visit<'a> for Repeat {
+    fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time)
+    where
+        V: Visitor<'a>,
+    {
+        visitor.visit_repeat(self, time, duration);
+        let child_duration = self.child.measure();
+        let offset_per_repeat = child_duration + self.spacing;
+        for i in 0..self.count {
+            let offset = offset_per_repeat * i as f64;
+            self.child.visit(visitor, time + offset, child_duration);
+        }
     }
 }

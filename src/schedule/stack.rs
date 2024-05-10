@@ -6,7 +6,9 @@ use anyhow::Result;
 
 use crate::{
     quant::{ChannelId, Time},
-    schedule::{merge_channel_ids, stack::helper::Helper, Arranged, ElementRef, Measure},
+    schedule::{
+        merge_channel_ids, stack::helper::Helper, Arranged, ElementRef, Measure, Visit, Visitor,
+    },
     Direction,
 };
 
@@ -79,6 +81,36 @@ impl Measure for Stack {
 
     fn channels(&self) -> &[ChannelId] {
         &self.channel_ids
+    }
+}
+
+impl<'a> Visit<'a> for Stack {
+    fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time)
+    where
+        V: Visitor<'a>,
+    {
+        visitor.visit_stack(self, time, duration);
+        let MeasureResult { child_timings, .. } = self.measure_result();
+        let arranged = arrange_stack(
+            self.children
+                .iter()
+                .zip(child_timings)
+                .map(|(c, t)| ArrangeItem {
+                    item: c,
+                    offset: t.0,
+                    duration: t.1,
+                }),
+            duration,
+            self.direction,
+        );
+        for Arranged {
+            item,
+            offset,
+            duration,
+        } in arranged
+        {
+            item.visit(visitor, time + offset, duration);
+        }
     }
 }
 

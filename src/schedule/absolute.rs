@@ -4,13 +4,20 @@ use anyhow::{bail, Result};
 
 use crate::{
     quant::{ChannelId, Time},
-    schedule::{merge_channel_ids, ElementRef, Measure},
+    schedule::{merge_channel_ids, ElementRef, Measure, Visit, Visitor},
 };
 
 #[derive(Debug, Clone)]
 pub(crate) struct AbsoluteEntry {
     time: Time,
     element: ElementRef,
+}
+
+#[derive(Debug, Clone, Default)]
+pub(crate) struct Absolute {
+    children: Vec<AbsoluteEntry>,
+    channel_ids: Vec<ChannelId>,
+    measure_result: OnceLock<Time>,
 }
 
 impl AbsoluteEntry {
@@ -28,13 +35,6 @@ impl AbsoluteEntry {
         self.time = time;
         Ok(self)
     }
-}
-
-#[derive(Debug, Clone, Default)]
-pub(crate) struct Absolute {
-    children: Vec<AbsoluteEntry>,
-    channel_ids: Vec<ChannelId>,
-    measure_result: OnceLock<Time>,
 }
 
 impl Absolute {
@@ -62,6 +62,22 @@ impl Measure for Absolute {
 
     fn channels(&self) -> &[ChannelId] {
         &self.channel_ids
+    }
+}
+
+impl<'a> Visit<'a> for Absolute {
+    fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time)
+    where
+        V: Visitor<'a>,
+    {
+        visitor.visit_absolute(self, time, duration);
+        for AbsoluteEntry {
+            time: offset,
+            element,
+        } in &self.children
+        {
+            element.visit(visitor, offset + time, element.measure());
+        }
     }
 }
 
