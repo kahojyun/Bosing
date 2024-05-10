@@ -22,10 +22,10 @@ use pyo3::{
 use rayon::prelude::*;
 
 use crate::{
-    // executor::Executor,
+    executor::Executor,
     pulse::{PulseList, Sampler},
     quant::{Amplitude, ChannelId, Frequency, Phase, ShapeId, Time},
-    schedule::{ElementCommonBuilder, ElementRef},
+    schedule::{ElementCommonBuilder, ElementRef, Measure as _, Visit as _},
 };
 
 /// Channel configuration.
@@ -1983,26 +1983,20 @@ fn build_pulse_lists(
     shapes: &HashMap<ShapeId, Py<Shape>>,
     time_tolerance: Time,
     amp_tolerance: Amplitude,
-    allow_oversize: bool,
+    _allow_oversize: bool,
 ) -> PyResult<HashMap<ChannelId, PulseList>> {
-    todo!()
-    // let root = schedule.get().0.clone();
-    // let measured = schedule::measure(root);
-    // let arrange_options = schedule::ScheduleOptions {
-    //     time_tolerance,
-    //     allow_oversize,
-    // };
-    // let arranged = schedule::arrange(&measured, Time::ZERO, measured.duration(), &arrange_options)?;
-    // let mut executor = Executor::new(amp_tolerance, time_tolerance);
-    // for (n, c) in channels {
-    //     executor.add_channel(n.clone(), c.base_freq);
-    // }
-    // for (n, s) in shapes {
-    //     let s = s.bind(py);
-    //     executor.add_shape(n.clone(), Shape::get_rust_shape(s)?);
-    // }
-    // executor.execute(&arranged);
-    // Ok(executor.into_result())
+    let root = schedule.get().0.clone();
+    let mut executor = Executor::new(amp_tolerance, time_tolerance);
+    for (n, c) in channels {
+        executor.add_channel(n.clone(), c.base_freq);
+    }
+    for (n, s) in shapes {
+        let s = s.bind(py);
+        executor.add_shape(n.clone(), Shape::get_rust_shape(s)?);
+    }
+    let duration = root.measure();
+    root.visit(&mut executor, Time::ZERO, duration);
+    Ok(executor.into_result())
 }
 
 fn sample_waveform(

@@ -33,12 +33,6 @@ pub(crate) struct Element {
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct ScheduleOptions {
-    pub(crate) time_tolerance: Time,
-    pub(crate) allow_oversize: bool,
-}
-
-#[derive(Debug, Clone)]
 pub(crate) struct ElementCommon {
     margin: (Time, Time),
     alignment: Alignment,
@@ -66,6 +60,18 @@ pub(crate) trait Visitor {
     fn visit_common(&mut self, common: &ElementCommon, time: Time, duration: Time);
 }
 
+#[cfg_attr(test, automock)]
+pub(crate) trait Measure {
+    fn measure(&self) -> Time;
+    fn channels(&self) -> &[ChannelId];
+}
+
+pub(crate) trait Visit {
+    fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time)
+    where
+        V: Visitor;
+}
+
 #[derive(Debug)]
 struct MinMax {
     min: Time,
@@ -77,18 +83,6 @@ struct Arranged<T> {
     item: T,
     offset: Time,
     duration: Time,
-}
-
-#[cfg_attr(test, automock)]
-trait Measure {
-    fn measure(&self) -> Time;
-    fn channels(&self) -> &[ChannelId];
-}
-
-trait Visit {
-    fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time)
-    where
-        V: Visitor;
 }
 
 macro_rules! impl_variant {
@@ -336,6 +330,27 @@ impl Visit for Element {
         let inner_duration = (duration - self.common.total_margin()).max(Time::ZERO);
         let inner_duration = min_max.clamp(inner_duration);
         self.variant.visit(visitor, inner_time, inner_duration);
+    }
+}
+
+impl Visit for ElementRef {
+    fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time)
+    where
+        V: Visitor,
+    {
+        (**self).visit(visitor, time, duration);
+    }
+}
+
+impl<T> Visit for &T
+where
+    T: Visit + ?Sized,
+{
+    fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time)
+    where
+        V: Visitor,
+    {
+        (*self).visit(visitor, time, duration);
     }
 }
 
