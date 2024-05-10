@@ -131,27 +131,3 @@ impl Measure for Play {
         }
     }
 }
-
-// impl Schedule for Play {
-//     fn measure(&self) -> MeasureResult {
-//         let wanted_duration = if self.flexible {
-//             self.width
-//         } else {
-//             self.width + self.plateau
-//         };
-//         MeasureResult(wanted_duration, MeasureResultVariant::Simple)
-//     }
-
-//     fn arrange(&self, context: &ArrangeContext) -> Result<ArrangeResult> {
-//         let arranged = if self.flexible {
-//             context.final_duration
-//         } else {
-//             self.width + self.plateau
-//         };
-//         Ok(ArrangeResult(arranged, ArrangeResultVariant::Simple))
-//     }
-
-//     fn channels(&self) -> &[ChannelId] {
-//         &self.channel_id
-//     }
-// }

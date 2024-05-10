@@ -22,7 +22,7 @@ use pyo3::{
 use rayon::prelude::*;
 
 use crate::{
-    executor::Executor,
+    // executor::Executor,
     pulse::{PulseList, Sampler},
     quant::{Amplitude, ChannelId, Frequency, Phase, ShapeId, Time},
     schedule::{ElementCommonBuilder, ElementRef},

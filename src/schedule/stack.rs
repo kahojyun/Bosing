@@ -6,7 +6,7 @@ use anyhow::Result;
 
 use crate::{
     quant::{ChannelId, Time},
-    schedule::{merge_channel_ids, stack::helper::Helper, ElementRef, Measure},
+    schedule::{merge_channel_ids, stack::helper::Helper, Arranged, ElementRef, Measure},
     Direction,
 };
 
@@ -15,7 +15,20 @@ pub(crate) struct Stack {
     children: Vec<ElementRef>,
     direction: Direction,
     channel_ids: Vec<ChannelId>,
-    measure_result: OnceLock<(Time, Vec<Time>)>,
+    measure_result: OnceLock<MeasureResult>,
+}
+
+#[derive(Debug, Clone)]
+struct MeasureResult {
+    total_duration: Time,
+    child_timings: Vec<(Time, Time)>,
+}
+
+#[derive(Debug, Clone)]
+struct ArrangeItem<T> {
+    item: T,
+    offset: Time,
+    duration: Time,
 }
 
 impl Stack {
@@ -41,7 +54,7 @@ impl Stack {
         self.direction
     }
 
-    fn measure_result(&self) -> &(Time, Vec<Time>) {
+    fn measure_result(&self) -> &MeasureResult {
         self.measure_result
             .get_or_init(|| measure_stack(&self.children, &self.channel_ids, self.direction))
     }
@@ -60,7 +73,7 @@ impl Default for Stack {
 
 impl Measure for Stack {
     fn measure(&self) -> Time {
-        let (total_duration, _) = self.measure_result();
+        let MeasureResult { total_duration, .. } = self.measure_result();
         *total_duration
     }
 
@@ -69,41 +82,46 @@ impl Measure for Stack {
     }
 }
 
-fn arrange_stack<I, M>(
+fn arrange_stack<I, T>(
     children: I,
     final_duration: Time,
     direction: Direction,
-) -> impl IntoIterator<Item = (M, Time, Time)>
+) -> impl IntoIterator<Item = Arranged<T>>
 where
-    I: IntoIterator<Item = (M, Time)>,
-    M: Measure,
+    I: IntoIterator<Item = ArrangeItem<T>>,
 {
-    children.into_iter().map(move |(child, child_offset)| {
-        let child_duration = child.measure();
+    children.into_iter().map(move |child| {
         let final_offset = match direction {
-            Direction::Forward => child_offset,
-            Direction::Backward => final_duration - child_offset - child_duration,
+            Direction::Forward => child.offset,
+            Direction::Backward => final_duration - child.offset - child.duration,
         };
-        (child, final_offset, child_duration)
+        Arranged {
+            item: child.item,
+            offset: final_offset,
+            duration: child.duration,
+        }
     })
 }
 
-fn measure_stack<I>(children: I, channels: &[ChannelId], direction: Direction) -> (Time, Vec<Time>)
+fn measure_stack<I>(children: I, channels: &[ChannelId], direction: Direction) -> MeasureResult
 where
     I: IntoIterator,
     I::IntoIter: DoubleEndedIterator,
     I::Item: Measure,
 {
     let mut helper = Helper::new(channels);
-    let child_offsets = map_and_collect_by_direction(children, direction, |child| {
+    let child_timings = map_and_collect_by_direction(children, direction, |child| {
         let child_channels = child.channels();
         let child_duration = child.measure();
         let child_offset = helper.get_usage(child_channels);
         helper.update_usage(child_offset + child_duration, child_channels);
-        Ok(child_offset)
+        Ok((child_offset, child_duration))
     })
     .unwrap();
-    (helper.into_max_usage(), child_offsets)
+    MeasureResult {
+        total_duration: helper.into_max_usage(),
+        child_timings,
+    }
 }
 
 /// Map by direction but collect in the original order.
@@ -125,30 +143,30 @@ where
 
 #[cfg(test)]
 mod tests {
+    use itertools::Itertools;
     use test_case::test_case;
 
     use super::*;
     use crate::schedule::MockMeasure;
 
-    #[test]
-    fn test_collect_by_direction() {
-        let v = vec![1, 2, 3, 4, 5];
+    #[test_case(Direction::Forward; "forward")]
+    #[test_case(Direction::Backward; "backward")]
+
+    fn collect_by_direction(direction: Direction) {
+        let v = [1, 2, 3];
+
         let mut count = 0;
-        let forward = map_and_collect_by_direction(&v, Direction::Forward, |&i| {
-            let ret = (count, i);
+        let res = map_and_collect_by_direction(&v, direction, |&i| {
+            match direction {
+                Direction::Forward => assert_eq!(i, v[count]),
+                Direction::Backward => assert_eq!(i, v[v.len() - 1 - count]),
+            }
             count += 1;
-            Ok(ret)
+            Ok(i)
         })
         .unwrap();
-        assert_eq!(forward, vec![(0, 1), (1, 2), (2, 3), (3, 4), (4, 5)]);
-        let mut count = 0;
-        let backward = map_and_collect_by_direction(&v, Direction::Backward, |&i| {
-            let ret = (count, i);
-            count += 1;
-            Ok(ret)
-        })
-        .unwrap();
-        assert_eq!(backward, vec![(4, 1), (3, 2), (2, 3), (1, 4), (0, 5)]);
+
+        assert_eq!(res, v);
     }
 
     #[test_case(Direction::Forward, &[0.0, 10.0, 30.0]; "forward")]
@@ -161,10 +179,18 @@ mod tests {
             mock.expect_channels().return_const(vec![]);
             mock
         });
-        let (total_duration, child_offsets) = measure_stack(children, &[], direction);
+
+        let MeasureResult {
+            total_duration,
+            child_timings,
+        } = measure_stack(children, &[], direction);
+
         assert_eq!(total_duration, Time::new(60.0).unwrap());
         assert_eq!(
-            child_offsets,
+            child_timings
+                .into_iter()
+                .map(|(offset, _)| offset)
+                .collect::<Vec<_>>(),
             offsets
                 .iter()
                 .map(|&x| Time::new(x).unwrap())
@@ -186,6 +212,29 @@ mod tests {
     #[test_case(Direction::Forward, &[0.0, 0.0, 20.0, 40.0, 40.0]; "forward")]
     #[test_case(Direction::Backward, &[40.0, 40.0, 20.0, 0.0, 0.0]; "backward")]
     fn test_measure_with_channels(direction: Direction, offsets: &[f64]) {
+        let children = [
+            create_mock(10.0, &[0]),
+            create_mock(20.0, &[1]),
+            create_mock(20.0, &[0, 1]),
+            create_mock(20.0, &[0]),
+            create_mock(10.0, &[1]),
+        ];
+        let channels = (0..2).map(create_channel).collect::<Vec<_>>();
+
+        let MeasureResult {
+            total_duration,
+            child_timings,
+        } = measure_stack(children, &channels, direction);
+
+        assert_eq!(total_duration, Time::new(60.0).unwrap());
+        assert_eq!(
+            child_timings
+                .into_iter()
+                .map(|(offset, _)| offset.value())
+                .collect::<Vec<_>>(),
+            offsets
+        );
+
         fn create_channel(i: usize) -> ChannelId {
             ChannelId::new(i.to_string())
         }
@@ -197,23 +246,35 @@ mod tests {
                 .return_const(channels.iter().copied().map(create_channel).collect());
             mock
         }
+    }
 
-        let children = [
-            create_mock(10.0, &[0]),
-            create_mock(20.0, &[1]),
-            create_mock(20.0, &[0, 1]),
-            create_mock(20.0, &[0]),
-            create_mock(10.0, &[1]),
-        ];
-        let channels = (0..2).map(create_channel).collect::<Vec<_>>();
-        let (total_duration, child_offsets) = measure_stack(children, &channels, direction);
-        assert_eq!(total_duration, Time::new(60.0).unwrap());
-        assert_eq!(
-            child_offsets,
-            offsets
-                .iter()
-                .map(|&x| Time::new(x).unwrap())
-                .collect::<Vec<_>>()
-        );
+    #[test_case(
+        Direction::Forward,
+        &[0.0, 0.0, 20.0, 40.0, 40.0],
+        &[0.0, 0.0, 20.0, 40.0, 40.0];
+        "forward"
+    )]
+    #[test_case(
+        Direction::Backward,
+        &[40.0, 40.0, 20.0, 0.0, 0.0],
+        &[50.0, 40.0, 60.0, 80.0, 90.0];
+        "backward"
+    )]
+    fn test_arrange(direction: Direction, offsets: &[f64], expected_offsets: &[f64]) {
+        let children =
+            [10.0, 20.0, 20.0, 20.0, 10.0]
+                .into_iter()
+                .zip(offsets)
+                .map(|(duration, offset)| ArrangeItem {
+                    item: (),
+                    offset: Time::new(*offset).unwrap(),
+                    duration: Time::new(duration).unwrap(),
+                });
+
+        let res = arrange_stack(children, Time::new(100.0).unwrap(), direction);
+
+        for (item, expected_offset) in res.into_iter().zip_eq(expected_offsets.iter()) {
+            assert_eq!(item.offset.value(), *expected_offset);
+        }
     }
 }

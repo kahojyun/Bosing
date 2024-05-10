@@ -38,12 +38,6 @@ pub(crate) struct ScheduleOptions {
     pub(crate) allow_oversize: bool,
 }
 
-#[derive(Debug)]
-struct MinMax {
-    min: Time,
-    max: Time,
-}
-
 // pub(crate) fn arrange(
 //     measured: &MeasuredElement,
 //     time: Time,
@@ -104,14 +98,23 @@ pub(crate) struct ElementCommon {
 #[derive(Debug, Clone)]
 pub(crate) struct ElementCommonBuilder(ElementCommon);
 
+#[derive(Debug)]
+struct MinMax {
+    min: Time,
+    max: Time,
+}
+
+#[derive(Debug)]
+struct Arranged<T> {
+    item: T,
+    offset: Time,
+    duration: Time,
+}
+
 #[cfg_attr(test, automock)]
 trait Measure {
     fn measure(&self) -> Time;
     fn channels(&self) -> &[ChannelId];
-}
-
-trait Arrange {
-    fn alignment(&self) -> Alignment;
 }
 
 macro_rules! impl_variant {
@@ -334,27 +337,6 @@ where
 
     fn channels(&self) -> &[ChannelId] {
         (*self).channels()
-    }
-}
-
-impl Arrange for Element {
-    fn alignment(&self) -> Alignment {
-        self.common.alignment
-    }
-}
-
-impl Arrange for ElementRef {
-    fn alignment(&self) -> Alignment {
-        (**self).alignment()
-    }
-}
-
-impl<T> Arrange for &T
-where
-    T: Arrange + ?Sized,
-{
-    fn alignment(&self) -> Alignment {
-        (*self).alignment()
     }
 }
 
