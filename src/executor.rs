@@ -147,7 +147,15 @@ impl Channel {
 
 impl Visitor for Executor {
     fn visit_play(&mut self, variant: &Play, time: Time, duration: Time) -> Result<()> {
-        let shape = variant.shape_id().map(|id| self.shapes[id].clone());
+        let shape = match variant.shape_id() {
+            Some(id) => Some(
+                self.shapes
+                    .get(id)
+                    .ok_or(anyhow!("Shape {:?} not found", id))?
+                    .clone(),
+            ),
+            None => None,
+        };
         let width = variant.width();
         let plateau = if variant.flexible() {
             duration - width
