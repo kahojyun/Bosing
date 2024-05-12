@@ -7,6 +7,8 @@ use crate::{
     schedule::{ElementRef, Measure, Visit, Visitor},
 };
 
+use super::{Arrange, Arranged};
+
 #[derive(Debug, Clone)]
 pub(crate) struct Repeat {
     child: ElementRef,
@@ -73,5 +75,24 @@ impl Visit for Repeat {
             self.child.visit(visitor, time + offset, child_duration)?;
         }
         Ok(())
+    }
+}
+
+impl<'a> Arrange<'a> for Repeat {
+    fn arrange(
+        &'a self,
+        time: Time,
+        _duration: Time,
+    ) -> impl Iterator<Item = Arranged<&'a ElementRef>> {
+        let child_duration = self.child.measure();
+        let offset_per_repeat = child_duration + self.spacing;
+        (0..self.count).map(move |i| {
+            let offset = offset_per_repeat * i as f64;
+            Arranged {
+                item: &self.child,
+                offset: time + offset,
+                duration: child_duration,
+            }
+        })
     }
 }

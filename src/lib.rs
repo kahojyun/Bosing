@@ -7,7 +7,7 @@ mod quant;
 mod schedule;
 mod shape;
 
-use std::{borrow::Borrow, fmt::Debug, str::FromStr, sync::Arc};
+use std::{borrow::Borrow, fmt::Debug, str::FromStr, sync::Arc, time::Instant};
 
 use hashbrown::HashMap;
 use indoc::indoc;
@@ -1985,7 +1985,7 @@ fn build_pulse_lists(
     amp_tolerance: Amplitude,
     _allow_oversize: bool,
 ) -> PyResult<HashMap<ChannelId, PulseList>> {
-    let root = schedule.get().0.clone();
+    let root = &schedule.get().0;
     let mut executor = Executor::new(amp_tolerance, time_tolerance);
     for (n, c) in channels {
         executor.add_channel(n.clone(), c.base_freq);
@@ -1994,8 +1994,18 @@ fn build_pulse_lists(
         let s = s.bind(py);
         executor.add_shape(n.clone(), Shape::get_rust_shape(s)?);
     }
+    let t0 = Instant::now();
     let duration = root.measure();
-    root.visit(&mut executor, Time::ZERO, duration)?;
+    let t1 = Instant::now();
+    // root.visit(&mut executor, Time::ZERO, duration)?;
+    executor.execute(root, Time::ZERO, duration)?;
+    let t2 = Instant::now();
+    println!(
+        "Measure: {:?}, Visit: {:?}, Total: {:?}",
+        t1 - t0,
+        t2 - t1,
+        t2 - t0
+    );
     Ok(executor.into_result())
 }
 

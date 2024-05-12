@@ -6,8 +6,8 @@ use crate::{
     pulse::{Envelope, PulseList, PulseListBuilder, PushArgs},
     quant::{Amplitude, ChannelId, Frequency, Phase, ShapeId, Time},
     schedule::{
-        Absolute, Barrier, ElementCommon, Grid, Play, Repeat, SetFreq, SetPhase, ShiftFreq,
-        ShiftPhase, Stack, SwapPhase, Visitor,
+        arrange_tree, Absolute, Arranged, Barrier, ElementCommon, ElementRef, ElementVariant, Grid,
+        Play, Repeat, SetFreq, SetPhase, ShiftFreq, ShiftPhase, Stack, SwapPhase, Visitor,
     },
     shape::Shape,
 };
@@ -65,6 +65,114 @@ impl Executor {
             .into_iter()
             .map(|(n, b)| (n, b.pulses.build()))
             .collect()
+    }
+
+    pub(crate) fn execute(&mut self, root: &ElementRef, time: Time, duration: Time) -> Result<()> {
+        for Arranged {
+            item,
+            offset,
+            duration,
+        } in arrange_tree(root, time, duration)
+        {
+            let inner = item.arrange_inner(offset, duration);
+            match inner.item {
+                ElementVariant::Play(variant) => {
+                    self.execute_play(variant, inner.offset, inner.duration)
+                }
+                ElementVariant::ShiftPhase(variant) => self.execute_shift_phase(variant),
+                ElementVariant::SetPhase(variant) => self.execute_set_phase(variant, inner.offset),
+                ElementVariant::ShiftFreq(variant) => {
+                    self.execute_shift_freq(variant, inner.offset)
+                }
+                ElementVariant::SetFreq(variant) => self.execute_set_freq(variant, inner.offset),
+                ElementVariant::SwapPhase(variant) => {
+                    self.execute_swap_phase(variant, inner.offset)
+                }
+                _ => Ok(()),
+            }
+            .unwrap();
+        }
+        Ok(())
+    }
+
+    fn execute_play(&mut self, variant: &Play, time: Time, duration: Time) -> Result<()> {
+        let shape = match variant.shape_id() {
+            Some(id) => Some(
+                self.shapes
+                    .get(id)
+                    .ok_or(anyhow!("Shape {:?} not found", id))?
+                    .clone(),
+            ),
+            None => None,
+        };
+        let width = variant.width();
+        let plateau = if variant.flexible() {
+            duration - width
+        } else {
+            variant.plateau()
+        };
+        if plateau < Time::ZERO {
+            bail!("Invalid plateau {:?}", plateau);
+        }
+        let amplitude = variant.amplitude();
+        let drag_coef = variant.drag_coef();
+        let freq = variant.frequency();
+        let phase = variant.phase();
+        let channel = self.get_mut_channel(variant.channel_id())?;
+        channel.add_pulse(AddPulseArgs {
+            shape,
+            time,
+            width,
+            plateau,
+            amplitude,
+            drag_coef,
+            freq,
+            phase,
+        });
+        Ok(())
+    }
+
+    fn execute_shift_phase(&mut self, variant: &ShiftPhase) -> Result<()> {
+        let delta_phase = variant.phase();
+        let channel = self.get_mut_channel(variant.channel_id())?;
+        channel.shift_phase(delta_phase);
+        Ok(())
+    }
+
+    fn execute_set_phase(&mut self, variant: &SetPhase, time: Time) -> Result<()> {
+        let phase = variant.phase();
+        let channel = self.get_mut_channel(variant.channel_id())?;
+        channel.set_phase(phase, time);
+        Ok(())
+    }
+
+    fn execute_shift_freq(&mut self, variant: &ShiftFreq, time: Time) -> Result<()> {
+        let delta_freq = variant.frequency();
+        let channel = self.get_mut_channel(variant.channel_id())?;
+        channel.shift_freq(delta_freq, time);
+        Ok(())
+    }
+
+    fn execute_set_freq(&mut self, variant: &SetFreq, time: Time) -> Result<()> {
+        let freq = variant.frequency();
+        let channel = self.get_mut_channel(variant.channel_id())?;
+        channel.set_freq(freq, time);
+        Ok(())
+    }
+
+    fn execute_swap_phase(&mut self, variant: &SwapPhase, time: Time) -> Result<()> {
+        let ch1 = variant.channel_id1();
+        let ch2 = variant.channel_id2();
+        if ch1 == ch2 {
+            return Ok(());
+        }
+        let [channel, other] = self.channels.get_many_mut([ch1, ch2]).ok_or(anyhow!(
+            "Channels {:?} or {:?} not found",
+            ch1,
+            ch2
+        ))?;
+        channel.swap_phase(other, time);
+        Ok(())
     }
 
     fn get_mut_channel(&mut self, id: &ChannelId) -> Result<&mut Channel> {
@@ -147,40 +255,7 @@ impl Channel {
 
 impl Visitor for Executor {
     fn visit_play(&mut self, variant: &Play, time: Time, duration: Time) -> Result<()> {
-        let shape = match variant.shape_id() {
-            Some(id) => Some(
-                self.shapes
-                    .get(id)
-                    .ok_or(anyhow!("Shape {:?} not found", id))?
-                    .clone(),
-            ),
-            None => None,
-        };
-        let width = variant.width();
-        let plateau = if variant.flexible() {
-            duration - width
-        } else {
-            variant.plateau()
-        };
-        if plateau < Time::ZERO {
-            bail!("Invalid plateau {:?}", plateau);
-        }
-        let amplitude = variant.amplitude();
-        let drag_coef = variant.drag_coef();
-        let freq = variant.frequency();
-        let phase = variant.phase();
-        let channel = self.get_mut_channel(variant.channel_id())?;
-        channel.add_pulse(AddPulseArgs {
-            shape,
-            time,
-            width,
-            plateau,
-            amplitude,
-            drag_coef,
-            freq,
-            phase,
-        });
-        Ok(())
+        self.execute_play(variant, time, duration)
     }
 
     fn visit_shift_phase(
@@ -189,46 +264,23 @@ impl Visitor for Executor {
         _time: Time,
         _durationn: Time,
     ) -> Result<()> {
-        let delta_phase = variant.phase();
-        let channel = self.get_mut_channel(variant.channel_id())?;
-        channel.shift_phase(delta_phase);
-        Ok(())
+        self.execute_shift_phase(variant)
     }
 
     fn visit_set_phase(&mut self, variant: &SetPhase, time: Time, _duration: Time) -> Result<()> {
-        let phase = variant.phase();
-        let channel = self.get_mut_channel(variant.channel_id())?;
-        channel.set_phase(phase, time);
-        Ok(())
+        self.execute_set_phase(variant, time)
     }
 
     fn visit_shift_freq(&mut self, variant: &ShiftFreq, time: Time, _duration: Time) -> Result<()> {
-        let delta_freq = variant.frequency();
-        let channel = self.get_mut_channel(variant.channel_id())?;
-        channel.shift_freq(delta_freq, time);
-        Ok(())
+        self.execute_shift_freq(variant, time)
     }
 
     fn visit_set_freq(&mut self, variant: &SetFreq, time: Time, _duration: Time) -> Result<()> {
-        let freq = variant.frequency();
-        let channel = self.get_mut_channel(variant.channel_id())?;
-        channel.set_freq(freq, time);
-        Ok(())
+        self.execute_set_freq(variant, time)
     }
 
     fn visit_swap_phase(&mut self, variant: &SwapPhase, time: Time, _duration: Time) -> Result<()> {
-        let ch1 = variant.channel_id1();
-        let ch2 = variant.channel_id2();
-        if ch1 == ch2 {
-            return Ok(());
-        }
-        let [channel, other] = self.channels.get_many_mut([ch1, ch2]).ok_or(anyhow!(
-            "Channels {:?} or {:?} not found",
-            ch1,
-            ch2
-        ))?;
-        channel.swap_phase(other, time);
-        Ok(())
+        self.execute_swap_phase(variant, time)
     }
 
     fn visit_barrier(&mut self, _variant: &Barrier, _time: Time, _duration: Time) -> Result<()> {

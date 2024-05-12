@@ -13,6 +13,8 @@ use crate::{
     GridLength,
 };
 
+use super::Arrange;
+
 #[derive(Debug, Clone)]
 pub(crate) struct GridEntry {
     element: ElementRef,
@@ -170,6 +172,53 @@ impl Visit for Grid {
             item.visit(visitor, time + offset, duration)?;
         }
         Ok(())
+    }
+}
+
+impl<'a> Arrange<'a> for Grid {
+    fn arrange(
+        &'a self,
+        time: Time,
+        duration: Time,
+    ) -> impl Iterator<Item = Arranged<&'a ElementRef>> {
+        let MeasureResult {
+            column_sizes,
+            child_durations,
+            ..
+        } = self.measure_result();
+        let mut helper = Helper::new_with_column_sizes(&self.columns, column_sizes.clone());
+        helper.expand_to_fit(duration);
+        let column_starts = helper.column_starts();
+        self.children.iter().zip(child_durations).map(
+            move |(
+                GridEntry {
+                    element,
+                    column,
+                    span,
+                },
+                &child_duration,
+            )| {
+                let span = helper.normalize_span(*column, *span);
+                let start = span.start();
+                let span = span.span();
+                let span_duration = column_starts[start + span] - column_starts[start];
+                let child_duration = match element.common.alignment {
+                    Alignment::Stretch => span_duration,
+                    _ => child_duration,
+                };
+                let child_offset = match element.common.alignment {
+                    Alignment::End => span_duration - child_duration,
+                    Alignment::Center => (span_duration - child_duration) / 2.0,
+                    _ => Time::ZERO,
+                } + column_starts[start];
+
+                Arranged {
+                    item: element,
+                    offset: time + child_offset,
+                    duration: child_duration,
+                }
+            },
+        )
     }
 }
 

@@ -7,6 +7,8 @@ use crate::{
     schedule::{merge_channel_ids, ElementRef, Measure, Visit, Visitor},
 };
 
+use super::{Arrange, Arranged};
+
 #[derive(Debug, Clone)]
 pub(crate) struct AbsoluteEntry {
     time: Time,
@@ -79,6 +81,27 @@ impl Visit for Absolute {
             element.visit(visitor, offset + time, element.measure())?;
         }
         Ok(())
+    }
+}
+
+impl<'a> Arrange<'a> for Absolute {
+    fn arrange(
+        &'a self,
+        time: Time,
+        _duration: Time,
+    ) -> impl Iterator<Item = Arranged<&'a ElementRef>> {
+        self.children.iter().map(
+            move |AbsoluteEntry {
+                      time: offset,
+                      element,
+                  }| {
+                Arranged {
+                    duration: element.measure(),
+                    item: element,
+                    offset: time + offset,
+                }
+            },
+        )
     }
 }
 

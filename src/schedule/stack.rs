@@ -12,6 +12,8 @@ use crate::{
     Direction,
 };
 
+use super::Arrange;
+
 #[derive(Debug, Clone)]
 pub(crate) struct Stack {
     children: Vec<ElementRef>,
@@ -112,6 +114,29 @@ impl Visit for Stack {
             item.visit(visitor, time + offset, duration)?;
         }
         Ok(())
+    }
+}
+
+impl<'a> Arrange<'a> for Stack {
+    fn arrange(
+        &'a self,
+        time: Time,
+        duration: Time,
+    ) -> impl Iterator<Item = Arranged<&'a ElementRef>> {
+        let MeasureResult { child_timings, .. } = self.measure_result();
+        self.children.iter().zip(child_timings).map(
+            move |(item, &(child_offset, child_duration))| {
+                let final_offset = match self.direction {
+                    Direction::Forward => child_offset,
+                    Direction::Backward => duration - child_offset - child_duration,
+                };
+                Arranged {
+                    item,
+                    offset: time + final_offset,
+                    duration: child_duration,
+                }
+            },
+        )
     }
 }
 
