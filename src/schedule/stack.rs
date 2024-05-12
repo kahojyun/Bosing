@@ -1,6 +1,6 @@
 mod helper;
 
-use std::sync::OnceLock;
+use std::{ops::ControlFlow, sync::OnceLock};
 
 use anyhow::Result;
 
@@ -85,7 +85,7 @@ impl Measure for Stack {
 }
 
 impl Visit for Stack {
-    fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time) -> Result<()>
+    fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time) -> ControlFlow<V::Break>
     where
         V: Visitor,
     {
@@ -111,7 +111,7 @@ impl Visit for Stack {
         {
             item.visit(visitor, time + offset, duration)?;
         }
-        Ok(())
+        ControlFlow::Continue(())
     }
 }
 

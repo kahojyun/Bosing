@@ -1,3 +1,5 @@
+use std::ops::ControlFlow;
+
 use anyhow::{bail, Result};
 
 use crate::{
@@ -133,7 +135,7 @@ impl Measure for Play {
 }
 
 impl Visit for Play {
-    fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time) -> Result<()>
+    fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time) -> ControlFlow<V::Break>
     where
         V: Visitor,
     {

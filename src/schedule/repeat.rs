@@ -1,4 +1,4 @@
-use std::sync::OnceLock;
+use std::{ops::ControlFlow, sync::OnceLock};
 
 use anyhow::{bail, Result};
 
@@ -61,7 +61,7 @@ impl Measure for Repeat {
 }
 
 impl Visit for Repeat {
-    fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time) -> Result<()>
+    fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time) -> ControlFlow<V::Break>
     where
         V: Visitor,
     {
@@ -72,6 +72,6 @@ impl Visit for Repeat {
             let offset = offset_per_repeat * i as f64;
             self.child.visit(visitor, time + offset, child_duration)?;
         }
-        Ok(())
+        ControlFlow::Continue(())
     }
 }

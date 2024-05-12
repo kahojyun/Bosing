@@ -1,6 +1,6 @@
 mod helper;
 
-use std::sync::OnceLock;
+use std::{ops::ControlFlow, sync::OnceLock};
 
 use anyhow::{bail, Result};
 
@@ -136,7 +136,7 @@ impl Measure for Grid {
 }
 
 impl Visit for Grid {
-    fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time) -> Result<()>
+    fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time) -> ControlFlow<V::Break>
     where
         V: Visitor,
     {
@@ -169,7 +169,7 @@ impl Visit for Grid {
         {
             item.visit(visitor, time + offset, duration)?;
         }
-        Ok(())
+        ControlFlow::Continue(())
     }
 }
 

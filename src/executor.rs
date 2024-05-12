@@ -1,13 +1,15 @@
+use std::{ops::ControlFlow, time::Instant};
+
 use hashbrown::HashMap;
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{anyhow, Result};
 
 use crate::{
     pulse::{Envelope, PulseList, PulseListBuilder, PushArgs},
     quant::{Amplitude, ChannelId, Frequency, Phase, ShapeId, Time},
     schedule::{
-        Absolute, Barrier, ElementCommon, Grid, Play, Repeat, SetFreq, SetPhase, ShiftFreq,
-        ShiftPhase, Stack, SwapPhase, Visitor,
+        Absolute, Barrier, ElementCommon, ElementRef, Grid, Measure as _, Play, Repeat, SetFreq,
+        SetPhase, ShiftFreq, ShiftPhase, Stack, SwapPhase, Visit as _, Visitor,
     },
     shape::Shape,
 };
@@ -65,6 +67,19 @@ impl Executor {
             .into_iter()
             .map(|(n, b)| (n, b.pulses.build()))
             .collect()
+    }
+
+    pub(crate) fn execute(&mut self, root: &ElementRef) -> Result<()> {
+        let t0 = Instant::now();
+        let duration = root.measure();
+        let t1 = Instant::now();
+        let res = match root.visit(self, Time::ZERO, duration) {
+            ControlFlow::Continue(_) => Ok(()),
+            ControlFlow::Break(err) => Err(err),
+        };
+        let t2 = Instant::now();
+        println!("Measure: {:?}, Visit: {:?}", t1 - t0, t2 - t1);
+        res
     }
 
     fn get_mut_channel(&mut self, id: &ChannelId) -> Result<&mut Channel> {
@@ -146,14 +161,19 @@ impl Channel {
 }
 
 impl Visitor for Executor {
-    fn visit_play(&mut self, variant: &Play, time: Time, duration: Time) -> Result<()> {
+    type Break = anyhow::Error;
+
+    fn visit_play(
+        &mut self,
+        variant: &Play,
+        time: Time,
+        duration: Time,
+    ) -> ControlFlow<Self::Break> {
         let shape = match variant.shape_id() {
-            Some(id) => Some(
-                self.shapes
-                    .get(id)
-                    .ok_or(anyhow!("Shape {:?} not found", id))?
-                    .clone(),
-            ),
+            Some(id) => Some(match self.shapes.get(id) {
+                Some(shape) => shape.clone(),
+                None => return ControlFlow::Break(anyhow!("Shape {:?} not found", id)),
+            }),
             None => None,
         };
         let width = variant.width();
@@ -163,13 +183,16 @@ impl Visitor for Executor {
             variant.plateau()
         };
         if plateau < Time::ZERO {
-            bail!("Invalid plateau {:?}", plateau);
+            return ControlFlow::Break(anyhow!("Invalid plateau {:?}", plateau));
         }
         let amplitude = variant.amplitude();
         let drag_coef = variant.drag_coef();
         let freq = variant.frequency();
         let phase = variant.phase();
-        let channel = self.get_mut_channel(variant.channel_id())?;
+        let channel = match self.get_mut_channel(variant.channel_id()) {
+            Ok(channel) => channel,
+            Err(err) => return ControlFlow::Break(err),
+        };
         channel.add_pulse(AddPulseArgs {
             shape,
             time,
@@ -180,7 +203,7 @@ impl Visitor for Executor {
             freq,
             phase,
         });
-        Ok(())
+        ControlFlow::Continue(())
     }
 
     fn visit_shift_phase(
@@ -188,67 +211,125 @@ impl Visitor for Executor {
         variant: &ShiftPhase,
         _time: Time,
         _durationn: Time,
-    ) -> Result<()> {
+    ) -> ControlFlow<Self::Break> {
         let delta_phase = variant.phase();
-        let channel = self.get_mut_channel(variant.channel_id())?;
+        let channel = match self.get_mut_channel(variant.channel_id()) {
+            Ok(channel) => channel,
+            Err(err) => return ControlFlow::Break(err),
+        };
         channel.shift_phase(delta_phase);
-        Ok(())
+        ControlFlow::Continue(())
     }
 
-    fn visit_set_phase(&mut self, variant: &SetPhase, time: Time, _duration: Time) -> Result<()> {
+    fn visit_set_phase(
+        &mut self,
+        variant: &SetPhase,
+        time: Time,
+        _duration: Time,
+    ) -> ControlFlow<Self::Break> {
         let phase = variant.phase();
-        let channel = self.get_mut_channel(variant.channel_id())?;
+        let channel = match self.get_mut_channel(variant.channel_id()) {
+            Ok(channel) => channel,
+            Err(err) => return ControlFlow::Break(err),
+        };
         channel.set_phase(phase, time);
-        Ok(())
+        ControlFlow::Continue(())
     }
 
-    fn visit_shift_freq(&mut self, variant: &ShiftFreq, time: Time, _duration: Time) -> Result<()> {
+    fn visit_shift_freq(
+        &mut self,
+        variant: &ShiftFreq,
+        time: Time,
+        _duration: Time,
+    ) -> ControlFlow<Self::Break> {
         let delta_freq = variant.frequency();
-        let channel = self.get_mut_channel(variant.channel_id())?;
+        let channel = match self.get_mut_channel(variant.channel_id()) {
+            Ok(channel) => channel,
+            Err(err) => return ControlFlow::Break(err),
+        };
         channel.shift_freq(delta_freq, time);
-        Ok(())
+        ControlFlow::Continue(())
     }
 
-    fn visit_set_freq(&mut self, variant: &SetFreq, time: Time, _duration: Time) -> Result<()> {
+    fn visit_set_freq(
+        &mut self,
+        variant: &SetFreq,
+        time: Time,
+        _duration: Time,
+    ) -> ControlFlow<Self::Break> {
         let freq = variant.frequency();
-        let channel = self.get_mut_channel(variant.channel_id())?;
+        let channel = match self.get_mut_channel(variant.channel_id()) {
+            Ok(channel) => channel,
+            Err(err) => return ControlFlow::Break(err),
+        };
         channel.set_freq(freq, time);
-        Ok(())
+        ControlFlow::Continue(())
     }
 
-    fn visit_swap_phase(&mut self, variant: &SwapPhase, time: Time, _duration: Time) -> Result<()> {
+    fn visit_swap_phase(
+        &mut self,
+        variant: &SwapPhase,
+        time: Time,
+        _duration: Time,
+    ) -> ControlFlow<Self::Break> {
         let ch1 = variant.channel_id1();
         let ch2 = variant.channel_id2();
         if ch1 == ch2 {
-            return Ok(());
+            return ControlFlow::Continue(());
         }
-        let [channel, other] = self.channels.get_many_mut([ch1, ch2]).ok_or(anyhow!(
-            "Channels {:?} or {:?} not found",
-            ch1,
-            ch2
-        ))?;
+        let [channel, other] = match self.channels.get_many_mut([ch1, ch2]) {
+            Some([channel, other]) => [channel, other],
+            None => {
+                return ControlFlow::Break(anyhow!("Channels {:?} or {:?} not found", ch1, ch2))
+            }
+        };
         channel.swap_phase(other, time);
-        Ok(())
+        ControlFlow::Continue(())
     }
 
-    fn visit_barrier(&mut self, _variant: &Barrier, _time: Time, _duration: Time) -> Result<()> {
-        Ok(())
+    fn visit_barrier(
+        &mut self,
+        _variant: &Barrier,
+        _time: Time,
+        _duration: Time,
+    ) -> ControlFlow<Self::Break> {
+        ControlFlow::Continue(())
     }
 
-    fn visit_repeat(&mut self, _variant: &Repeat, _time: Time, _duration: Time) -> Result<()> {
-        Ok(())
+    fn visit_repeat(
+        &mut self,
+        _variant: &Repeat,
+        _time: Time,
+        _duration: Time,
+    ) -> ControlFlow<Self::Break> {
+        ControlFlow::Continue(())
     }
 
-    fn visit_stack(&mut self, _variant: &Stack, _time: Time, _duration: Time) -> Result<()> {
-        Ok(())
+    fn visit_stack(
+        &mut self,
+        _variant: &Stack,
+        _time: Time,
+        _duration: Time,
+    ) -> ControlFlow<Self::Break> {
+        ControlFlow::Continue(())
     }
 
-    fn visit_absolute(&mut self, _variant: &Absolute, _time: Time, _duration: Time) -> Result<()> {
-        Ok(())
+    fn visit_absolute(
+        &mut self,
+        _variant: &Absolute,
+        _time: Time,
+        _duration: Time,
+    ) -> ControlFlow<Self::Break> {
+        ControlFlow::Continue(())
     }
 
-    fn visit_grid(&mut self, _variant: &Grid, _time: Time, _duration: Time) -> Result<()> {
-        Ok(())
+    fn visit_grid(
+        &mut self,
+        _variant: &Grid,
+        _time: Time,
+        _duration: Time,
+    ) -> ControlFlow<Self::Break> {
+        ControlFlow::Continue(())
     }
 
     fn visit_common(
@@ -256,7 +337,7 @@ impl Visitor for Executor {
         _common: &ElementCommon,
         _time: Time,
         _duration: Time,
-    ) -> Result<()> {
-        Ok(())
+    ) -> ControlFlow<Self::Break> {
+        ControlFlow::Continue(())
     }
 }

@@ -1,3 +1,5 @@
+use std::ops::ControlFlow;
+
 use anyhow::{bail, Result};
 
 use crate::{
@@ -167,7 +169,7 @@ impl_measure!(SwapPhase);
 impl_measure!(Barrier);
 
 impl Visit for ShiftPhase {
-    fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time) -> Result<()>
+    fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time) -> ControlFlow<V::Break>
     where
         V: Visitor,
     {
@@ -176,7 +178,7 @@ impl Visit for ShiftPhase {
 }
 
 impl Visit for SetPhase {
-    fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time) -> Result<()>
+    fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time) -> ControlFlow<V::Break>
     where
         V: Visitor,
     {
@@ -185,7 +187,7 @@ impl Visit for SetPhase {
 }
 
 impl Visit for ShiftFreq {
-    fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time) -> Result<()>
+    fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time) -> ControlFlow<V::Break>
     where
         V: Visitor,
     {
@@ -194,7 +196,7 @@ impl Visit for ShiftFreq {
 }
 
 impl Visit for SetFreq {
-    fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time) -> Result<()>
+    fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time) -> ControlFlow<V::Break>
     where
         V: Visitor,
     {
@@ -203,7 +205,7 @@ impl Visit for SetFreq {
 }
 
 impl Visit for SwapPhase {
-    fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time) -> Result<()>
+    fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time) -> ControlFlow<V::Break>
     where
         V: Visitor,
     {
@@ -212,7 +214,7 @@ impl Visit for SwapPhase {
 }
 
 impl Visit for Barrier {
-    fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time) -> Result<()>
+    fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time) -> ControlFlow<V::Break>
     where
         V: Visitor,
     {

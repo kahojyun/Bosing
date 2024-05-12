@@ -25,7 +25,7 @@ use crate::{
     executor::Executor,
     pulse::{PulseList, Sampler},
     quant::{Amplitude, ChannelId, Frequency, Phase, ShapeId, Time},
-    schedule::{ElementCommonBuilder, ElementRef, Measure as _, Visit as _},
+    schedule::{ElementCommonBuilder, ElementRef},
 };
 
 /// Channel configuration.
@@ -1985,7 +1985,7 @@ fn build_pulse_lists(
     amp_tolerance: Amplitude,
     _allow_oversize: bool,
 ) -> PyResult<HashMap<ChannelId, PulseList>> {
-    let root = schedule.get().0.clone();
+    let root = &schedule.get().0;
     let mut executor = Executor::new(amp_tolerance, time_tolerance);
     for (n, c) in channels {
         executor.add_channel(n.clone(), c.base_freq);
@@ -1994,8 +1994,7 @@ fn build_pulse_lists(
         let s = s.bind(py);
         executor.add_shape(n.clone(), Shape::get_rust_shape(s)?);
     }
-    let duration = root.measure();
-    root.visit(&mut executor, Time::ZERO, duration)?;
+    executor.execute(root)?;
     Ok(executor.into_result())
 }
 

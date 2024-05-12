@@ -1,4 +1,4 @@
-use std::sync::OnceLock;
+use std::{ops::ControlFlow, sync::OnceLock};
 
 use anyhow::{bail, Result};
 
@@ -66,7 +66,7 @@ impl Measure for Absolute {
 }
 
 impl Visit for Absolute {
-    fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time) -> Result<()>
+    fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time) -> ControlFlow<V::Break>
     where
         V: Visitor,
     {
@@ -78,7 +78,7 @@ impl Visit for Absolute {
         {
             element.visit(visitor, offset + time, element.measure())?;
         }
-        Ok(())
+        ControlFlow::Continue(())
     }
 }
 

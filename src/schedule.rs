@@ -5,7 +5,7 @@ mod repeat;
 mod simple;
 mod stack;
 
-use std::sync::Arc;
+use std::{ops::ControlFlow, sync::Arc};
 
 use anyhow::{bail, Result};
 use hashbrown::HashSet;
@@ -46,19 +46,79 @@ pub(crate) struct ElementCommon {
 pub(crate) struct ElementCommonBuilder(ElementCommon);
 
 pub(crate) trait Visitor {
-    fn visit_play(&mut self, variant: &Play, time: Time, duration: Time) -> Result<()>;
-    fn visit_shift_phase(&mut self, variant: &ShiftPhase, time: Time, duration: Time)
-        -> Result<()>;
-    fn visit_set_phase(&mut self, variant: &SetPhase, time: Time, duration: Time) -> Result<()>;
-    fn visit_shift_freq(&mut self, variant: &ShiftFreq, time: Time, duration: Time) -> Result<()>;
-    fn visit_set_freq(&mut self, variant: &SetFreq, time: Time, duration: Time) -> Result<()>;
-    fn visit_swap_phase(&mut self, variant: &SwapPhase, time: Time, duration: Time) -> Result<()>;
-    fn visit_barrier(&mut self, variant: &Barrier, time: Time, duration: Time) -> Result<()>;
-    fn visit_repeat(&mut self, variant: &Repeat, time: Time, duration: Time) -> Result<()>;
-    fn visit_stack(&mut self, variant: &Stack, time: Time, duration: Time) -> Result<()>;
-    fn visit_absolute(&mut self, variant: &Absolute, time: Time, duration: Time) -> Result<()>;
-    fn visit_grid(&mut self, variant: &Grid, time: Time, duration: Time) -> Result<()>;
-    fn visit_common(&mut self, common: &ElementCommon, time: Time, duration: Time) -> Result<()>;
+    type Break;
+    fn visit_play(
+        &mut self,
+        variant: &Play,
+        time: Time,
+        duration: Time,
+    ) -> ControlFlow<Self::Break>;
+    fn visit_shift_phase(
+        &mut self,
+        variant: &ShiftPhase,
+        time: Time,
+        duration: Time,
+    ) -> ControlFlow<Self::Break>;
+    fn visit_set_phase(
+        &mut self,
+        variant: &SetPhase,
+        time: Time,
+        duration: Time,
+    ) -> ControlFlow<Self::Break>;
+    fn visit_shift_freq(
+        &mut self,
+        variant: &ShiftFreq,
+        time: Time,
+        duration: Time,
+    ) -> ControlFlow<Self::Break>;
+    fn visit_set_freq(
+        &mut self,
+        variant: &SetFreq,
+        time: Time,
+        duration: Time,
+    ) -> ControlFlow<Self::Break>;
+    fn visit_swap_phase(
+        &mut self,
+        variant: &SwapPhase,
+        time: Time,
+        duration: Time,
+    ) -> ControlFlow<Self::Break>;
+    fn visit_barrier(
+        &mut self,
+        variant: &Barrier,
+        time: Time,
+        duration: Time,
+    ) -> ControlFlow<Self::Break>;
+    fn visit_repeat(
+        &mut self,
+        variant: &Repeat,
+        time: Time,
+        duration: Time,
+    ) -> ControlFlow<Self::Break>;
+    fn visit_stack(
+        &mut self,
+        variant: &Stack,
+        time: Time,
+        duration: Time,
+    ) -> ControlFlow<Self::Break>;
+    fn visit_absolute(
+        &mut self,
+        variant: &Absolute,
+        time: Time,
+        duration: Time,
+    ) -> ControlFlow<Self::Break>;
+    fn visit_grid(
+        &mut self,
+        variant: &Grid,
+        time: Time,
+        duration: Time,
+    ) -> ControlFlow<Self::Break>;
+    fn visit_common(
+        &mut self,
+        common: &ElementCommon,
+        time: Time,
+        duration: Time,
+    ) -> ControlFlow<Self::Break>;
 }
 
 #[cfg_attr(test, automock)]
@@ -68,7 +128,7 @@ pub(crate) trait Measure {
 }
 
 pub(crate) trait Visit {
-    fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time) -> Result<()>
+    fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time) -> ControlFlow<V::Break>
     where
         V: Visitor;
 }
@@ -138,7 +198,7 @@ macro_rules! impl_variant {
         }
 
         impl Visit for ElementVariant {
-            fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time) -> Result<()>
+            fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time) -> ControlFlow<V::Break>
             where
                 V: Visitor,
             {
@@ -321,7 +381,7 @@ where
 }
 
 impl Visit for Element {
-    fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time) -> Result<()>
+    fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time) -> ControlFlow<V::Break>
     where
         V: Visitor,
     {
@@ -335,7 +395,7 @@ impl Visit for Element {
 }
 
 impl Visit for ElementRef {
-    fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time) -> Result<()>
+    fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time) -> ControlFlow<V::Break>
     where
         V: Visitor,
     {
@@ -347,7 +407,7 @@ impl<T> Visit for &T
 where
     T: Visit + ?Sized,
 {
-    fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time) -> Result<()>
+    fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time) -> ControlFlow<V::Break>
     where
         V: Visitor,
     {
