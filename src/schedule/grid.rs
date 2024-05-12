@@ -1,24 +1,56 @@
-use anyhow::{bail, Result};
-use itertools::Itertools as _;
+mod helper;
 
-use super::{
-    arrange, measure, Alignment, ArrangeContext, ArrangeResult, ArrangeResultVariant, ElementRef,
-    MeasureContext, MeasureResult, MeasureResultVariant, Schedule,
-};
+use std::sync::OnceLock;
+
+use anyhow::{bail, Result};
+
 use crate::{
     quant::{ChannelId, Time},
-    GridLength, GridLengthUnit,
+    schedule::{
+        grid::helper::Helper, merge_channel_ids, Alignment, Arranged, ElementRef, Measure, Visit,
+        Visitor,
+    },
+    GridLength,
 };
 
 #[derive(Debug, Clone)]
-pub struct GridEntry {
+pub(crate) struct GridEntry {
     element: ElementRef,
     column: usize,
     span: usize,
 }
 
+#[derive(Debug, Clone)]
+pub(crate) struct Grid {
+    children: Vec<GridEntry>,
+    columns: Vec<GridLength>,
+    channel_ids: Vec<ChannelId>,
+    measure_result: OnceLock<MeasureResult>,
+}
+
+#[derive(Debug, Clone)]
+struct MeasureResult {
+    total_duration: Time,
+    column_sizes: Vec<Time>,
+    child_durations: Vec<Time>,
+}
+
+struct MeasureItem {
+    column: usize,
+    span: usize,
+    duration: Time,
+}
+
+struct ArrangeItem<T> {
+    item: T,
+    column: usize,
+    span: usize,
+    duration: Time,
+    alignment: Alignment,
+}
+
 impl GridEntry {
-    pub fn new(element: ElementRef) -> Self {
+    pub(crate) fn new(element: ElementRef) -> Self {
         Self {
             element,
             column: 0,
@@ -26,186 +58,76 @@ impl GridEntry {
         }
     }
 
-    pub fn with_column(mut self, column: usize) -> Self {
+    pub(crate) fn with_column(mut self, column: usize) -> Self {
         self.column = column;
         self
     }
 
-    pub fn with_span(mut self, span: usize) -> Self {
+    pub(crate) fn with_span(mut self, span: usize) -> Result<Self> {
+        if span == 0 {
+            bail!("Span should be greater than 0");
+        }
         self.span = span;
-        self
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct Grid {
-    children: Vec<GridEntry>,
-    columns: Vec<GridLength>,
-    channel_ids: Vec<ChannelId>,
-}
-
-impl Default for Grid {
-    fn default() -> Self {
-        Self::new()
+        Ok(self)
     }
 }
 
 impl Grid {
-    pub fn new() -> Self {
-        Self {
-            children: vec![],
-            columns: vec![GridLength::star(1.0).unwrap()],
-            channel_ids: vec![],
-        }
+    pub(crate) fn new() -> Self {
+        Self::default()
     }
 
-    pub fn with_columns(mut self, columns: Vec<GridLength>) -> Self {
+    pub(crate) fn with_columns(mut self, columns: Vec<GridLength>) -> Self {
         if columns.is_empty() {
             self.columns = vec![GridLength::star(1.0).unwrap()];
         } else {
             self.columns = columns;
         }
+        self.measure_result.take();
         self
     }
 
-    pub fn with_children(mut self, children: Vec<GridEntry>) -> Self {
-        let channel_ids = children
-            .iter()
-            .flat_map(|e| e.element.variant.channels())
-            .cloned()
-            .unique()
-            .collect();
+    pub(crate) fn with_children(mut self, children: Vec<GridEntry>) -> Self {
+        let channel_ids = merge_channel_ids(children.iter().map(|e| e.element.variant.channels()));
         self.children = children;
         self.channel_ids = channel_ids;
+        self.measure_result.take();
         self
     }
 
-    pub fn columns(&self) -> &[GridLength] {
+    pub(crate) fn columns(&self) -> &[GridLength] {
         &self.columns
+    }
+
+    fn measure_result(&self) -> &MeasureResult {
+        self.measure_result.get_or_init(|| {
+            measure_grid(
+                self.children.iter().map(|e| MeasureItem {
+                    duration: e.element.measure(),
+                    column: e.column,
+                    span: e.span,
+                }),
+                &self.columns,
+            )
+        })
     }
 }
 
-impl Schedule for Grid {
-    fn measure(&self, context: &MeasureContext) -> MeasureResult {
-        let columns = &self.columns;
-        let n_col = columns.len();
-        let measured_children: Vec<_> = self
-            .children
-            .iter()
-            .map(|e| measure(e.element.clone(), context.max_duration))
-            .collect();
-        let mut col_sizes: Vec<_> = columns
-            .iter()
-            .map(|c| match c.unit {
-                GridLengthUnit::Seconds => {
-                    Time::new(c.value).expect("Should be checked in GridLenth")
-                }
-                _ => Time::ZERO,
-            })
-            .collect();
-        let it = measured_children
-            .iter()
-            .zip_eq(self.children.iter())
-            .map(|(m, e)| (m.duration, e.column, e.span));
-        for (dur, col, span) in it.clone() {
-            let col = col.min(n_col - 1);
-            let span = span.min(n_col - col);
-            if span == 1 && columns[col].unit != GridLengthUnit::Seconds {
-                col_sizes[col] = col_sizes[col].max(dur);
-            }
+impl Default for Grid {
+    fn default() -> Self {
+        Self {
+            children: vec![],
+            columns: vec![GridLength::star(1.0).unwrap()],
+            channel_ids: vec![],
+            measure_result: OnceLock::new(),
         }
-        for (dur, col, span) in it {
-            let col = col.min(n_col - 1);
-            let span = span.min(n_col - col);
-            if span == 1 {
-                continue;
-            }
-            let col_size: Time = col_sizes.iter().skip(col).take(span).sum();
-            if col_size >= dur {
-                continue;
-            }
-            let n_star = columns
-                .iter()
-                .skip(col)
-                .take(span)
-                .filter(|c| c.unit == GridLengthUnit::Star)
-                .count();
-            if n_star == 0 {
-                let n_auto = columns
-                    .iter()
-                    .skip(col)
-                    .take(span)
-                    .filter(|c| c.unit == GridLengthUnit::Auto)
-                    .count();
-                if n_auto == 0 {
-                    continue;
-                }
-                let inc = (dur - col_size) / n_auto as f64;
-                col_sizes
-                    .iter_mut()
-                    .zip(columns.iter())
-                    .skip(col)
-                    .take(span)
-                    .filter(|(_, c)| c.unit == GridLengthUnit::Auto)
-                    .for_each(|(s, _)| *s += inc);
-            } else {
-                expand_col_by_ratio(&mut col_sizes, col, span, dur - col_size, columns)
-            }
-        }
-        let wanted_duration = col_sizes.iter().sum();
-        MeasureResult(
-            wanted_duration,
-            super::MeasureResultVariant::Grid(measured_children, col_sizes),
-        )
     }
+}
 
-    fn arrange(&self, context: &ArrangeContext) -> Result<ArrangeResult> {
-        let (measured_children, mut col_sizes) = match &context.measured_self.data {
-            MeasureResultVariant::Grid(children, col_sizes) => (children, col_sizes.clone()),
-            _ => bail!("Invalid measure data"),
-        };
-        let columns = &self.columns;
-        let n_col = columns.len();
-        let min_duration: Time = col_sizes.iter().sum();
-        expand_col_by_ratio(
-            &mut col_sizes,
-            0,
-            n_col,
-            context.final_duration - min_duration,
-            columns,
-        );
-        let col_starts: Vec<_> = std::iter::once(Time::ZERO)
-            .chain(col_sizes.iter().copied())
-            .scan(Time::ZERO, |state, x| {
-                *state += x;
-                Some(*state)
-            })
-            .collect();
-        let arranged_children = measured_children
-            .iter()
-            .zip(self.children.iter())
-            .map(|(m, c)| (m, c.column, c.span))
-            .map(|(measured, col, span)| {
-                let col = col.min(n_col - 1);
-                let span = span.min(n_col - col);
-                let span_duration = col_starts[col + span] - col_starts[col];
-                let child_duration = match measured.element.common.alignment {
-                    Alignment::Stretch => span_duration,
-                    _ => measured.duration,
-                }
-                .min(span_duration);
-                let child_time = match measured.element.common.alignment {
-                    Alignment::End => span_duration - child_duration,
-                    Alignment::Center => (span_duration - child_duration) / 2.0,
-                    _ => Time::ZERO,
-                } + col_starts[col];
-                arrange(measured, child_time, child_duration, context.options)
-            })
-            .collect::<Result<_>>()?;
-        Ok(ArrangeResult(
-            context.final_duration,
-            ArrangeResultVariant::Multiple(arranged_children),
-        ))
+impl Measure for Grid {
+    fn measure(&self) -> Time {
+        let MeasureResult { total_duration, .. } = self.measure_result();
+        *total_duration
     }
 
     fn channels(&self) -> &[ChannelId] {
@@ -213,37 +135,195 @@ impl Schedule for Grid {
     }
 }
 
-fn expand_col_by_ratio(
-    col_sizes: &mut [Time],
-    start: usize,
-    span: usize,
-    mut left_dur: Time,
-    columns: &[GridLength],
-) {
-    let mut sorted: Vec<_> = col_sizes
-        .iter_mut()
-        .zip(columns)
-        .skip(start)
-        .take(span)
-        .filter(|(_, c)| c.unit == GridLengthUnit::Star)
-        .map(|(s, c)| (*s / c.value, s, c.value))
-        .sorted_by_key(|(k, _, _)| *k)
-        .collect();
-    let mut star_count = 0.0;
-    for i in 0..sorted.len() {
-        let next_ratio = if i + 1 < sorted.len() {
-            sorted[i + 1].0
-        } else {
-            Time::INFINITY
+impl Visit for Grid {
+    fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time) -> Result<()>
+    where
+        V: Visitor,
+    {
+        visitor.visit_grid(self, time, duration)?;
+        let MeasureResult {
+            column_sizes,
+            child_durations,
+            ..
+        } = self.measure_result();
+        let arranged = arrange_grid(
+            self.children
+                .iter()
+                .zip(child_durations)
+                .map(|(c, t)| ArrangeItem {
+                    item: &c.element,
+                    column: c.column,
+                    span: c.span,
+                    duration: *t,
+                    alignment: c.element.common.alignment,
+                }),
+            &self.columns,
+            duration,
+            column_sizes.clone(),
+        );
+        for Arranged {
+            item,
+            offset,
+            duration,
+        } in arranged
+        {
+            item.visit(visitor, time + offset, duration)?;
+        }
+        Ok(())
+    }
+}
+
+fn arrange_grid<'a, I, T>(
+    children: I,
+    columns: &'a [GridLength],
+    final_duration: Time,
+    column_sizes: Vec<Time>,
+) -> impl IntoIterator<Item = Arranged<T>> + 'a
+where
+    I: IntoIterator<Item = ArrangeItem<T>>,
+    I::IntoIter: 'a,
+{
+    let mut helper = Helper::new_with_column_sizes(columns, column_sizes);
+    helper.expand_to_fit(final_duration);
+    let column_starts = helper.column_starts();
+    children.into_iter().map(move |child| {
+        let span = helper.normalize_span(child.column, child.span);
+        let start = span.start();
+        let span = span.span();
+        let span_duration = column_starts[start + span] - column_starts[start];
+        let child_duration = match child.alignment {
+            Alignment::Stretch => span_duration,
+            _ => child.duration,
         };
-        star_count += sorted[i].2;
-        left_dur += *sorted[i].1;
-        let new_ratio = left_dur / star_count;
-        if new_ratio < next_ratio {
-            for (_, s, v) in sorted.iter_mut().take(i + 1) {
-                **s = new_ratio * *v;
-            }
-            break;
+        let child_offset = match child.alignment {
+            Alignment::End => span_duration - child_duration,
+            Alignment::Center => (span_duration - child_duration) / 2.0,
+            _ => Time::ZERO,
+        } + column_starts[start];
+
+        Arranged {
+            item: child.item,
+            offset: child_offset,
+            duration: child_duration,
+        }
+    })
+}
+
+fn measure_grid<I>(children: I, columns: &[GridLength]) -> MeasureResult
+where
+    I: IntoIterator<Item = MeasureItem>,
+{
+    let mut helper = Helper::new(columns);
+    let children: Vec<MeasureItem> = children.into_iter().collect();
+    for &MeasureItem {
+        duration,
+        column,
+        span,
+    } in &children
+    {
+        let span = helper.normalize_span(column, span);
+        if span.span() == 1 {
+            helper.expand_span_to_fit(span, duration);
+        }
+    }
+    for &MeasureItem {
+        duration,
+        column,
+        span,
+    } in &children
+    {
+        let span = helper.normalize_span(column, span);
+        if span.span() != 1 {
+            helper.expand_span_to_fit(span, duration);
+        }
+    }
+    let column_sizes = helper.into_column_sizes();
+    let total_duration = column_sizes.iter().sum();
+    MeasureResult {
+        total_duration,
+        column_sizes,
+        child_durations: children.into_iter().map(|item| item.duration).collect(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use test_case::test_case;
+
+    use super::*;
+
+    fn time_vec(v: &[f64]) -> Vec<Time> {
+        v.iter().map(|&d| Time::new(d).unwrap()).collect()
+    }
+
+    #[test_case(&[(40.0, 0, 1)], &["30"], (30.0, vec![30.0]); "not enough size")]
+    #[test_case(
+        &[(40.0, 0, 1), (40.0, 2, 1), (100.0, 0, 3)],
+        &["auto", "*", "auto"],
+        (100.0, vec![40.0, 20.0, 40.0]);
+        "sandwiched"
+    )]
+    #[test_case(&[], &["*"], (0.0, vec![0.0]); "empty star")]
+    #[test_case(&[], &["10"], (10.0, vec![10.0]); "empty fixed")]
+    fn measure_grid(children: &[(f64, usize, usize)], columns: &[&str], expected: (f64, Vec<f64>)) {
+        let children = children
+            .iter()
+            .map(|&(duration, column, span)| MeasureItem {
+                duration: Time::new(duration).unwrap(),
+                column,
+                span,
+            });
+        let columns: Vec<GridLength> = columns.iter().map(|s| s.parse().unwrap()).collect();
+
+        let MeasureResult {
+            total_duration,
+            column_sizes,
+            ..
+        } = super::measure_grid(children, &columns);
+
+        assert_eq!(total_duration, Time::new(expected.0).unwrap());
+        assert_eq!(column_sizes, time_vec(&expected.1));
+    }
+
+    #[test_case(&[(40.0, Alignment::End, 0, 1)], &["30"], &[(-10.0, 40.0)]; "not enough size")]
+    #[test_case(
+        &[(40.0, Alignment::End, 0, 1), (40.0, Alignment::End, 2, 1), (100.0, Alignment::Stretch, 0, 3)],
+        &["auto", "*", "auto"],
+        &[(0.0, 40.0), (160.0, 40.0), (0.0, 200.0)];
+        "sandwiched"
+    )]
+    #[test_case(&[], &["*"], &[]; "empty")]
+    fn measure_then_arrange_grid(
+        children: &[(f64, Alignment, usize, usize)],
+        columns: &[&str],
+        expected_timings: &[(f64, f64)],
+    ) {
+        let children: Vec<_> = children
+            .iter()
+            .map(|&(d, a, c, s)| ArrangeItem {
+                item: (),
+                column: c,
+                span: s,
+                duration: Time::new(d).unwrap(),
+                alignment: a,
+            })
+            .collect();
+        let columns: Vec<GridLength> = columns.iter().map(|s| s.parse().unwrap()).collect();
+
+        let measure_result = super::measure_grid(
+            children.iter().map(|x| MeasureItem {
+                column: x.column,
+                span: x.span,
+                duration: x.duration,
+            }),
+            &columns,
+        );
+        let column_sizes = measure_result.column_sizes.clone();
+        let res = super::arrange_grid(children, &columns, Time::new(200.0).unwrap(), column_sizes);
+
+        for (item, expected) in res.into_iter().zip(expected_timings) {
+            assert_eq!(item.offset.value(), expected.0);
+            assert_eq!(item.duration.value(), expected.1);
         }
     }
 }

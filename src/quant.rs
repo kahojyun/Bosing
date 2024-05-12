@@ -41,19 +41,18 @@ macro_rules! forward_ref_binop {
 macro_rules! impl_quant {
     ($t:ident) => {
         #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Default)]
-        pub struct $t(NotNan<f64>);
+        pub(crate) struct $t(NotNan<f64>);
 
         impl $t {
-            pub fn new(value: f64) -> Result<Self> {
+            pub(crate) fn new(value: f64) -> Result<Self> {
                 Ok(Self(NotNan::new(value)?))
             }
 
-            pub fn value(&self) -> f64 {
+            pub(crate) fn value(&self) -> f64 {
                 self.0.into_inner()
             }
 
-            pub const INFINITY: Self = Self(unsafe { NotNan::new_unchecked(f64::INFINITY) });
-            pub const ZERO: Self = Self(unsafe { NotNan::new_unchecked(0.0) });
+            pub(crate) const ZERO: Self = Self(unsafe { NotNan::new_unchecked(0.0) });
         }
 
         impl<'py> FromPyObject<'py> for $t {
@@ -166,18 +165,22 @@ impl_quant!(Frequency);
 impl_quant!(Phase);
 impl_quant!(Amplitude);
 
+impl Time {
+    pub(crate) const INFINITY: Self = Self(unsafe { NotNan::new_unchecked(f64::INFINITY) });
+}
+
 impl Phase {
     fn radians(&self) -> f64 {
         self.value() * std::f64::consts::TAU
     }
 
-    pub fn phaser(&self) -> Complex64 {
+    pub(crate) fn phaser(&self) -> Complex64 {
         Complex64::from_polar(1.0, self.radians())
     }
 }
 
 impl Frequency {
-    pub fn dt(&self) -> Time {
+    pub(crate) fn dt(&self) -> Time {
         Time::new(1.0 / self.value()).expect("Frequency should be non-zero")
     }
 }
@@ -199,10 +202,10 @@ impl Mul<Frequency> for Time {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct AlignedIndex(NotNan<f64>);
+pub(crate) struct AlignedIndex(NotNan<f64>);
 
 impl AlignedIndex {
-    pub fn new(time: Time, sample_rate: Frequency, align_level: i32) -> Result<Self> {
+    pub(crate) fn new(time: Time, sample_rate: Frequency, align_level: i32) -> Result<Self> {
         fn scaleb(x: f64, s: i32) -> f64 {
             x * (s as f64).exp2()
         }
@@ -219,15 +222,15 @@ impl AlignedIndex {
         Ok(Self(NotNan::new(value)?))
     }
 
-    pub fn value(&self) -> f64 {
+    pub(crate) fn value(&self) -> f64 {
         self.0.into_inner()
     }
 
-    pub fn ceil_as_usize(&self) -> Option<usize> {
+    pub(crate) fn ceil_as_usize(&self) -> Option<usize> {
         <usize as NumCast>::from(self.0.ceil())
     }
 
-    pub fn index_offset(&self) -> Result<Self> {
+    pub(crate) fn index_offset(&self) -> Result<Self> {
         Self::from_value(self.0.ceil() - self.0.into_inner())
     }
 }
@@ -235,10 +238,10 @@ impl AlignedIndex {
 macro_rules! impl_id {
     ($t:ident) => {
         #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-        pub struct $t(Arc<str>);
+        pub(crate) struct $t(Arc<str>);
 
         impl $t {
-            pub fn new(name: impl Into<Arc<str>>) -> Self {
+            pub(crate) fn new(name: impl Into<Arc<str>>) -> Self {
                 Self(name.into())
             }
         }

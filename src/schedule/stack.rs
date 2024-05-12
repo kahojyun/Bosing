@@ -1,139 +1,82 @@
-use anyhow::{bail, Result};
-use hashbrown::HashMap;
-use itertools::{Either, Itertools as _};
+mod helper;
 
-use super::{
-    arrange, measure, ArrangeContext, ArrangeResult, ArrangeResultVariant, ElementRef,
-    MeasureContext, MeasureResult, MeasureResultVariant, MeasuredElement, Schedule,
-};
+use std::sync::OnceLock;
+
+use anyhow::Result;
+
 use crate::{
     quant::{ChannelId, Time},
+    schedule::{
+        merge_channel_ids, stack::helper::Helper, Arranged, ElementRef, Measure, Visit, Visitor,
+    },
     Direction,
 };
 
 #[derive(Debug, Clone)]
-pub struct Stack {
+pub(crate) struct Stack {
     children: Vec<ElementRef>,
     direction: Direction,
     channel_ids: Vec<ChannelId>,
+    measure_result: OnceLock<MeasureResult>,
+}
+
+#[derive(Debug, Clone)]
+struct MeasureResult {
+    total_duration: Time,
+    child_timings: Vec<(Time, Time)>,
+}
+
+#[derive(Debug, Clone)]
+struct ArrangeItem<T> {
+    item: T,
+    offset: Time,
+    duration: Time,
+}
+
+impl Stack {
+    pub(crate) fn new() -> Self {
+        Self::default()
+    }
+
+    pub(crate) fn with_direction(mut self, direction: Direction) -> Self {
+        self.direction = direction;
+        self.measure_result.take();
+        self
+    }
+
+    pub(crate) fn with_children(mut self, children: Vec<ElementRef>) -> Self {
+        let channel_ids = merge_channel_ids(children.iter().map(|e| e.channels()));
+        self.children = children;
+        self.channel_ids = channel_ids;
+        self.measure_result.take();
+        self
+    }
+
+    pub(crate) fn direction(&self) -> Direction {
+        self.direction
+    }
+
+    fn measure_result(&self) -> &MeasureResult {
+        self.measure_result
+            .get_or_init(|| measure_stack(&self.children, &self.channel_ids, self.direction))
+    }
 }
 
 impl Default for Stack {
     fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl Stack {
-    pub fn new() -> Self {
         Self {
             children: vec![],
             direction: Direction::Backward,
             channel_ids: vec![],
+            measure_result: OnceLock::new(),
         }
-    }
-
-    pub fn with_direction(mut self, direction: Direction) -> Self {
-        self.direction = direction;
-        self
-    }
-
-    pub fn with_children(mut self, children: Vec<ElementRef>) -> Self {
-        let channel_ids = children
-            .iter()
-            .flat_map(|e| e.variant.channels())
-            .cloned()
-            .unique()
-            .collect();
-        self.children = children;
-        self.channel_ids = channel_ids;
-        self
-    }
-
-    pub fn direction(&self) -> Direction {
-        self.direction
     }
 }
 
-impl Schedule for Stack {
-    fn measure(&self, context: &MeasureContext) -> MeasureResult {
-        let mut used_duration = if self.channel_ids.is_empty() {
-            Either::Left(Time::ZERO)
-        } else {
-            Either::Right(HashMap::<ChannelId, Time>::new())
-        };
-        let mapper = |child: &ElementRef| {
-            let child_channels = child.variant.channels();
-            let channel_used_duration = get_channel_usage(&used_duration, child_channels);
-            let child_available_duration = context.max_duration - channel_used_duration;
-            let measured_child = measure(child.clone(), child_available_duration);
-            let channel_used_duration = channel_used_duration + measured_child.duration;
-            let channels = if child_channels.is_empty() {
-                self.channels()
-            } else {
-                child_channels
-            };
-            update_channel_usage(&mut used_duration, channel_used_duration, channels);
-            measured_child
-        };
-        let mut measured_children: Vec<_> = match self.direction {
-            Direction::Forward => self.children.iter().map(mapper).collect(),
-            Direction::Backward => self.children.iter().rev().map(mapper).collect(),
-        };
-        if self.direction == Direction::Backward {
-            measured_children.reverse();
-        }
-        let total_used_duration = match used_duration {
-            Either::Left(v) => v,
-            Either::Right(d) => d.into_values().max().unwrap_or_default(),
-        };
-        MeasureResult(
-            total_used_duration,
-            super::MeasureResultVariant::Multiple(measured_children),
-        )
-    }
-
-    fn arrange(&self, context: &ArrangeContext) -> Result<ArrangeResult> {
-        let mut used_duration = if self.channel_ids.is_empty() {
-            Either::Left(Time::ZERO)
-        } else {
-            Either::Right(HashMap::<ChannelId, Time>::new())
-        };
-        let measured_children = match &context.measured_self.data {
-            MeasureResultVariant::Multiple(v) => v,
-            _ => bail!("Invalid measure data"),
-        };
-        let mapper = |child: &MeasuredElement| {
-            let child_channels = child.element.variant.channels();
-            let channel_used_duration = get_channel_usage(&used_duration, child_channels);
-            let measured_duration = child.duration;
-            let inner_time = match self.direction {
-                Direction::Forward => channel_used_duration,
-                Direction::Backward => {
-                    context.final_duration - channel_used_duration - measured_duration
-                }
-            };
-            let arranged_child = arrange(child, inner_time, measured_duration, context.options);
-            let channel_used_duration = channel_used_duration + measured_duration;
-            let channels = if child_channels.is_empty() {
-                self.channels()
-            } else {
-                child_channels
-            };
-            update_channel_usage(&mut used_duration, channel_used_duration, channels);
-            arranged_child
-        };
-        let mut arranged_children: Vec<_> = match self.direction {
-            Direction::Forward => measured_children.iter().map(mapper).collect::<Result<_>>(),
-            Direction::Backward => measured_children.iter().rev().map(mapper).collect(),
-        }?;
-        if self.direction == Direction::Backward {
-            arranged_children.reverse();
-        }
-        Ok(ArrangeResult(
-            context.final_duration,
-            ArrangeResultVariant::Multiple(arranged_children),
-        ))
+impl Measure for Stack {
+    fn measure(&self) -> Time {
+        let MeasureResult { total_duration, .. } = self.measure_result();
+        *total_duration
     }
 
     fn channels(&self) -> &[ChannelId] {
@@ -141,33 +84,230 @@ impl Schedule for Stack {
     }
 }
 
-fn update_channel_usage(
-    used_duration: &mut Either<Time, HashMap<ChannelId, Time>>,
-    new_duration: Time,
-    channels: &[ChannelId],
-) {
-    match used_duration {
-        Either::Left(v) => *v = new_duration,
-        Either::Right(d) => {
-            for ch in channels {
-                d.insert(ch.clone(), new_duration);
-            }
+impl Visit for Stack {
+    fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time) -> Result<()>
+    where
+        V: Visitor,
+    {
+        visitor.visit_stack(self, time, duration)?;
+        let MeasureResult { child_timings, .. } = self.measure_result();
+        let arranged = arrange_stack(
+            self.children
+                .iter()
+                .zip(child_timings)
+                .map(|(c, t)| ArrangeItem {
+                    item: c,
+                    offset: t.0,
+                    duration: t.1,
+                }),
+            duration,
+            self.direction,
+        );
+        for Arranged {
+            item,
+            offset,
+            duration,
+        } in arranged
+        {
+            item.visit(visitor, time + offset, duration)?;
         }
+        Ok(())
     }
 }
 
-fn get_channel_usage(
-    used_duration: &Either<Time, HashMap<ChannelId, Time>>,
-    channels: &[ChannelId],
-) -> Time {
-    match used_duration {
-        Either::Left(v) => *v,
-        Either::Right(d) => (if channels.is_empty() {
-            d.values().max()
-        } else {
-            channels.iter().filter_map(|i| d.get(i)).max()
+fn arrange_stack<I, T>(
+    children: I,
+    final_duration: Time,
+    direction: Direction,
+) -> impl IntoIterator<Item = Arranged<T>>
+where
+    I: IntoIterator<Item = ArrangeItem<T>>,
+{
+    children.into_iter().map(move |child| {
+        let final_offset = match direction {
+            Direction::Forward => child.offset,
+            Direction::Backward => final_duration - child.offset - child.duration,
+        };
+        Arranged {
+            item: child.item,
+            offset: final_offset,
+            duration: child.duration,
+        }
+    })
+}
+
+fn measure_stack<I>(children: I, channels: &[ChannelId], direction: Direction) -> MeasureResult
+where
+    I: IntoIterator,
+    I::IntoIter: DoubleEndedIterator,
+    I::Item: Measure,
+{
+    let mut helper = Helper::new(channels);
+    let child_timings = map_and_collect_by_direction(children, direction, |child| {
+        let child_channels = child.channels();
+        let child_duration = child.measure();
+        let child_offset = helper.get_usage(child_channels);
+        helper.update_usage(child_offset + child_duration, child_channels);
+        Ok((child_offset, child_duration))
+    })
+    .unwrap();
+    MeasureResult {
+        total_duration: helper.into_max_usage(),
+        child_timings,
+    }
+}
+
+/// Map by direction but collect in the original order.
+fn map_and_collect_by_direction<I, F, T>(source: I, direction: Direction, f: F) -> Result<Vec<T>>
+where
+    I: IntoIterator,
+    I::IntoIter: DoubleEndedIterator,
+    F: FnMut(I::Item) -> Result<T>,
+{
+    let mut ret: Vec<_> = match direction {
+        Direction::Forward => source.into_iter().map(f).collect::<Result<_>>(),
+        Direction::Backward => source.into_iter().rev().map(f).collect(),
+    }?;
+    if direction == Direction::Backward {
+        ret.reverse();
+    }
+    Ok(ret)
+}
+
+#[cfg(test)]
+mod tests {
+    use itertools::Itertools;
+    use test_case::test_case;
+
+    use super::*;
+    use crate::schedule::MockMeasure;
+
+    #[test_case(Direction::Forward; "forward")]
+    #[test_case(Direction::Backward; "backward")]
+
+    fn collect_by_direction(direction: Direction) {
+        let v = [1, 2, 3];
+
+        let mut count = 0;
+        let res = map_and_collect_by_direction(&v, direction, |&i| {
+            match direction {
+                Direction::Forward => assert_eq!(i, v[count]),
+                Direction::Backward => assert_eq!(i, v[v.len() - 1 - count]),
+            }
+            count += 1;
+            Ok(i)
         })
-        .copied()
-        .unwrap_or_default(),
+        .unwrap();
+
+        assert_eq!(res, v);
+    }
+
+    #[test_case(Direction::Forward, &[0.0, 10.0, 30.0]; "forward")]
+    #[test_case(Direction::Backward, &[50.0, 30.0, 0.0]; "backward")]
+    fn test_measure_no_channels(direction: Direction, offsets: &[f64]) {
+        let children = [10.0, 20.0, 30.0].map(|duration| {
+            let mut mock = MockMeasure::new();
+            mock.expect_measure()
+                .return_const(Time::new(duration).unwrap());
+            mock.expect_channels().return_const(vec![]);
+            mock
+        });
+
+        let MeasureResult {
+            total_duration,
+            child_timings,
+        } = measure_stack(children, &[], direction);
+
+        assert_eq!(total_duration, Time::new(60.0).unwrap());
+        assert_eq!(
+            child_timings
+                .into_iter()
+                .map(|(offset, _)| offset)
+                .collect::<Vec<_>>(),
+            offsets
+                .iter()
+                .map(|&x| Time::new(x).unwrap())
+                .collect::<Vec<_>>()
+        );
+    }
+
+    /// Test case diagram:
+    ///
+    /// ```text
+    ///            +----+   +----+   +----+
+    /// ch[0] -----| 10 |---|    |---| 20 |-----
+    ///            +----+   |    |   +----+
+    ///                     | 20 |
+    ///            +----+   |    |   +----+
+    /// ch[1] -----| 20 |---|    |---| 10 |-----
+    ///            +----+   +----+   +----+
+    /// ```
+    #[test_case(Direction::Forward, &[0.0, 0.0, 20.0, 40.0, 40.0]; "forward")]
+    #[test_case(Direction::Backward, &[40.0, 40.0, 20.0, 0.0, 0.0]; "backward")]
+    fn test_measure_with_channels(direction: Direction, offsets: &[f64]) {
+        let children = [
+            create_mock(10.0, &[0]),
+            create_mock(20.0, &[1]),
+            create_mock(20.0, &[0, 1]),
+            create_mock(20.0, &[0]),
+            create_mock(10.0, &[1]),
+        ];
+        let channels = (0..2).map(create_channel).collect::<Vec<_>>();
+
+        let MeasureResult {
+            total_duration,
+            child_timings,
+        } = measure_stack(children, &channels, direction);
+
+        assert_eq!(total_duration, Time::new(60.0).unwrap());
+        assert_eq!(
+            child_timings
+                .into_iter()
+                .map(|(offset, _)| offset.value())
+                .collect::<Vec<_>>(),
+            offsets
+        );
+
+        fn create_channel(i: usize) -> ChannelId {
+            ChannelId::new(i.to_string())
+        }
+        fn create_mock(duration: f64, channels: &[usize]) -> MockMeasure {
+            let mut mock = MockMeasure::new();
+            mock.expect_measure()
+                .return_const(Time::new(duration).unwrap());
+            mock.expect_channels()
+                .return_const(channels.iter().copied().map(create_channel).collect());
+            mock
+        }
+    }
+
+    #[test_case(
+        Direction::Forward,
+        &[0.0, 0.0, 20.0, 40.0, 40.0],
+        &[0.0, 0.0, 20.0, 40.0, 40.0];
+        "forward"
+    )]
+    #[test_case(
+        Direction::Backward,
+        &[40.0, 40.0, 20.0, 0.0, 0.0],
+        &[50.0, 40.0, 60.0, 80.0, 90.0];
+        "backward"
+    )]
+    fn test_arrange(direction: Direction, offsets: &[f64], expected_offsets: &[f64]) {
+        let children =
+            [10.0, 20.0, 20.0, 20.0, 10.0]
+                .into_iter()
+                .zip(offsets)
+                .map(|(duration, offset)| ArrangeItem {
+                    item: (),
+                    offset: Time::new(*offset).unwrap(),
+                    duration: Time::new(duration).unwrap(),
+                });
+
+        let res = arrange_stack(children, Time::new(100.0).unwrap(), direction);
+
+        for (item, expected_offset) in res.into_iter().zip_eq(expected_offsets.iter()) {
+            assert_eq!(item.offset.value(), *expected_offset);
+        }
     }
 }

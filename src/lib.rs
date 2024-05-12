@@ -1,7 +1,13 @@
 //! Although Element struct may contains [`Py<Element>`] as children, it is not
 //! possible to create cyclic references because we don't allow mutate the
 //! children after creation.
-use std::{borrow::Borrow, fmt::Debug, sync::Arc};
+mod executor;
+mod pulse;
+mod quant;
+mod schedule;
+mod shape;
+
+use std::{borrow::Borrow, fmt::Debug, str::FromStr, sync::Arc};
 
 use hashbrown::HashMap;
 use indoc::indoc;
@@ -15,16 +21,12 @@ use pyo3::{
 };
 use rayon::prelude::*;
 
-use executor::Executor;
-use pulse::{PulseList, Sampler};
-use quant::{Amplitude, ChannelId, Frequency, Phase, ShapeId, Time};
-use schedule::{ElementCommonBuilder, ElementRef};
-
-mod executor;
-mod pulse;
-mod quant;
-mod schedule;
-mod shape;
+use crate::{
+    executor::Executor,
+    pulse::{PulseList, Sampler},
+    quant::{Amplitude, ChannelId, Frequency, Phase, ShapeId, Time},
+    schedule::{ElementCommonBuilder, ElementRef, Measure as _, Visit as _},
+};
 
 /// Channel configuration.
 ///
@@ -179,7 +181,7 @@ impl Channel {
 /// - :attr:`Alignment.Stretch`: Stretch the element to fill the parent.
 #[pyclass(frozen)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Alignment {
+enum Alignment {
     End,
     Start,
     Center,
@@ -1155,7 +1157,7 @@ impl Repeat {
 ///     possible.
 #[pyclass(frozen)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Direction {
+enum Direction {
     Backward,
     Forward,
 }
@@ -1514,7 +1516,7 @@ enum GridLengthUnit {
 /// or automatically.
 #[pyclass(get_all, frozen)]
 #[derive(Debug, Clone)]
-pub struct GridLength {
+struct GridLength {
     value: f64,
     unit: GridLengthUnit,
 }
@@ -1541,7 +1543,7 @@ impl GridLength {
     ///     GridLength: Ratio based grid length.
     #[staticmethod]
     fn star(value: f64) -> PyResult<Self> {
-        if !value.is_finite() || value <= 0.0 {
+        if !(value.is_finite() && value > 0.0) {
             return Err(PyValueError::new_err("The value must be greater than 0."));
         }
         Ok(GridLength {
@@ -1558,7 +1560,7 @@ impl GridLength {
     ///     GridLength: Fixed grid length.
     #[staticmethod]
     fn fixed(value: f64) -> PyResult<Self> {
-        if !value.is_finite() || value < 0.0 {
+        if !(value.is_finite() && value >= 0.0) {
             return Err(PyValueError::new_err(
                 "The value must be greater than or equal to 0.",
             ));
@@ -1595,23 +1597,46 @@ impl GridLength {
         if let Ok(v) = obj.extract() {
             return Py::new(py, GridLength::fixed(v)?);
         }
-        if let Ok(s) = obj.extract::<&str>() {
-            if s == "auto" {
-                return Py::new(py, GridLength::auto());
-            }
-            if s == "*" {
-                return Py::new(py, GridLength::star(1.0)?);
-            }
-            if let Some(v) = s.strip_suffix('*').and_then(|x| x.parse().ok()) {
-                return Py::new(py, GridLength::star(v)?);
-            }
-            if let Ok(v) = s.parse() {
-                return Py::new(py, GridLength::fixed(v)?);
-            }
+        if let Ok(s) = obj.extract() {
+            return Py::new(py, GridLength::from_str(s)?);
         }
         Err(PyValueError::new_err(
             "Failed to convert the value to GridLength.",
         ))
+    }
+}
+
+impl GridLength {
+    fn is_auto(&self) -> bool {
+        self.unit == GridLengthUnit::Auto
+    }
+
+    fn is_star(&self) -> bool {
+        self.unit == GridLengthUnit::Star
+    }
+
+    fn is_fixed(&self) -> bool {
+        self.unit == GridLengthUnit::Seconds
+    }
+}
+
+impl FromStr for GridLength {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if s == "auto" {
+            return Ok(GridLength::auto());
+        }
+        if s == "*" {
+            return Ok(GridLength::star(1.0)?);
+        }
+        if let Some(v) = s.strip_suffix('*').and_then(|x| x.parse().ok()) {
+            return Ok(GridLength::star(v)?);
+        }
+        if let Ok(v) = s.parse() {
+            return Ok(GridLength::fixed(v)?);
+        }
+        Err(anyhow::anyhow!("Invalid GridLength string: {}", s))
     }
 }
 
@@ -1782,6 +1807,7 @@ impl Grid {
                 schedule::GridEntry::new(element)
                     .with_column(x.column)
                     .with_span(x.span)
+                    .expect("Should be checked in GridEntry::new")
             })
             .collect();
         let variant = schedule::Grid::new()
@@ -1832,6 +1858,7 @@ impl Grid {
                 schedule::GridEntry::new(element)
                     .with_column(x.column)
                     .with_span(x.span)
+                    .expect("Should be checked in GridEntry::new")
             })
             .collect();
         let rust_base = &slf.downcast::<Element>()?.get().0;
@@ -1956,15 +1983,9 @@ fn build_pulse_lists(
     shapes: &HashMap<ShapeId, Py<Shape>>,
     time_tolerance: Time,
     amp_tolerance: Amplitude,
-    allow_oversize: bool,
+    _allow_oversize: bool,
 ) -> PyResult<HashMap<ChannelId, PulseList>> {
     let root = schedule.get().0.clone();
-    let measured = schedule::measure(root, Time::INFINITY);
-    let arrange_options = schedule::ScheduleOptions {
-        time_tolerance,
-        allow_oversize,
-    };
-    let arranged = schedule::arrange(&measured, Time::ZERO, measured.duration(), &arrange_options)?;
     let mut executor = Executor::new(amp_tolerance, time_tolerance);
     for (n, c) in channels {
         executor.add_channel(n.clone(), c.base_freq);
@@ -1973,7 +1994,8 @@ fn build_pulse_lists(
         let s = s.bind(py);
         executor.add_shape(n.clone(), Shape::get_rust_shape(s)?);
     }
-    executor.execute(&arranged);
+    let duration = root.measure();
+    root.visit(&mut executor, Time::ZERO, duration)?;
     Ok(executor.into_result())
 }
 

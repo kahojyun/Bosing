@@ -1,204 +1,221 @@
 use anyhow::{bail, Result};
 
-use super::{
-    ArrangeContext, ArrangeResult, ArrangeResultVariant, MeasureContext, MeasureResult,
-    MeasureResultVariant, Schedule,
+use crate::{
+    quant::{ChannelId, Frequency, Phase, Time},
+    schedule::{Measure, Visit, Visitor},
 };
-use crate::quant::{ChannelId, Frequency, Phase, Time};
-
-trait SimpleElement {
-    fn channels(&self) -> &[ChannelId];
-}
-
-impl<T> Schedule for T
-where
-    T: SimpleElement,
-{
-    fn measure(&self, _context: &MeasureContext) -> MeasureResult {
-        MeasureResult(Time::ZERO, MeasureResultVariant::Simple)
-    }
-
-    fn arrange(&self, _context: &ArrangeContext) -> Result<ArrangeResult> {
-        Ok(ArrangeResult(Time::ZERO, ArrangeResultVariant::Simple))
-    }
-
-    fn channels(&self) -> &[ChannelId] {
-        self.channels()
-    }
-}
 
 #[derive(Debug, Clone)]
-pub struct ShiftPhase {
-    channel_id: [ChannelId; 1],
+pub(crate) struct ShiftPhase {
+    channel_ids: [ChannelId; 1],
     phase: Phase,
 }
 
-impl ShiftPhase {
-    pub fn new(channel_id: ChannelId, phase: Phase) -> Result<Self> {
-        if !phase.value().is_finite() {
-            bail!("Invalid phase {:?}", phase);
-        }
-        Ok(Self {
-            channel_id: [channel_id],
-            phase,
-        })
-    }
-
-    pub fn channel_id(&self) -> &ChannelId {
-        &self.channel_id[0]
-    }
-
-    pub fn phase(&self) -> Phase {
-        self.phase
-    }
-}
-
-impl SimpleElement for ShiftPhase {
-    fn channels(&self) -> &[ChannelId] {
-        &self.channel_id
-    }
-}
-
 #[derive(Debug, Clone)]
-pub struct SetPhase {
-    channel_id: [ChannelId; 1],
+pub(crate) struct SetPhase {
+    channel_ids: [ChannelId; 1],
     phase: Phase,
 }
 
-impl SetPhase {
-    pub fn new(channel_id: ChannelId, phase: Phase) -> Result<Self> {
-        if !phase.value().is_finite() {
-            bail!("Invalid phase {:?}", phase);
-        }
-        Ok(Self {
-            channel_id: [channel_id],
-            phase,
-        })
-    }
-
-    pub fn channel_id(&self) -> &ChannelId {
-        &self.channel_id[0]
-    }
-
-    pub fn phase(&self) -> Phase {
-        self.phase
-    }
-}
-
-impl SimpleElement for SetPhase {
-    fn channels(&self) -> &[ChannelId] {
-        &self.channel_id
-    }
-}
-
 #[derive(Debug, Clone)]
-pub struct ShiftFreq {
-    channel_id: [ChannelId; 1],
+pub(crate) struct ShiftFreq {
+    channel_ids: [ChannelId; 1],
     frequency: Frequency,
 }
 
-impl ShiftFreq {
-    pub fn new(channel_id: ChannelId, frequency: Frequency) -> Result<Self> {
-        if !frequency.value().is_finite() {
-            bail!("Invalid frequency {:?}", frequency);
-        }
-        Ok(Self {
-            channel_id: [channel_id],
-            frequency,
-        })
-    }
-
-    pub fn channel_id(&self) -> &ChannelId {
-        &self.channel_id[0]
-    }
-
-    pub fn frequency(&self) -> Frequency {
-        self.frequency
-    }
-}
-
-impl SimpleElement for ShiftFreq {
-    fn channels(&self) -> &[ChannelId] {
-        &self.channel_id
-    }
-}
-
 #[derive(Debug, Clone)]
-pub struct SetFreq {
-    channel_id: [ChannelId; 1],
+pub(crate) struct SetFreq {
+    channel_ids: [ChannelId; 1],
     frequency: Frequency,
 }
 
-impl SetFreq {
-    pub fn new(channel_id: ChannelId, frequency: Frequency) -> Result<Self> {
-        if !frequency.value().is_finite() {
-            bail!("Invalid frequency {:?}", frequency);
-        }
-        Ok(Self {
-            channel_id: [channel_id],
-            frequency,
-        })
-    }
-
-    pub fn channel_id(&self) -> &ChannelId {
-        &self.channel_id[0]
-    }
-
-    pub fn frequency(&self) -> Frequency {
-        self.frequency
-    }
-}
-
-impl SimpleElement for SetFreq {
-    fn channels(&self) -> &[ChannelId] {
-        &self.channel_id
-    }
-}
-
 #[derive(Debug, Clone)]
-pub struct SwapPhase {
+pub(crate) struct SwapPhase {
     channel_ids: [ChannelId; 2],
 }
 
+#[derive(Debug, Clone)]
+pub(crate) struct Barrier {
+    channel_ids: Vec<ChannelId>,
+}
+
+impl ShiftPhase {
+    pub(crate) fn new(channel_id: ChannelId, phase: Phase) -> Result<Self> {
+        if !phase.value().is_finite() {
+            bail!("Invalid phase {:?}", phase);
+        }
+        Ok(Self {
+            channel_ids: [channel_id],
+            phase,
+        })
+    }
+
+    pub(crate) fn channel_id(&self) -> &ChannelId {
+        &self.channel_ids[0]
+    }
+
+    pub(crate) fn phase(&self) -> Phase {
+        self.phase
+    }
+}
+
+impl SetPhase {
+    pub(crate) fn new(channel_id: ChannelId, phase: Phase) -> Result<Self> {
+        if !phase.value().is_finite() {
+            bail!("Invalid phase {:?}", phase);
+        }
+        Ok(Self {
+            channel_ids: [channel_id],
+            phase,
+        })
+    }
+
+    pub(crate) fn channel_id(&self) -> &ChannelId {
+        &self.channel_ids[0]
+    }
+
+    pub(crate) fn phase(&self) -> Phase {
+        self.phase
+    }
+}
+
+impl ShiftFreq {
+    pub(crate) fn new(channel_id: ChannelId, frequency: Frequency) -> Result<Self> {
+        if !frequency.value().is_finite() {
+            bail!("Invalid frequency {:?}", frequency);
+        }
+        Ok(Self {
+            channel_ids: [channel_id],
+            frequency,
+        })
+    }
+
+    pub(crate) fn channel_id(&self) -> &ChannelId {
+        &self.channel_ids[0]
+    }
+
+    pub(crate) fn frequency(&self) -> Frequency {
+        self.frequency
+    }
+}
+
+impl SetFreq {
+    pub(crate) fn new(channel_id: ChannelId, frequency: Frequency) -> Result<Self> {
+        if !frequency.value().is_finite() {
+            bail!("Invalid frequency {:?}", frequency);
+        }
+        Ok(Self {
+            channel_ids: [channel_id],
+            frequency,
+        })
+    }
+
+    pub(crate) fn channel_id(&self) -> &ChannelId {
+        &self.channel_ids[0]
+    }
+
+    pub(crate) fn frequency(&self) -> Frequency {
+        self.frequency
+    }
+}
+
 impl SwapPhase {
-    pub fn new(channel_id1: ChannelId, channel_id2: ChannelId) -> Self {
+    pub(crate) fn new(channel_id1: ChannelId, channel_id2: ChannelId) -> Self {
         Self {
             channel_ids: [channel_id1, channel_id2],
         }
     }
 
-    pub fn channel_id1(&self) -> &ChannelId {
+    pub(crate) fn channel_id1(&self) -> &ChannelId {
         &self.channel_ids[0]
     }
 
-    pub fn channel_id2(&self) -> &ChannelId {
+    pub(crate) fn channel_id2(&self) -> &ChannelId {
         &self.channel_ids[1]
     }
 }
 
-impl SimpleElement for SwapPhase {
-    fn channels(&self) -> &[ChannelId] {
-        &self.channel_ids
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct Barrier {
-    channel_ids: Vec<ChannelId>,
-}
-
 impl Barrier {
-    pub fn new(channel_ids: Vec<ChannelId>) -> Self {
+    pub(crate) fn new(channel_ids: Vec<ChannelId>) -> Self {
         Self { channel_ids }
     }
 
-    pub fn channel_ids(&self) -> &[ChannelId] {
+    pub(crate) fn channel_ids(&self) -> &[ChannelId] {
         &self.channel_ids
     }
 }
 
-impl SimpleElement for Barrier {
-    fn channels(&self) -> &[ChannelId] {
-        &self.channel_ids
+macro_rules! impl_measure {
+    ($t:ty) => {
+        impl Measure for $t {
+            fn measure(&self) -> Time {
+                Time::ZERO
+            }
+
+            fn channels(&self) -> &[ChannelId] {
+                &self.channel_ids
+            }
+        }
+    };
+}
+
+impl_measure!(ShiftPhase);
+impl_measure!(SetPhase);
+impl_measure!(ShiftFreq);
+impl_measure!(SetFreq);
+impl_measure!(SwapPhase);
+impl_measure!(Barrier);
+
+impl Visit for ShiftPhase {
+    fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time) -> Result<()>
+    where
+        V: Visitor,
+    {
+        visitor.visit_shift_phase(self, time, duration)
+    }
+}
+
+impl Visit for SetPhase {
+    fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time) -> Result<()>
+    where
+        V: Visitor,
+    {
+        visitor.visit_set_phase(self, time, duration)
+    }
+}
+
+impl Visit for ShiftFreq {
+    fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time) -> Result<()>
+    where
+        V: Visitor,
+    {
+        visitor.visit_shift_freq(self, time, duration)
+    }
+}
+
+impl Visit for SetFreq {
+    fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time) -> Result<()>
+    where
+        V: Visitor,
+    {
+        visitor.visit_set_freq(self, time, duration)
+    }
+}
+
+impl Visit for SwapPhase {
+    fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time) -> Result<()>
+    where
+        V: Visitor,
+    {
+        visitor.visit_swap_phase(self, time, duration)
+    }
+}
+
+impl Visit for Barrier {
+    fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time) -> Result<()>
+    where
+        V: Visitor,
+    {
+        visitor.visit_barrier(self, time, duration)
     }
 }

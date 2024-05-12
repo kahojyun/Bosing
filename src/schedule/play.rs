@@ -1,13 +1,12 @@
 use anyhow::{bail, Result};
 
-use super::{
-    ArrangeContext, ArrangeResult, ArrangeResultVariant, MeasureContext, MeasureResult,
-    MeasureResultVariant, Schedule,
+use crate::{
+    quant::{Amplitude, ChannelId, Frequency, Phase, ShapeId, Time},
+    schedule::{Measure, Visit, Visitor},
 };
-use crate::quant::{Amplitude, ChannelId, Frequency, Phase, ShapeId, Time};
 
 #[derive(Debug, Clone)]
-pub struct Play {
+pub(crate) struct Play {
     channel_id: [ChannelId; 1],
     shape_id: Option<ShapeId>,
     amplitude: Amplitude,
@@ -20,7 +19,7 @@ pub struct Play {
 }
 
 impl Play {
-    pub fn new(
+    pub(crate) fn new(
         channel_id: ChannelId,
         shape_id: Option<ShapeId>,
         amplitude: Amplitude,
@@ -45,7 +44,7 @@ impl Play {
         })
     }
 
-    pub fn with_plateau(mut self, plateau: Time) -> Result<Self> {
+    pub(crate) fn with_plateau(mut self, plateau: Time) -> Result<Self> {
         if !plateau.value().is_finite() || plateau.value() < 0.0 {
             bail!("Invalid plateau {:?}", plateau);
         }
@@ -53,7 +52,7 @@ impl Play {
         Ok(self)
     }
 
-    pub fn with_drag_coef(mut self, drag_coef: f64) -> Result<Self> {
+    pub(crate) fn with_drag_coef(mut self, drag_coef: f64) -> Result<Self> {
         if !drag_coef.is_finite() {
             bail!("Invalid drag_coef {}", drag_coef);
         }
@@ -61,7 +60,7 @@ impl Play {
         Ok(self)
     }
 
-    pub fn with_frequency(mut self, frequency: Frequency) -> Result<Self> {
+    pub(crate) fn with_frequency(mut self, frequency: Frequency) -> Result<Self> {
         if !frequency.value().is_finite() {
             bail!("Invalid frequency {:?}", frequency);
         }
@@ -69,7 +68,7 @@ impl Play {
         Ok(self)
     }
 
-    pub fn with_phase(mut self, phase: Phase) -> Result<Self> {
+    pub(crate) fn with_phase(mut self, phase: Phase) -> Result<Self> {
         if !phase.value().is_finite() {
             bail!("Invalid phase {:?}", phase);
         }
@@ -77,68 +76,67 @@ impl Play {
         Ok(self)
     }
 
-    pub fn with_flexible(mut self, flexible: bool) -> Self {
+    pub(crate) fn with_flexible(mut self, flexible: bool) -> Self {
         self.flexible = flexible;
         self
     }
 
-    pub fn channel_id(&self) -> &ChannelId {
+    pub(crate) fn channel_id(&self) -> &ChannelId {
         &self.channel_id[0]
     }
 
-    pub fn shape_id(&self) -> Option<&ShapeId> {
+    pub(crate) fn shape_id(&self) -> Option<&ShapeId> {
         self.shape_id.as_ref()
     }
 
-    pub fn amplitude(&self) -> Amplitude {
+    pub(crate) fn amplitude(&self) -> Amplitude {
         self.amplitude
     }
 
-    pub fn width(&self) -> Time {
+    pub(crate) fn width(&self) -> Time {
         self.width
     }
 
-    pub fn plateau(&self) -> Time {
+    pub(crate) fn plateau(&self) -> Time {
         self.plateau
     }
 
-    pub fn drag_coef(&self) -> f64 {
+    pub(crate) fn drag_coef(&self) -> f64 {
         self.drag_coef
     }
 
-    pub fn frequency(&self) -> Frequency {
+    pub(crate) fn frequency(&self) -> Frequency {
         self.frequency
     }
 
-    pub fn phase(&self) -> Phase {
+    pub(crate) fn phase(&self) -> Phase {
         self.phase
     }
 
-    pub fn flexible(&self) -> bool {
+    pub(crate) fn flexible(&self) -> bool {
         self.flexible
     }
 }
 
-impl Schedule for Play {
-    fn measure(&self, _context: &MeasureContext) -> MeasureResult {
-        let wanted_duration = if self.flexible {
+impl Measure for Play {
+    fn channels(&self) -> &[ChannelId] {
+        &self.channel_id
+    }
+
+    fn measure(&self) -> Time {
+        if self.flexible {
             self.width
         } else {
             self.width + self.plateau
-        };
-        MeasureResult(wanted_duration, MeasureResultVariant::Simple)
+        }
     }
+}
 
-    fn arrange(&self, context: &ArrangeContext) -> Result<ArrangeResult> {
-        let arranged = if self.flexible {
-            context.final_duration
-        } else {
-            self.width + self.plateau
-        };
-        Ok(ArrangeResult(arranged, ArrangeResultVariant::Simple))
-    }
-
-    fn channels(&self) -> &[ChannelId] {
-        &self.channel_id
+impl Visit for Play {
+    fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time) -> Result<()>
+    where
+        V: Visitor,
+    {
+        visitor.visit_play(self, time, duration)
     }
 }
