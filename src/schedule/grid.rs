@@ -6,14 +6,11 @@ use anyhow::{bail, Result};
 
 use crate::{
     quant::{ChannelId, Time},
-    schedule::{
-        grid::helper::Helper, merge_channel_ids, Alignment, Arranged, ElementRef, Measure, Visit,
-        Visitor,
-    },
+    schedule::{grid::helper::Helper, merge_channel_ids, Alignment, Arranged, ElementRef, Measure},
     GridLength,
 };
 
-use super::Arrange;
+use super::{Arrange, TimeRange};
 
 #[derive(Debug, Clone)]
 pub(crate) struct GridEntry {
@@ -41,14 +38,6 @@ struct MeasureItem {
     column: usize,
     span: usize,
     duration: Time,
-}
-
-struct ArrangeItem<T> {
-    item: T,
-    column: usize,
-    span: usize,
-    duration: Time,
-    alignment: Alignment,
 }
 
 impl GridEntry {
@@ -137,57 +126,15 @@ impl Measure for Grid {
     }
 }
 
-impl Visit for Grid {
-    fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time) -> Result<()>
-    where
-        V: Visitor,
-    {
-        visitor.visit_grid(self, time, duration)?;
-        let MeasureResult {
-            column_sizes,
-            child_durations,
-            ..
-        } = self.measure_result();
-        let arranged = arrange_grid(
-            self.children
-                .iter()
-                .zip(child_durations)
-                .map(|(c, t)| ArrangeItem {
-                    item: &c.element,
-                    column: c.column,
-                    span: c.span,
-                    duration: *t,
-                    alignment: c.element.common.alignment,
-                }),
-            &self.columns,
-            duration,
-            column_sizes.clone(),
-        );
-        for Arranged {
-            item,
-            offset,
-            duration,
-        } in arranged
-        {
-            item.visit(visitor, time + offset, duration)?;
-        }
-        Ok(())
-    }
-}
-
-impl<'a> Arrange<'a> for Grid {
-    fn arrange(
-        &'a self,
-        time: Time,
-        duration: Time,
-    ) -> impl Iterator<Item = Arranged<&'a ElementRef>> {
+impl Arrange for Grid {
+    fn arrange(&self, time_range: TimeRange) -> impl Iterator<Item = Arranged<&ElementRef>> {
         let MeasureResult {
             column_sizes,
             child_durations,
             ..
         } = self.measure_result();
         let mut helper = Helper::new_with_column_sizes(&self.columns, column_sizes.clone());
-        helper.expand_to_fit(duration);
+        helper.expand_to_fit(time_range.span);
         let column_starts = helper.column_starts();
         self.children.iter().zip(child_durations).map(
             move |(
@@ -211,51 +158,17 @@ impl<'a> Arrange<'a> for Grid {
                     Alignment::Center => (span_duration - child_duration) / 2.0,
                     _ => Time::ZERO,
                 } + column_starts[start];
-
+                let child_time_range = TimeRange {
+                    start: time_range.start + child_offset,
+                    span: child_duration,
+                };
                 Arranged {
                     item: element,
-                    offset: time + child_offset,
-                    duration: child_duration,
+                    time_range: child_time_range,
                 }
             },
         )
     }
-}
-
-fn arrange_grid<'a, I, T>(
-    children: I,
-    columns: &'a [GridLength],
-    final_duration: Time,
-    column_sizes: Vec<Time>,
-) -> impl IntoIterator<Item = Arranged<T>> + 'a
-where
-    I: IntoIterator<Item = ArrangeItem<T>>,
-    I::IntoIter: 'a,
-{
-    let mut helper = Helper::new_with_column_sizes(columns, column_sizes);
-    helper.expand_to_fit(final_duration);
-    let column_starts = helper.column_starts();
-    children.into_iter().map(move |child| {
-        let span = helper.normalize_span(child.column, child.span);
-        let start = span.start();
-        let span = span.span();
-        let span_duration = column_starts[start + span] - column_starts[start];
-        let child_duration = match child.alignment {
-            Alignment::Stretch => span_duration,
-            _ => child.duration,
-        };
-        let child_offset = match child.alignment {
-            Alignment::End => span_duration - child_duration,
-            Alignment::Center => (span_duration - child_duration) / 2.0,
-            _ => Time::ZERO,
-        } + column_starts[start];
-
-        Arranged {
-            item: child.item,
-            offset: child_offset,
-            duration: child_duration,
-        }
-    })
 }
 
 fn measure_grid<I>(children: I, columns: &[GridLength]) -> MeasureResult
@@ -332,47 +245,5 @@ mod tests {
 
         assert_eq!(total_duration, Time::new(expected.0).unwrap());
         assert_eq!(column_sizes, time_vec(&expected.1));
-    }
-
-    #[test_case(&[(40.0, Alignment::End, 0, 1)], &["30"], &[(-10.0, 40.0)]; "not enough size")]
-    #[test_case(
-        &[(40.0, Alignment::End, 0, 1), (40.0, Alignment::End, 2, 1), (100.0, Alignment::Stretch, 0, 3)],
-        &["auto", "*", "auto"],
-        &[(0.0, 40.0), (160.0, 40.0), (0.0, 200.0)];
-        "sandwiched"
-    )]
-    #[test_case(&[], &["*"], &[]; "empty")]
-    fn measure_then_arrange_grid(
-        children: &[(f64, Alignment, usize, usize)],
-        columns: &[&str],
-        expected_timings: &[(f64, f64)],
-    ) {
-        let children: Vec<_> = children
-            .iter()
-            .map(|&(d, a, c, s)| ArrangeItem {
-                item: (),
-                column: c,
-                span: s,
-                duration: Time::new(d).unwrap(),
-                alignment: a,
-            })
-            .collect();
-        let columns: Vec<GridLength> = columns.iter().map(|s| s.parse().unwrap()).collect();
-
-        let measure_result = super::measure_grid(
-            children.iter().map(|x| MeasureItem {
-                column: x.column,
-                span: x.span,
-                duration: x.duration,
-            }),
-            &columns,
-        );
-        let column_sizes = measure_result.column_sizes.clone();
-        let res = super::arrange_grid(children, &columns, Time::new(200.0).unwrap(), column_sizes);
-
-        for (item, expected) in res.into_iter().zip(expected_timings) {
-            assert_eq!(item.offset.value(), expected.0);
-            assert_eq!(item.duration.value(), expected.1);
-        }
     }
 }

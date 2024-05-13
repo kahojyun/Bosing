@@ -25,7 +25,7 @@ use crate::{
     executor::Executor,
     pulse::{PulseList, Sampler},
     quant::{Amplitude, ChannelId, Frequency, Phase, ShapeId, Time},
-    schedule::{ElementCommonBuilder, ElementRef, Measure as _, Visit as _},
+    schedule::{ElementCommonBuilder, ElementRef, Measure as _, TimeRange},
 };
 
 /// Channel configuration.
@@ -1997,8 +1997,13 @@ fn build_pulse_lists(
     let t0 = Instant::now();
     let duration = root.measure();
     let t1 = Instant::now();
-    // root.visit(&mut executor, Time::ZERO, duration)?;
-    executor.execute(root, Time::ZERO, duration)?;
+    executor.execute(
+        root,
+        TimeRange {
+            start: Time::ZERO,
+            span: duration,
+        },
+    )?;
     let t2 = Instant::now();
     println!(
         "Measure: {:?}, Visit: {:?}, Total: {:?}",

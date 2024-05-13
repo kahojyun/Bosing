@@ -6,8 +6,8 @@ use crate::{
     pulse::{Envelope, PulseList, PulseListBuilder, PushArgs},
     quant::{Amplitude, ChannelId, Frequency, Phase, ShapeId, Time},
     schedule::{
-        arrange_tree, Absolute, Arranged, Barrier, ElementCommon, ElementRef, ElementVariant, Grid,
-        Play, Repeat, SetFreq, SetPhase, ShiftFreq, ShiftPhase, Stack, SwapPhase, Visitor,
+        arrange_tree, Arranged, ElementRef, ElementVariant, Play, SetFreq, SetPhase, ShiftFreq,
+        ShiftPhase, SwapPhase, TimeRange,
     },
     shape::Shape,
 };
@@ -67,26 +67,23 @@ impl Executor {
             .collect()
     }
 
-    pub(crate) fn execute(&mut self, root: &ElementRef, time: Time, duration: Time) -> Result<()> {
-        for Arranged {
-            item,
-            offset,
-            duration,
-        } in arrange_tree(root, time, duration)
-        {
-            let inner = item.arrange_inner(offset, duration);
+    pub(crate) fn execute(&mut self, root: &ElementRef, time_range: TimeRange) -> Result<()> {
+        for Arranged { item, time_range } in arrange_tree(root, time_range) {
+            let inner = item.arrange_inner(time_range);
             match inner.item {
-                ElementVariant::Play(variant) => {
-                    self.execute_play(variant, inner.offset, inner.duration)
-                }
+                ElementVariant::Play(variant) => self.execute_play(variant, inner.time_range),
                 ElementVariant::ShiftPhase(variant) => self.execute_shift_phase(variant),
-                ElementVariant::SetPhase(variant) => self.execute_set_phase(variant, inner.offset),
-                ElementVariant::ShiftFreq(variant) => {
-                    self.execute_shift_freq(variant, inner.offset)
+                ElementVariant::SetPhase(variant) => {
+                    self.execute_set_phase(variant, inner.time_range.start)
                 }
-                ElementVariant::SetFreq(variant) => self.execute_set_freq(variant, inner.offset),
+                ElementVariant::ShiftFreq(variant) => {
+                    self.execute_shift_freq(variant, inner.time_range.start)
+                }
+                ElementVariant::SetFreq(variant) => {
+                    self.execute_set_freq(variant, inner.time_range.start)
+                }
                 ElementVariant::SwapPhase(variant) => {
-                    self.execute_swap_phase(variant, inner.offset)
+                    self.execute_swap_phase(variant, inner.time_range.start)
                 }
                 _ => Ok(()),
             }
@@ -95,7 +92,7 @@ impl Executor {
         Ok(())
     }
 
-    fn execute_play(&mut self, variant: &Play, time: Time, duration: Time) -> Result<()> {
+    fn execute_play(&mut self, variant: &Play, time_range: TimeRange) -> Result<()> {
         let shape = match variant.shape_id() {
             Some(id) => Some(
                 self.shapes
@@ -107,7 +104,7 @@ impl Executor {
         };
         let width = variant.width();
         let plateau = if variant.flexible() {
-            duration - width
+            time_range.span - width
         } else {
             variant.plateau()
         };
@@ -121,7 +118,7 @@ impl Executor {
         let channel = self.get_mut_channel(variant.channel_id())?;
         channel.add_pulse(AddPulseArgs {
             shape,
-            time,
+            time: time_range.start,
             width,
             plateau,
             amplitude,
@@ -250,65 +247,5 @@ impl Channel {
             drag_coef,
             phase,
         })
-    }
-}
-
-impl Visitor for Executor {
-    fn visit_play(&mut self, variant: &Play, time: Time, duration: Time) -> Result<()> {
-        self.execute_play(variant, time, duration)
-    }
-
-    fn visit_shift_phase(
-        &mut self,
-        variant: &ShiftPhase,
-        _time: Time,
-        _durationn: Time,
-    ) -> Result<()> {
-        self.execute_shift_phase(variant)
-    }
-
-    fn visit_set_phase(&mut self, variant: &SetPhase, time: Time, _duration: Time) -> Result<()> {
-        self.execute_set_phase(variant, time)
-    }
-
-    fn visit_shift_freq(&mut self, variant: &ShiftFreq, time: Time, _duration: Time) -> Result<()> {
-        self.execute_shift_freq(variant, time)
-    }
-
-    fn visit_set_freq(&mut self, variant: &SetFreq, time: Time, _duration: Time) -> Result<()> {
-        self.execute_set_freq(variant, time)
-    }
-
-    fn visit_swap_phase(&mut self, variant: &SwapPhase, time: Time, _duration: Time) -> Result<()> {
-        self.execute_swap_phase(variant, time)
-    }
-
-    fn visit_barrier(&mut self, _variant: &Barrier, _time: Time, _duration: Time) -> Result<()> {
-        Ok(())
-    }
-
-    fn visit_repeat(&mut self, _variant: &Repeat, _time: Time, _duration: Time) -> Result<()> {
-        Ok(())
-    }
-
-    fn visit_stack(&mut self, _variant: &Stack, _time: Time, _duration: Time) -> Result<()> {
-        Ok(())
-    }
-
-    fn visit_absolute(&mut self, _variant: &Absolute, _time: Time, _duration: Time) -> Result<()> {
-        Ok(())
-    }
-
-    fn visit_grid(&mut self, _variant: &Grid, _time: Time, _duration: Time) -> Result<()> {
-        Ok(())
-    }
-
-    fn visit_common(
-        &mut self,
-        _common: &ElementCommon,
-        _time: Time,
-        _duration: Time,
-    ) -> Result<()> {
-        Ok(())
     }
 }
