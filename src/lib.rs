@@ -15,7 +15,7 @@ use numpy::{
     dot_bound, prelude::*, AllowTypeChange, PyArray1, PyArray2, PyArrayLike1, PyArrayLike2,
 };
 use pyo3::{
-    exceptions::{PyTypeError, PyValueError},
+    exceptions::{PyRuntimeError, PyTypeError, PyValueError},
     prelude::*,
     types::{DerefToPyAny, PyDict},
 };
@@ -1997,13 +1997,15 @@ fn build_pulse_lists(
     let t0 = Instant::now();
     let duration = root.measure();
     let t1 = Instant::now();
-    executor.execute(
-        root,
-        TimeRange {
-            start: Time::ZERO,
-            span: duration,
-        },
-    )?;
+    executor
+        .execute(
+            root,
+            TimeRange {
+                start: Time::ZERO,
+                span: duration,
+            },
+        )
+        .map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
     let t2 = Instant::now();
     println!(
         "Measure: {:?}, Visit: {:?}, Total: {:?}",

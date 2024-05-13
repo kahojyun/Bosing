@@ -1,6 +1,5 @@
 use hashbrown::HashMap;
-
-use anyhow::{anyhow, bail, Result};
+use thiserror::Error;
 
 use crate::{
     pulse::{Envelope, PulseList, PulseListBuilder, PushArgs},
@@ -19,6 +18,18 @@ pub(crate) struct Executor {
     amp_tolerance: Amplitude,
     time_tolerance: Time,
 }
+
+#[derive(Error, Debug)]
+pub(crate) enum Error {
+    #[error("Channel not found: {0:?}")]
+    ChannelNotFound(Vec<ChannelId>),
+    #[error("Shape not found: {0:?}")]
+    ShapeNotFound(ShapeId),
+    #[error("Invalid plateau: {0:?}")]
+    NegativePlateau(Time),
+}
+
+type Result<T, E = Error> = std::result::Result<T, E>;
 
 #[derive(Debug, Clone)]
 struct Channel {
@@ -67,7 +78,11 @@ impl Executor {
             .collect()
     }
 
-    pub(crate) fn execute(&mut self, root: &ElementRef, time_range: TimeRange) -> Result<()> {
+    pub(crate) fn execute(
+        &mut self,
+        root: &ElementRef,
+        time_range: TimeRange,
+    ) -> Result<(), Error> {
         for Arranged { item, time_range } in arrange_tree(root, time_range) {
             let inner = item.arrange_inner(time_range);
             match inner.item {
@@ -86,8 +101,7 @@ impl Executor {
                     self.execute_swap_phase(variant, inner.time_range.start)
                 }
                 _ => Ok(()),
-            }
-            .unwrap();
+            }?;
         }
         Ok(())
     }
@@ -97,7 +111,7 @@ impl Executor {
             Some(id) => Some(
                 self.shapes
                     .get(id)
-                    .ok_or(anyhow!("Shape {:?} not found", id))?
+                    .ok_or(Error::ShapeNotFound(id.clone()))?
                     .clone(),
             ),
             None => None,
@@ -109,7 +123,7 @@ impl Executor {
             variant.plateau()
         };
         if plateau < Time::ZERO {
-            bail!("Invalid plateau {:?}", plateau);
+            return Err(Error::NegativePlateau(plateau));
         }
         let amplitude = variant.amplitude();
         let drag_coef = variant.drag_coef();
@@ -163,11 +177,10 @@ impl Executor {
         if ch1 == ch2 {
             return Ok(());
         }
-        let [channel, other] = self.channels.get_many_mut([ch1, ch2]).ok_or(anyhow!(
-            "Channels {:?} or {:?} not found",
-            ch1,
-            ch2
-        ))?;
+        let [channel, other] = self
+            .channels
+            .get_many_mut([ch1, ch2])
+            .ok_or(Error::ChannelNotFound(vec![ch1.clone(), ch2.clone()]))?;
         channel.swap_phase(other, time);
         Ok(())
     }
@@ -175,7 +188,7 @@ impl Executor {
     fn get_mut_channel(&mut self, id: &ChannelId) -> Result<&mut Channel> {
         self.channels
             .get_mut(id)
-            .ok_or(anyhow!("Channel {:?} not found", id))
+            .ok_or(Error::ChannelNotFound(vec![id.clone()]))
     }
 }
 
