@@ -60,18 +60,26 @@ impl Measure for Repeat {
     }
 }
 
+pub(crate) fn walk_repeat<V>(variant: &Repeat, visitor: &mut V, time: Time) -> Result<(), V::Error>
+where
+    V: Visitor + ?Sized,
+{
+    let child_duration = variant.child.measure();
+    let offset_per_repeat = child_duration + variant.spacing;
+    for i in 0..variant.count {
+        let offset = offset_per_repeat * i as f64;
+        variant
+            .child
+            .visit(visitor, time + offset, child_duration)?;
+    }
+    Ok(())
+}
+
 impl Visit for Repeat {
-    fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time) -> Result<()>
+    fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time) -> Result<(), V::Error>
     where
-        V: Visitor,
+        V: Visitor + ?Sized,
     {
-        visitor.visit_repeat(self, time, duration)?;
-        let child_duration = self.child.measure();
-        let offset_per_repeat = child_duration + self.spacing;
-        for i in 0..self.count {
-            let offset = offset_per_repeat * i as f64;
-            self.child.visit(visitor, time + offset, child_duration)?;
-        }
-        Ok(())
+        visitor.visit_repeat(self, time, duration)
     }
 }

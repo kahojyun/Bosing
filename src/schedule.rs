@@ -17,12 +17,12 @@ use crate::{
     Alignment,
 };
 
-pub(crate) use absolute::{Absolute, AbsoluteEntry};
-pub(crate) use grid::{Grid, GridEntry};
+pub(crate) use absolute::{walk_absolute, Absolute, AbsoluteEntry};
+pub(crate) use grid::{walk_grid, Grid, GridEntry};
 pub(crate) use play::Play;
-pub(crate) use repeat::Repeat;
+pub(crate) use repeat::{walk_repeat, Repeat};
 pub(crate) use simple::{Barrier, SetFreq, SetPhase, ShiftFreq, ShiftPhase, SwapPhase};
-pub(crate) use stack::Stack;
+pub(crate) use stack::{walk_stack, Stack};
 
 pub(crate) type ElementRef = Arc<Element>;
 
@@ -46,19 +46,92 @@ pub(crate) struct ElementCommon {
 pub(crate) struct ElementCommonBuilder(ElementCommon);
 
 pub(crate) trait Visitor {
-    fn visit_play(&mut self, variant: &Play, time: Time, duration: Time) -> Result<()>;
-    fn visit_shift_phase(&mut self, variant: &ShiftPhase, time: Time, duration: Time)
-        -> Result<()>;
-    fn visit_set_phase(&mut self, variant: &SetPhase, time: Time, duration: Time) -> Result<()>;
-    fn visit_shift_freq(&mut self, variant: &ShiftFreq, time: Time, duration: Time) -> Result<()>;
-    fn visit_set_freq(&mut self, variant: &SetFreq, time: Time, duration: Time) -> Result<()>;
-    fn visit_swap_phase(&mut self, variant: &SwapPhase, time: Time, duration: Time) -> Result<()>;
-    fn visit_barrier(&mut self, variant: &Barrier, time: Time, duration: Time) -> Result<()>;
-    fn visit_repeat(&mut self, variant: &Repeat, time: Time, duration: Time) -> Result<()>;
-    fn visit_stack(&mut self, variant: &Stack, time: Time, duration: Time) -> Result<()>;
-    fn visit_absolute(&mut self, variant: &Absolute, time: Time, duration: Time) -> Result<()>;
-    fn visit_grid(&mut self, variant: &Grid, time: Time, duration: Time) -> Result<()>;
-    fn visit_common(&mut self, common: &ElementCommon, time: Time, duration: Time) -> Result<()>;
+    type Error;
+    fn visit_play(&mut self, variant: &Play, time: Time, duration: Time)
+        -> Result<(), Self::Error>;
+    fn visit_shift_phase(
+        &mut self,
+        variant: &ShiftPhase,
+        time: Time,
+        duration: Time,
+    ) -> Result<(), Self::Error>;
+    fn visit_set_phase(
+        &mut self,
+        variant: &SetPhase,
+        time: Time,
+        duration: Time,
+    ) -> Result<(), Self::Error>;
+    fn visit_shift_freq(
+        &mut self,
+        variant: &ShiftFreq,
+        time: Time,
+        duration: Time,
+    ) -> Result<(), Self::Error>;
+    fn visit_set_freq(
+        &mut self,
+        variant: &SetFreq,
+        time: Time,
+        duration: Time,
+    ) -> Result<(), Self::Error>;
+    fn visit_swap_phase(
+        &mut self,
+        variant: &SwapPhase,
+        time: Time,
+        duration: Time,
+    ) -> Result<(), Self::Error>;
+    fn visit_barrier(
+        &mut self,
+        variant: &Barrier,
+        time: Time,
+        duration: Time,
+    ) -> Result<(), Self::Error> {
+        let _ = duration;
+        let _ = time;
+        let _ = variant;
+        Ok(())
+    }
+    fn visit_repeat(
+        &mut self,
+        variant: &Repeat,
+        time: Time,
+        duration: Time,
+    ) -> Result<(), Self::Error> {
+        let _ = duration;
+        walk_repeat(variant, self, time)
+    }
+    fn visit_stack(
+        &mut self,
+        variant: &Stack,
+        time: Time,
+        duration: Time,
+    ) -> Result<(), Self::Error> {
+        walk_stack(variant, self, time, duration)
+    }
+    fn visit_absolute(
+        &mut self,
+        variant: &Absolute,
+        time: Time,
+        duration: Time,
+    ) -> Result<(), Self::Error> {
+        let _ = duration;
+        walk_absolute(variant, self, time)
+    }
+    fn visit_grid(
+        &mut self,
+        variant: &Grid,
+        time: Time,
+        duration: Time,
+    ) -> Result<(), Self::Error> {
+        walk_grid(variant, self, time, duration)
+    }
+    fn visit_element(
+        &mut self,
+        element: &Element,
+        time: Time,
+        duration: Time,
+    ) -> Result<(), Self::Error> {
+        walk_element(element, self, time, duration)
+    }
 }
 
 #[cfg_attr(test, automock)]
@@ -68,9 +141,9 @@ pub(crate) trait Measure {
 }
 
 pub(crate) trait Visit {
-    fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time) -> Result<()>
+    fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time) -> Result<(), V::Error>
     where
-        V: Visitor;
+        V: Visitor + ?Sized;
 }
 
 #[derive(Debug)]
@@ -138,9 +211,9 @@ macro_rules! impl_variant {
         }
 
         impl Visit for ElementVariant {
-            fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time) -> Result<()>
+            fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time) -> Result<(), V::Error>
             where
-                V: Visitor,
+                V: Visitor + ?Sized,
             {
                 match self {
                     $(ElementVariant::$variant(v) => v.visit(visitor, time, duration),)*
@@ -320,24 +393,35 @@ where
     }
 }
 
+pub(crate) fn walk_element<V>(
+    element: &Element,
+    visitor: &mut V,
+    time: Time,
+    duration: Time,
+) -> Result<(), V::Error>
+where
+    V: Visitor + ?Sized,
+{
+    let min_max = element.common.min_max_duration();
+    let inner_time = time + element.common.margin.0;
+    let inner_duration = (duration - element.common.total_margin()).max(Time::ZERO);
+    let inner_duration = min_max.clamp(inner_duration);
+    element.variant.visit(visitor, inner_time, inner_duration)
+}
+
 impl Visit for Element {
-    fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time) -> Result<()>
+    fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time) -> Result<(), V::Error>
     where
-        V: Visitor,
+        V: Visitor + ?Sized,
     {
-        visitor.visit_common(&self.common, time, duration)?;
-        let min_max = self.common.min_max_duration();
-        let inner_time = time + self.common.margin.0;
-        let inner_duration = (duration - self.common.total_margin()).max(Time::ZERO);
-        let inner_duration = min_max.clamp(inner_duration);
-        self.variant.visit(visitor, inner_time, inner_duration)
+        visitor.visit_element(self, time, duration)
     }
 }
 
 impl Visit for ElementRef {
-    fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time) -> Result<()>
+    fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time) -> Result<(), V::Error>
     where
-        V: Visitor,
+        V: Visitor + ?Sized,
     {
         (**self).visit(visitor, time, duration)
     }
@@ -347,9 +431,9 @@ impl<T> Visit for &T
 where
     T: Visit + ?Sized,
 {
-    fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time) -> Result<()>
+    fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time) -> Result<(), V::Error>
     where
-        V: Visitor,
+        V: Visitor + ?Sized,
     {
         (*self).visit(visitor, time, duration)
     }

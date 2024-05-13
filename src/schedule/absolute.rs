@@ -65,20 +65,30 @@ impl Measure for Absolute {
     }
 }
 
-impl Visit for Absolute {
-    fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time) -> Result<()>
-    where
-        V: Visitor,
+pub(crate) fn walk_absolute<V>(
+    variant: &Absolute,
+    visitor: &mut V,
+    time: Time,
+) -> Result<(), V::Error>
+where
+    V: Visitor + ?Sized,
+{
+    for AbsoluteEntry {
+        time: offset,
+        element,
+    } in &variant.children
     {
-        visitor.visit_absolute(self, time, duration)?;
-        for AbsoluteEntry {
-            time: offset,
-            element,
-        } in &self.children
-        {
-            element.visit(visitor, offset + time, element.measure())?;
-        }
-        Ok(())
+        element.visit(visitor, offset + time, element.measure())?;
+    }
+    Ok(())
+}
+
+impl Visit for Absolute {
+    fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time) -> Result<(), V::Error>
+    where
+        V: Visitor + ?Sized,
+    {
+        visitor.visit_absolute(self, time, duration)
     }
 }
 

@@ -135,41 +135,53 @@ impl Measure for Grid {
     }
 }
 
-impl Visit for Grid {
-    fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time) -> Result<()>
-    where
-        V: Visitor,
+pub(crate) fn walk_grid<V>(
+    variant: &Grid,
+    visitor: &mut V,
+    time: Time,
+    duration: Time,
+) -> Result<(), V::Error>
+where
+    V: Visitor + ?Sized,
+{
+    let MeasureResult {
+        column_sizes,
+        child_durations,
+        ..
+    } = variant.measure_result();
+    let arranged = arrange_grid(
+        variant
+            .children
+            .iter()
+            .zip(child_durations)
+            .map(|(c, t)| ArrangeItem {
+                item: &c.element,
+                column: c.column,
+                span: c.span,
+                duration: *t,
+                alignment: c.element.common.alignment,
+            }),
+        &variant.columns,
+        duration,
+        column_sizes.clone(),
+    );
+    for Arranged {
+        item,
+        offset,
+        duration,
+    } in arranged
     {
-        visitor.visit_grid(self, time, duration)?;
-        let MeasureResult {
-            column_sizes,
-            child_durations,
-            ..
-        } = self.measure_result();
-        let arranged = arrange_grid(
-            self.children
-                .iter()
-                .zip(child_durations)
-                .map(|(c, t)| ArrangeItem {
-                    item: &c.element,
-                    column: c.column,
-                    span: c.span,
-                    duration: *t,
-                    alignment: c.element.common.alignment,
-                }),
-            &self.columns,
-            duration,
-            column_sizes.clone(),
-        );
-        for Arranged {
-            item,
-            offset,
-            duration,
-        } in arranged
-        {
-            item.visit(visitor, time + offset, duration)?;
-        }
-        Ok(())
+        item.visit(visitor, time + offset, duration)?;
+    }
+    Ok(())
+}
+
+impl Visit for Grid {
+    fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time) -> Result<(), V::Error>
+    where
+        V: Visitor + ?Sized,
+    {
+        visitor.visit_grid(self, time, duration)
     }
 }
 

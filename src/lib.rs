@@ -7,7 +7,7 @@ mod quant;
 mod schedule;
 mod shape;
 
-use std::{borrow::Borrow, fmt::Debug, str::FromStr, sync::Arc};
+use std::{borrow::Borrow, fmt::Debug, str::FromStr, sync::Arc, time::Instant};
 
 use hashbrown::HashMap;
 use indoc::indoc;
@@ -15,7 +15,7 @@ use numpy::{
     dot_bound, prelude::*, AllowTypeChange, PyArray1, PyArray2, PyArrayLike1, PyArrayLike2,
 };
 use pyo3::{
-    exceptions::{PyTypeError, PyValueError},
+    exceptions::{PyRuntimeError, PyTypeError, PyValueError},
     prelude::*,
     types::{DerefToPyAny, PyDict},
 };
@@ -1994,8 +1994,18 @@ fn build_pulse_lists(
         let s = s.bind(py);
         executor.add_shape(n.clone(), Shape::get_rust_shape(s)?);
     }
+    let t0 = Instant::now();
     let duration = root.measure();
-    root.visit(&mut executor, Time::ZERO, duration)?;
+    let t1 = Instant::now();
+    root.visit(&mut executor, Time::ZERO, duration)
+        .map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
+    let t2 = Instant::now();
+    println!(
+        "Measure: {:?}, Visit: {:?}, Total: {:?}",
+        t1 - t0,
+        t2 - t1,
+        t2 - t0
+    );
     Ok(executor.into_result())
 }
 

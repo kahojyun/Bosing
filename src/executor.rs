@@ -1,13 +1,11 @@
 use hashbrown::HashMap;
-
-use anyhow::{anyhow, bail, Result};
+use thiserror::Error;
 
 use crate::{
     pulse::{Envelope, PulseList, PulseListBuilder, PushArgs},
     quant::{Amplitude, ChannelId, Frequency, Phase, ShapeId, Time},
     schedule::{
-        Absolute, Barrier, ElementCommon, Grid, Play, Repeat, SetFreq, SetPhase, ShiftFreq,
-        ShiftPhase, Stack, SwapPhase, Visitor,
+        walk_element, Element, Play, SetFreq, SetPhase, ShiftFreq, ShiftPhase, SwapPhase, Visitor,
     },
     shape::Shape,
 };
@@ -19,6 +17,18 @@ pub(crate) struct Executor {
     amp_tolerance: Amplitude,
     time_tolerance: Time,
 }
+
+#[derive(Error, Debug)]
+pub(crate) enum Error {
+    #[error("Channel not found: {0:?}")]
+    ChannelNotFound(Vec<ChannelId>),
+    #[error("Shape not found: {0:?}")]
+    ShapeNotFound(ShapeId),
+    #[error("Invalid plateau: {0:?}")]
+    NegativePlateau(Time),
+}
+
+type Result<T, E = Error> = std::result::Result<T, E>;
 
 #[derive(Debug, Clone)]
 struct Channel {
@@ -70,7 +80,7 @@ impl Executor {
     fn get_mut_channel(&mut self, id: &ChannelId) -> Result<&mut Channel> {
         self.channels
             .get_mut(id)
-            .ok_or(anyhow!("Channel {:?} not found", id))
+            .ok_or(Error::ChannelNotFound(vec![id.clone()]))
     }
 }
 
@@ -146,12 +156,13 @@ impl Channel {
 }
 
 impl Visitor for Executor {
+    type Error = Error;
     fn visit_play(&mut self, variant: &Play, time: Time, duration: Time) -> Result<()> {
         let shape = match variant.shape_id() {
             Some(id) => Some(
                 self.shapes
                     .get(id)
-                    .ok_or(anyhow!("Shape {:?} not found", id))?
+                    .ok_or(Error::ShapeNotFound(id.clone()))?
                     .clone(),
             ),
             None => None,
@@ -163,7 +174,7 @@ impl Visitor for Executor {
             variant.plateau()
         };
         if plateau < Time::ZERO {
-            bail!("Invalid plateau {:?}", plateau);
+            return Err(Error::NegativePlateau(plateau));
         }
         let amplitude = variant.amplitude();
         let drag_coef = variant.drag_coef();
@@ -222,41 +233,18 @@ impl Visitor for Executor {
         if ch1 == ch2 {
             return Ok(());
         }
-        let [channel, other] = self.channels.get_many_mut([ch1, ch2]).ok_or(anyhow!(
-            "Channels {:?} or {:?} not found",
-            ch1,
-            ch2
-        ))?;
+        let [channel, other] = self
+            .channels
+            .get_many_mut([ch1, ch2])
+            .ok_or(Error::ChannelNotFound(vec![ch1.clone(), ch2.clone()]))?;
         channel.swap_phase(other, time);
         Ok(())
     }
 
-    fn visit_barrier(&mut self, _variant: &Barrier, _time: Time, _duration: Time) -> Result<()> {
-        Ok(())
-    }
-
-    fn visit_repeat(&mut self, _variant: &Repeat, _time: Time, _duration: Time) -> Result<()> {
-        Ok(())
-    }
-
-    fn visit_stack(&mut self, _variant: &Stack, _time: Time, _duration: Time) -> Result<()> {
-        Ok(())
-    }
-
-    fn visit_absolute(&mut self, _variant: &Absolute, _time: Time, _duration: Time) -> Result<()> {
-        Ok(())
-    }
-
-    fn visit_grid(&mut self, _variant: &Grid, _time: Time, _duration: Time) -> Result<()> {
-        Ok(())
-    }
-
-    fn visit_common(
-        &mut self,
-        _common: &ElementCommon,
-        _time: Time,
-        _duration: Time,
-    ) -> Result<()> {
-        Ok(())
+    fn visit_element(&mut self, element: &Element, time: Time, duration: Time) -> Result<()> {
+        if element.common.phantom() {
+            return Ok(());
+        }
+        walk_element(element, self, time, duration)
     }
 }

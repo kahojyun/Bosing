@@ -84,34 +84,46 @@ impl Measure for Stack {
     }
 }
 
-impl Visit for Stack {
-    fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time) -> Result<()>
-    where
-        V: Visitor,
+pub(crate) fn walk_stack<V>(
+    variant: &Stack,
+    visitor: &mut V,
+    time: Time,
+    duration: Time,
+) -> Result<(), V::Error>
+where
+    V: Visitor + ?Sized,
+{
+    let MeasureResult { child_timings, .. } = variant.measure_result();
+    let arranged = arrange_stack(
+        variant
+            .children
+            .iter()
+            .zip(child_timings)
+            .map(|(c, t)| ArrangeItem {
+                item: c,
+                offset: t.0,
+                duration: t.1,
+            }),
+        duration,
+        variant.direction,
+    );
+    for Arranged {
+        item,
+        offset,
+        duration,
+    } in arranged
     {
-        visitor.visit_stack(self, time, duration)?;
-        let MeasureResult { child_timings, .. } = self.measure_result();
-        let arranged = arrange_stack(
-            self.children
-                .iter()
-                .zip(child_timings)
-                .map(|(c, t)| ArrangeItem {
-                    item: c,
-                    offset: t.0,
-                    duration: t.1,
-                }),
-            duration,
-            self.direction,
-        );
-        for Arranged {
-            item,
-            offset,
-            duration,
-        } in arranged
-        {
-            item.visit(visitor, time + offset, duration)?;
-        }
-        Ok(())
+        item.visit(visitor, time + offset, duration)?;
+    }
+    Ok(())
+}
+
+impl Visit for Stack {
+    fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time) -> Result<(), V::Error>
+    where
+        V: Visitor + ?Sized,
+    {
+        visitor.visit_stack(self, time, duration)
     }
 }
 
