@@ -2,7 +2,7 @@ use anyhow::{bail, Result};
 
 use crate::{
     quant::{ChannelId, Frequency, Phase, Time},
-    schedule::{Measure, Visit, Visitor},
+    schedule::Measure,
 };
 
 #[derive(Debug, Clone)]
@@ -165,57 +165,3 @@ impl_measure!(ShiftFreq);
 impl_measure!(SetFreq);
 impl_measure!(SwapPhase);
 impl_measure!(Barrier);
-
-impl Visit for ShiftPhase {
-    fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time) -> Result<()>
-    where
-        V: Visitor,
-    {
-        visitor.visit_shift_phase(self, time, duration)
-    }
-}
-
-impl Visit for SetPhase {
-    fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time) -> Result<()>
-    where
-        V: Visitor,
-    {
-        visitor.visit_set_phase(self, time, duration)
-    }
-}
-
-impl Visit for ShiftFreq {
-    fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time) -> Result<()>
-    where
-        V: Visitor,
-    {
-        visitor.visit_shift_freq(self, time, duration)
-    }
-}
-
-impl Visit for SetFreq {
-    fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time) -> Result<()>
-    where
-        V: Visitor,
-    {
-        visitor.visit_set_freq(self, time, duration)
-    }
-}
-
-impl Visit for SwapPhase {
-    fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time) -> Result<()>
-    where
-        V: Visitor,
-    {
-        visitor.visit_swap_phase(self, time, duration)
-    }
-}
-
-impl Visit for Barrier {
-    fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time) -> Result<()>
-    where
-        V: Visitor,
-    {
-        visitor.visit_barrier(self, time, duration)
-    }
-}

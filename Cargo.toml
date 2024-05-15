@@ -23,6 +23,7 @@ numpy = "0.21.0"
 ordered-float = "4.2.0"
 pyo3 = { version = "0.21.2", features = ["hashbrown", "anyhow"] }
 rayon = "1.10.0"
+thiserror = "1.0.60"
 
 [dev-dependencies]
 mockall = "0.12.1"

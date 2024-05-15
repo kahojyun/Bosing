@@ -45,20 +45,16 @@ pub(crate) struct ElementCommon {
 #[derive(Debug, Clone)]
 pub(crate) struct ElementCommonBuilder(ElementCommon);
 
-pub(crate) trait Visitor {
-    fn visit_play(&mut self, variant: &Play, time: Time, duration: Time) -> Result<()>;
-    fn visit_shift_phase(&mut self, variant: &ShiftPhase, time: Time, duration: Time)
-        -> Result<()>;
-    fn visit_set_phase(&mut self, variant: &SetPhase, time: Time, duration: Time) -> Result<()>;
-    fn visit_shift_freq(&mut self, variant: &ShiftFreq, time: Time, duration: Time) -> Result<()>;
-    fn visit_set_freq(&mut self, variant: &SetFreq, time: Time, duration: Time) -> Result<()>;
-    fn visit_swap_phase(&mut self, variant: &SwapPhase, time: Time, duration: Time) -> Result<()>;
-    fn visit_barrier(&mut self, variant: &Barrier, time: Time, duration: Time) -> Result<()>;
-    fn visit_repeat(&mut self, variant: &Repeat, time: Time, duration: Time) -> Result<()>;
-    fn visit_stack(&mut self, variant: &Stack, time: Time, duration: Time) -> Result<()>;
-    fn visit_absolute(&mut self, variant: &Absolute, time: Time, duration: Time) -> Result<()>;
-    fn visit_grid(&mut self, variant: &Grid, time: Time, duration: Time) -> Result<()>;
-    fn visit_common(&mut self, common: &ElementCommon, time: Time, duration: Time) -> Result<()>;
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct TimeRange {
+    pub(crate) start: Time,
+    pub(crate) span: Time,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct Arranged<T> {
+    pub(crate) item: T,
+    pub(crate) time_range: TimeRange,
 }
 
 #[cfg_attr(test, automock)]
@@ -67,23 +63,14 @@ pub(crate) trait Measure {
     fn channels(&self) -> &[ChannelId];
 }
 
-pub(crate) trait Visit {
-    fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time) -> Result<()>
-    where
-        V: Visitor;
+pub(crate) trait Arrange {
+    fn arrange(&self, time_range: TimeRange) -> impl Iterator<Item = Arranged<&ElementRef>>;
 }
 
 #[derive(Debug)]
 struct MinMax {
     min: Time,
     max: Time,
-}
-
-#[derive(Debug)]
-struct Arranged<T> {
-    item: T,
-    offset: Time,
-    duration: Time,
 }
 
 macro_rules! impl_variant {
@@ -136,17 +123,6 @@ macro_rules! impl_variant {
                 }
             }
         }
-
-        impl Visit for ElementVariant {
-            fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time) -> Result<()>
-            where
-                V: Visitor,
-            {
-                match self {
-                    $(ElementVariant::$variant(v) => v.visit(visitor, time, duration),)*
-                }
-            }
-        }
     };
 }
 
@@ -160,6 +136,16 @@ impl Element {
         Self {
             common,
             variant: variant.into(),
+        }
+    }
+
+    pub(crate) fn inner_time_range(&self, time_range: TimeRange) -> TimeRange {
+        let min_max = self.common.min_max_duration();
+        let inner_start = time_range.start + self.common.margin.0;
+        let inner_span = min_max.clamp(time_range.span - self.common.total_margin());
+        TimeRange {
+            start: inner_start,
+            span: inner_span,
         }
     }
 }
@@ -317,41 +303,6 @@ where
 
     fn channels(&self) -> &[ChannelId] {
         (*self).channels()
-    }
-}
-
-impl Visit for Element {
-    fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time) -> Result<()>
-    where
-        V: Visitor,
-    {
-        visitor.visit_common(&self.common, time, duration)?;
-        let min_max = self.common.min_max_duration();
-        let inner_time = time + self.common.margin.0;
-        let inner_duration = (duration - self.common.total_margin()).max(Time::ZERO);
-        let inner_duration = min_max.clamp(inner_duration);
-        self.variant.visit(visitor, inner_time, inner_duration)
-    }
-}
-
-impl Visit for ElementRef {
-    fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time) -> Result<()>
-    where
-        V: Visitor,
-    {
-        (**self).visit(visitor, time, duration)
-    }
-}
-
-impl<T> Visit for &T
-where
-    T: Visit + ?Sized,
-{
-    fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time) -> Result<()>
-    where
-        V: Visitor,
-    {
-        (*self).visit(visitor, time, duration)
     }
 }
 

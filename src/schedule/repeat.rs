@@ -4,8 +4,10 @@ use anyhow::{bail, Result};
 
 use crate::{
     quant::{ChannelId, Time},
-    schedule::{ElementRef, Measure, Visit, Visitor},
+    schedule::{ElementRef, Measure},
 };
+
+use super::{Arrange, Arranged, TimeRange};
 
 #[derive(Debug, Clone)]
 pub(crate) struct Repeat {
@@ -60,18 +62,20 @@ impl Measure for Repeat {
     }
 }
 
-impl Visit for Repeat {
-    fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time) -> Result<()>
-    where
-        V: Visitor,
-    {
-        visitor.visit_repeat(self, time, duration)?;
+impl Arrange for Repeat {
+    fn arrange(&self, time_range: TimeRange) -> impl Iterator<Item = Arranged<&ElementRef>> {
         let child_duration = self.child.measure();
         let offset_per_repeat = child_duration + self.spacing;
-        for i in 0..self.count {
+        (0..self.count).map(move |i| {
             let offset = offset_per_repeat * i as f64;
-            self.child.visit(visitor, time + offset, child_duration)?;
-        }
-        Ok(())
+            let child_time_range = TimeRange {
+                start: time_range.start + offset,
+                span: child_duration,
+            };
+            Arranged {
+                item: &self.child,
+                time_range: child_time_range,
+            }
+        })
     }
 }

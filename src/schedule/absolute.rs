@@ -4,8 +4,10 @@ use anyhow::{bail, Result};
 
 use crate::{
     quant::{ChannelId, Time},
-    schedule::{merge_channel_ids, ElementRef, Measure, Visit, Visitor},
+    schedule::{merge_channel_ids, ElementRef, Measure},
 };
+
+use super::{Arrange, Arranged, TimeRange};
 
 #[derive(Debug, Clone)]
 pub(crate) struct AbsoluteEntry {
@@ -65,20 +67,22 @@ impl Measure for Absolute {
     }
 }
 
-impl Visit for Absolute {
-    fn visit<V>(&self, visitor: &mut V, time: Time, duration: Time) -> Result<()>
-    where
-        V: Visitor,
-    {
-        visitor.visit_absolute(self, time, duration)?;
-        for AbsoluteEntry {
-            time: offset,
-            element,
-        } in &self.children
-        {
-            element.visit(visitor, offset + time, element.measure())?;
-        }
-        Ok(())
+impl Arrange for Absolute {
+    fn arrange(&self, time_range: TimeRange) -> impl Iterator<Item = Arranged<&ElementRef>> {
+        self.children.iter().map(
+            move |AbsoluteEntry {
+                      time: offset,
+                      element,
+                  }| {
+                Arranged {
+                    item: element,
+                    time_range: TimeRange {
+                        start: time_range.start + offset,
+                        span: element.measure(),
+                    },
+                }
+            },
+        )
     }
 }
 

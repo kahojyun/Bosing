@@ -15,7 +15,7 @@ use numpy::{
     dot_bound, prelude::*, AllowTypeChange, PyArray1, PyArray2, PyArrayLike1, PyArrayLike2,
 };
 use pyo3::{
-    exceptions::{PyTypeError, PyValueError},
+    exceptions::{PyRuntimeError, PyTypeError, PyValueError},
     prelude::*,
     types::{DerefToPyAny, PyDict},
 };
@@ -25,7 +25,7 @@ use crate::{
     executor::Executor,
     pulse::{PulseList, Sampler},
     quant::{Amplitude, ChannelId, Frequency, Phase, ShapeId, Time},
-    schedule::{ElementCommonBuilder, ElementRef, Measure as _, Visit as _},
+    schedule::{ElementCommonBuilder, ElementRef},
 };
 
 /// Channel configuration.
@@ -1983,10 +1983,9 @@ fn build_pulse_lists(
     shapes: &HashMap<ShapeId, Py<Shape>>,
     time_tolerance: Time,
     amp_tolerance: Amplitude,
-    _allow_oversize: bool,
+    allow_oversize: bool,
 ) -> PyResult<HashMap<ChannelId, PulseList>> {
-    let root = schedule.get().0.clone();
-    let mut executor = Executor::new(amp_tolerance, time_tolerance);
+    let mut executor = Executor::new(amp_tolerance, time_tolerance, allow_oversize);
     for (n, c) in channels {
         executor.add_channel(n.clone(), c.base_freq);
     }
@@ -1994,8 +1993,9 @@ fn build_pulse_lists(
         let s = s.bind(py);
         executor.add_shape(n.clone(), Shape::get_rust_shape(s)?);
     }
-    let duration = root.measure();
-    root.visit(&mut executor, Time::ZERO, duration)?;
+    executor
+        .execute(&schedule.get().0)
+        .map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
     Ok(executor.into_result())
 }
 
