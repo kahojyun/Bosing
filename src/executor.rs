@@ -1,3 +1,5 @@
+use std::iter;
+
 use hashbrown::HashMap;
 use thiserror::Error;
 
@@ -5,8 +7,8 @@ use crate::{
     pulse::{Envelope, PulseList, PulseListBuilder, PushArgs},
     quant::{Amplitude, ChannelId, Frequency, Phase, ShapeId, Time},
     schedule::{
-        arrange_tree, Arranged, ElementRef, ElementVariant, Play, SetFreq, SetPhase, ShiftFreq,
-        ShiftPhase, SwapPhase, TimeRange,
+        Arrange as _, Arranged, ElementRef, ElementVariant, Measure, Play, SetFreq, SetPhase,
+        ShiftFreq, ShiftPhase, SwapPhase, TimeRange,
     },
     shape::Shape,
 };
@@ -17,6 +19,7 @@ pub(crate) struct Executor {
     shapes: HashMap<ShapeId, Shape>,
     amp_tolerance: Amplitude,
     time_tolerance: Time,
+    allow_oversize: bool,
 }
 
 #[derive(Error, Debug)]
@@ -27,6 +30,8 @@ pub(crate) enum Error {
     ShapeNotFound(ShapeId),
     #[error("Invalid plateau: {0:?}")]
     NegativePlateau(Time),
+    #[error("Not enough duration: required {required:?}, available {available:?}")]
+    NotEnoughDuration { required: Time, available: Time },
 }
 
 type Result<T, E = Error> = std::result::Result<T, E>;
@@ -50,13 +55,26 @@ struct AddPulseArgs {
     phase: Phase,
 }
 
+#[derive(Debug)]
+enum IterVariant<S, A, G, R> {
+    Stack(S),
+    Absolute(A),
+    Grid(G),
+    Repeat(R),
+}
+
 impl Executor {
-    pub(crate) fn new(amp_tolerance: Amplitude, time_tolerance: Time) -> Self {
+    pub(crate) fn new(
+        amp_tolerance: Amplitude,
+        time_tolerance: Time,
+        allow_oversize: bool,
+    ) -> Self {
         Self {
             channels: HashMap::new(),
             shapes: HashMap::new(),
             amp_tolerance,
             time_tolerance,
+            allow_oversize,
         }
     }
 
@@ -78,27 +96,31 @@ impl Executor {
             .collect()
     }
 
-    pub(crate) fn execute(
-        &mut self,
-        root: &ElementRef,
-        time_range: TimeRange,
-    ) -> Result<(), Error> {
+    pub(crate) fn execute(&mut self, root: &ElementRef) -> Result<()> {
+        let time_range = TimeRange {
+            start: Time::ZERO,
+            span: root.measure(),
+        };
         for Arranged { item, time_range } in arrange_tree(root, time_range) {
-            let inner = item.arrange_inner(time_range);
-            match inner.item {
-                ElementVariant::Play(variant) => self.execute_play(variant, inner.time_range),
+            let time_range = item.inner_time_range(time_range);
+            if !self.allow_oversize {
+                let required = item.variant.measure();
+                check_duration(required, time_range.span, self.time_tolerance)?;
+            }
+            match &item.variant {
+                ElementVariant::Play(variant) => self.execute_play(variant, time_range),
                 ElementVariant::ShiftPhase(variant) => self.execute_shift_phase(variant),
                 ElementVariant::SetPhase(variant) => {
-                    self.execute_set_phase(variant, inner.time_range.start)
+                    self.execute_set_phase(variant, time_range.start)
                 }
                 ElementVariant::ShiftFreq(variant) => {
-                    self.execute_shift_freq(variant, inner.time_range.start)
+                    self.execute_shift_freq(variant, time_range.start)
                 }
                 ElementVariant::SetFreq(variant) => {
-                    self.execute_set_freq(variant, inner.time_range.start)
+                    self.execute_set_freq(variant, time_range.start)
                 }
                 ElementVariant::SwapPhase(variant) => {
-                    self.execute_swap_phase(variant, inner.time_range.start)
+                    self.execute_swap_phase(variant, time_range.start)
                 }
                 _ => Ok(()),
             }?;
@@ -260,5 +282,112 @@ impl Channel {
             drag_coef,
             phase,
         })
+    }
+}
+
+impl<S, A, G, R, T> Iterator for IterVariant<S, A, G, R>
+where
+    S: Iterator<Item = T>,
+    A: Iterator<Item = T>,
+    G: Iterator<Item = T>,
+    R: Iterator<Item = T>,
+{
+    type Item = T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self {
+            IterVariant::Stack(s) => s.next(),
+            IterVariant::Absolute(a) => a.next(),
+            IterVariant::Grid(g) => g.next(),
+            IterVariant::Repeat(r) => r.next(),
+        }
+    }
+}
+
+fn check_duration(required: Time, available: Time, time_tolerance: Time) -> Result<()> {
+    if required > available + time_tolerance {
+        return Err(Error::NotEnoughDuration {
+            required,
+            available,
+        });
+    }
+    Ok(())
+}
+
+fn arrange_tree(
+    root: &ElementRef,
+    time_range: TimeRange,
+) -> impl Iterator<Item = Arranged<&ElementRef>> {
+    pre_order_iter(
+        Arranged {
+            item: root,
+            time_range,
+        },
+        arrange_children,
+    )
+    .filter(|Arranged { item, .. }| !item.common.phantom())
+}
+
+fn arrange_children(
+    Arranged { item, time_range }: Arranged<&ElementRef>,
+) -> Option<impl Iterator<Item = Arranged<&ElementRef>>> {
+    if item.common.phantom() {
+        return None;
+    }
+    let time_range = item.inner_time_range(time_range);
+    match &item.variant {
+        ElementVariant::Repeat(r) => Some(IterVariant::Repeat(r.arrange(time_range))),
+        ElementVariant::Stack(s) => Some(IterVariant::Stack(s.arrange(time_range))),
+        ElementVariant::Absolute(a) => Some(IterVariant::Absolute(a.arrange(time_range))),
+        ElementVariant::Grid(g) => Some(IterVariant::Grid(g.arrange(time_range))),
+        _ => None,
+    }
+}
+
+fn pre_order_iter<T, F, I>(root: T, mut children: F) -> impl Iterator<Item = T>
+where
+    F: FnMut(T) -> Option<I>,
+    I: Iterator<Item = T>,
+    T: Clone + Copy,
+{
+    let mut stack = Vec::with_capacity(16);
+    stack.extend(children(root));
+    iter::once(root).chain(iter::from_fn(move || loop {
+        let current_iter = stack.last_mut()?;
+        match current_iter.next() {
+            Some(i) => {
+                stack.extend(children(i));
+                return Some(i);
+            }
+            None => {
+                stack.pop();
+            }
+        }
+    }))
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn pre_order() {
+        let node_children = vec![
+            vec![1, 2, 3],
+            vec![4, 5],
+            vec![6, 7],
+            vec![],
+            vec![8, 9],
+            vec![],
+            vec![10, 11],
+            vec![],
+            vec![],
+            vec![],
+            vec![],
+        ];
+        let expected = vec![0, 1, 4, 8, 9, 5, 2, 6, 10, 11, 7, 3];
+
+        let result = super::pre_order_iter(0, |i| node_children.get(i).map(|c| c.iter().copied()))
+            .collect::<Vec<_>>();
+
+        assert_eq!(result, expected);
     }
 }

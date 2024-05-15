@@ -5,7 +5,7 @@ mod repeat;
 mod simple;
 mod stack;
 
-use std::{iter, sync::Arc};
+use std::sync::Arc;
 
 use anyhow::{bail, Result};
 use hashbrown::HashSet;
@@ -71,14 +71,6 @@ pub(crate) trait Arrange {
 struct MinMax {
     min: Time,
     max: Time,
-}
-
-#[derive(Debug)]
-enum IterVariant<S, A, G, R> {
-    Stack(S),
-    Absolute(A),
-    Grid(G),
-    Repeat(R),
 }
 
 macro_rules! impl_variant {
@@ -155,43 +147,6 @@ impl Element {
             start: inner_start,
             span: inner_span,
         }
-    }
-
-    pub(crate) fn arrange_inner(&self, time_range: TimeRange) -> Arranged<&ElementVariant> {
-        let inner_time_range = self.inner_time_range(time_range);
-        Arranged {
-            item: &self.variant,
-            time_range: inner_time_range,
-        }
-    }
-}
-
-pub(crate) fn arrange_tree(
-    element: &ElementRef,
-    time_range: TimeRange,
-) -> impl Iterator<Item = Arranged<&ElementRef>> {
-    pre_order(
-        Arranged {
-            item: element,
-            time_range,
-        },
-        |e| {
-            let inner = e.item.arrange_inner(e.time_range);
-            arrange_variant(inner.item, inner.time_range)
-        },
-    )
-}
-
-fn arrange_variant(
-    variant: &ElementVariant,
-    time_range: TimeRange,
-) -> Option<impl Iterator<Item = Arranged<&ElementRef>>> {
-    match variant {
-        ElementVariant::Repeat(r) => Some(IterVariant::Repeat(r.arrange(time_range))),
-        ElementVariant::Stack(s) => Some(IterVariant::Stack(s.arrange(time_range))),
-        ElementVariant::Absolute(a) => Some(IterVariant::Absolute(a.arrange(time_range))),
-        ElementVariant::Grid(g) => Some(IterVariant::Grid(g.arrange(time_range))),
-        _ => None,
     }
 }
 
@@ -351,25 +306,6 @@ where
     }
 }
 
-impl<S, A, G, R, T> Iterator for IterVariant<S, A, G, R>
-where
-    S: Iterator<Item = T>,
-    A: Iterator<Item = T>,
-    G: Iterator<Item = T>,
-    R: Iterator<Item = T>,
-{
-    type Item = T;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        match self {
-            IterVariant::Stack(s) => s.next(),
-            IterVariant::Absolute(a) => a.next(),
-            IterVariant::Grid(g) => g.next(),
-            IterVariant::Repeat(r) => r.next(),
-        }
-    }
-}
-
 fn merge_channel_ids<'a, I>(ids: I) -> Vec<ChannelId>
 where
     I: IntoIterator,
@@ -377,52 +313,4 @@ where
 {
     let set = ids.into_iter().flatten().collect::<HashSet<_>>();
     set.into_iter().cloned().collect()
-}
-
-fn pre_order<T, F, I>(root: T, mut children: F) -> impl Iterator<Item = T>
-where
-    F: FnMut(T) -> Option<I>,
-    I: Iterator<Item = T>,
-    T: Clone + Copy,
-{
-    let mut stack = Vec::with_capacity(16);
-    stack.extend(children(root));
-    iter::once(root).chain(iter::from_fn(move || loop {
-        let current_iter = stack.last_mut()?;
-        match current_iter.next() {
-            Some(i) => {
-                stack.extend(children(i));
-                return Some(i);
-            }
-            None => {
-                stack.pop();
-            }
-        }
-    }))
-}
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn pre_order() {
-        let node_children = vec![
-            vec![1, 2, 3],
-            vec![4, 5],
-            vec![6, 7],
-            vec![],
-            vec![8, 9],
-            vec![],
-            vec![10, 11],
-            vec![],
-            vec![],
-            vec![],
-            vec![],
-        ];
-        let expected = vec![0, 1, 4, 8, 9, 5, 2, 6, 10, 11, 7, 3];
-
-        let result = super::pre_order(0, |i| node_children.get(i).map(|c| c.iter().copied()))
-            .collect::<Vec<_>>();
-
-        assert_eq!(result, expected);
-    }
 }

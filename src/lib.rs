@@ -7,7 +7,7 @@ mod quant;
 mod schedule;
 mod shape;
 
-use std::{borrow::Borrow, fmt::Debug, str::FromStr, sync::Arc, time::Instant};
+use std::{borrow::Borrow, fmt::Debug, str::FromStr, sync::Arc};
 
 use hashbrown::HashMap;
 use indoc::indoc;
@@ -25,7 +25,7 @@ use crate::{
     executor::Executor,
     pulse::{PulseList, Sampler},
     quant::{Amplitude, ChannelId, Frequency, Phase, ShapeId, Time},
-    schedule::{ElementCommonBuilder, ElementRef, Measure as _, TimeRange},
+    schedule::{ElementCommonBuilder, ElementRef},
 };
 
 /// Channel configuration.
@@ -1983,10 +1983,9 @@ fn build_pulse_lists(
     shapes: &HashMap<ShapeId, Py<Shape>>,
     time_tolerance: Time,
     amp_tolerance: Amplitude,
-    _allow_oversize: bool,
+    allow_oversize: bool,
 ) -> PyResult<HashMap<ChannelId, PulseList>> {
-    let root = &schedule.get().0;
-    let mut executor = Executor::new(amp_tolerance, time_tolerance);
+    let mut executor = Executor::new(amp_tolerance, time_tolerance, allow_oversize);
     for (n, c) in channels {
         executor.add_channel(n.clone(), c.base_freq);
     }
@@ -1994,25 +1993,9 @@ fn build_pulse_lists(
         let s = s.bind(py);
         executor.add_shape(n.clone(), Shape::get_rust_shape(s)?);
     }
-    let t0 = Instant::now();
-    let duration = root.measure();
-    let t1 = Instant::now();
     executor
-        .execute(
-            root,
-            TimeRange {
-                start: Time::ZERO,
-                span: duration,
-            },
-        )
+        .execute(&schedule.get().0)
         .map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
-    let t2 = Instant::now();
-    println!(
-        "Measure: {:?}, Visit: {:?}, Total: {:?}",
-        t1 - t0,
-        t2 - t1,
-        t2 - t0
-    );
     Ok(executor.into_result())
 }
 
