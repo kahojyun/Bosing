@@ -2,8 +2,6 @@ mod helper;
 
 use std::sync::OnceLock;
 
-use anyhow::Result;
-
 use crate::{
     quant::{ChannelId, Time},
     schedule::{merge_channel_ids, stack::helper::Helper, Arranged, ElementRef, Measure},
@@ -119,9 +117,8 @@ where
         let span = child.measure();
         let start = helper.get_usage(child_channels);
         helper.update_usage(start + span, child_channels);
-        Ok(TimeRange { start, span })
-    })
-    .unwrap();
+        TimeRange { start, span }
+    });
     MeasureResult {
         total_duration: helper.into_max_usage(),
         child_timings,
@@ -129,20 +126,20 @@ where
 }
 
 /// Map by direction but collect in the original order.
-fn map_and_collect_by_direction<I, F, T>(source: I, direction: Direction, f: F) -> Result<Vec<T>>
+fn map_and_collect_by_direction<I, F, T>(source: I, direction: Direction, f: F) -> Vec<T>
 where
     I: IntoIterator,
     I::IntoIter: DoubleEndedIterator,
-    F: FnMut(I::Item) -> Result<T>,
+    F: FnMut(I::Item) -> T,
 {
     let mut ret: Vec<_> = match direction {
-        Direction::Forward => source.into_iter().map(f).collect::<Result<_>>(),
+        Direction::Forward => source.into_iter().map(f).collect(),
         Direction::Backward => source.into_iter().rev().map(f).collect(),
-    }?;
+    };
     if direction == Direction::Backward {
         ret.reverse();
     }
-    Ok(ret)
+    ret
 }
 
 #[cfg(test)]
@@ -165,9 +162,8 @@ mod tests {
                 Direction::Backward => assert_eq!(i, v[v.len() - 1 - count]),
             }
             count += 1;
-            Ok(i)
-        })
-        .unwrap();
+            i
+        });
 
         assert_eq!(res, v);
     }

@@ -1960,7 +1960,7 @@ fn generate_waveforms(
         amp_tolerance,
         allow_oversize,
     )?;
-    let waveforms = sample_waveform(py, &channels, pulse_lists, crosstalk, time_tolerance);
+    let waveforms = sample_waveform(py, &channels, pulse_lists, crosstalk, time_tolerance)?;
     py.allow_threads(|| {
         waveforms
             .into_par_iter()
@@ -2005,7 +2005,7 @@ fn sample_waveform(
     pulse_lists: HashMap<ChannelId, PulseList>,
     crosstalk: Option<(PyArrayLike2<f64, AllowTypeChange>, Vec<ChannelId>)>,
     time_tolerance: Time,
-) -> HashMap<ChannelId, Py<PyArray2<f64>>> {
+) -> PyResult<HashMap<ChannelId, Py<PyArray2<f64>>>> {
     let waveforms: HashMap<_, _> = channels
         .iter()
         .map(|(n, c)| {
@@ -2025,8 +2025,8 @@ fn sample_waveform(
     if let Some((crosstalk, names)) = &crosstalk {
         sampler.set_crosstalk(crosstalk.as_array(), names.clone());
     }
-    sampler.sample(time_tolerance);
-    waveforms
+    sampler.sample(time_tolerance)?;
+    Ok(waveforms)
 }
 
 fn post_process<'py>(

@@ -34,7 +34,7 @@ pub(crate) enum Error {
     NotEnoughDuration { required: Time, available: Time },
 }
 
-type Result<T, E = Error> = std::result::Result<T, E>;
+type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Debug, Clone)]
 struct Channel {

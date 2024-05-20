@@ -3,6 +3,7 @@ use std::{
     sync::Arc,
 };
 
+use anyhow::{bail, Context, Result};
 use cached::proc_macro::cached;
 use float_cmp::approx_eq;
 use hashbrown::HashMap;
@@ -137,7 +138,7 @@ impl<'a> Sampler<'a> {
         self.crosstalk = Some(Crosstalk::new(crosstalk, names));
     }
 
-    pub(crate) fn sample(self, time_tolerance: Time) {
+    pub(crate) fn sample(self, time_tolerance: Time) -> Result<()> {
         if let Some(crosstalk) = self.crosstalk {
             let ct_lookup = crosstalk
                 .names
@@ -145,7 +146,7 @@ impl<'a> Sampler<'a> {
                 .enumerate()
                 .map(|(i, name)| (name, i))
                 .collect::<HashMap<_, _>>();
-            self.channels.into_par_iter().for_each(|(n, c)| {
+            self.channels.into_par_iter().try_for_each(|(n, c)| {
                 let row_index = ct_lookup.get(&n).copied();
                 if let Some(row_index) = row_index {
                     let row = crosstalk.matrix.slice(s![row_index, ..]);
@@ -162,21 +163,24 @@ impl<'a> Sampler<'a> {
                         c.align_level,
                         time_tolerance,
                     )
+                    .with_context(|| format!("Failed to sample channel '{}'", n))
                 } else {
                     let list = self.pulse_lists[&n]
                         .items
                         .iter()
                         .map(|(bin, items)| (bin.clone(), items.iter().copied()));
                     sample_pulse_list(list, c.waveform, c.sample_rate, c.delay, c.align_level)
+                        .with_context(|| format!("Failed to sample channel '{}'", n))
                 }
-            });
+            })
         } else {
-            self.channels.into_par_iter().for_each(|(n, c)| {
+            self.channels.into_par_iter().try_for_each(|(n, c)| {
                 let list = self.pulse_lists[&n]
                     .items
                     .iter()
                     .map(|(bin, items)| (bin.clone(), items.iter().copied()));
                 sample_pulse_list(list, c.waveform, c.sample_rate, c.delay, c.align_level)
+                    .with_context(|| format!("Failed to sample channel '{}'", n))
             })
         }
     }
@@ -357,7 +361,7 @@ fn merge_and_sample<'a>(
     delay: Time,
     align_level: i32,
     time_tolerance: Time,
-) {
+) -> Result<()> {
     let mut merged: HashMap<ListBin, Vec<_>> = HashMap::new();
     for (multiplier, list) in lists {
         if multiplier == 0.0 {
@@ -400,7 +404,8 @@ fn sample_pulse_list<PL, L>(
     sample_rate: Frequency,
     delay: Time,
     align_level: i32,
-) where
+) -> Result<()>
+where
     PL: IntoIterator<Item = (ListBin, L)>,
     L: IntoIterator<Item = (Time, PulseAmplitude)>,
 {
@@ -413,13 +418,19 @@ fn sample_pulse_list<PL, L>(
         for (time, PulseAmplitude { amp, drag }) in items {
             let t_start = time + delay;
             let i_frac_start = AlignedIndex::new(t_start, sample_rate, align_level).unwrap();
-            let i_start = i_frac_start.ceil_as_usize().unwrap();
+            if i_frac_start.value() < 0.0 {
+                bail!("The start time of a pulse is negative, try adjusting channel delay or schedule. start time: {}", t_start.value());
+            }
+            let i_start = i_frac_start.ceil_to_usize().unwrap();
             let index_offset = i_frac_start.index_offset().unwrap();
             let total_freq = global_freq + local_freq;
             let dt = sample_rate.dt();
             let phase0 = global_freq * (i_start as f64 * dt - delay)
                 + local_freq * index_offset.value() * dt;
             let dphase = total_freq * dt;
+            if i_start >= waveform.shape()[1] {
+                bail!("The start index of a pulse is out of bounds, try adjusting channel delay, length or schedule. start index: {}, start time: {}", i_start, t_start.value());
+            }
             let mut waveform = waveform.slice_mut(s![.., i_start..]);
             if let Some(shape) = &envelope.shape {
                 let envelope = get_envelope(
@@ -430,13 +441,20 @@ fn sample_pulse_list<PL, L>(
                     sample_rate,
                 );
                 let drag = drag * sample_rate.value();
+                if waveform.shape()[1] < envelope.len() {
+                    bail!("The pulse end time is out of bounds, try adjusting channel delay, length or schedule. end time: {}", t_start.value() + envelope.len() as f64 * dt.value());
+                }
                 mix_add_envelope(waveform, &envelope, amp, drag, phase0, dphase);
             } else {
                 let plateau = envelope.plateau;
                 let i_plateau = (plateau.value() * sample_rate.value()).ceil() as usize;
+                if waveform.shape()[1] < i_plateau {
+                    bail!("The pulse end time is out of bounds, try adjusting channel delay, length or schedule. end time: {}", t_start.value() + plateau.value());
+                }
                 let waveform = waveform.slice_mut(s![.., ..i_plateau]);
                 mix_add_plateau(waveform, amp, phase0, dphase);
             }
         }
     }
+    Ok(())
 }
