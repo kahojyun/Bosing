@@ -11,9 +11,7 @@ use std::{borrow::Borrow, fmt::Debug, str::FromStr, sync::Arc};
 
 use hashbrown::HashMap;
 use indoc::indoc;
-use numpy::{
-    dot_bound, prelude::*, AllowTypeChange, PyArray1, PyArray2, PyArrayLike1, PyArrayLike2,
-};
+use numpy::{prelude::*, AllowTypeChange, PyArray1, PyArray2, PyArrayLike1, PyArrayLike2};
 use pyo3::{
     exceptions::{PyRuntimeError, PyTypeError, PyValueError},
     prelude::*,
@@ -2035,7 +2033,7 @@ fn post_process<'py>(
     c: &Channel,
 ) -> PyResult<()> {
     if let Some(iq_matrix) = &c.iq_matrix {
-        *w = dot_bound(iq_matrix.bind(py), w)?;
+        apply_iq_matrix(w, iq_matrix.bind(py));
     }
     if c.filter_offset {
         if let Some(offset) = &c.offset {
@@ -2059,6 +2057,14 @@ fn post_process<'py>(
         }
     }
     Ok(())
+}
+
+fn apply_iq_matrix(w: &mut Bound<PyArray2<f64>>, iq_matrix: &Bound<PyArray2<f64>>) {
+    let mut w = w.readwrite();
+    let w = w.as_array_mut();
+    let iq_matrix = iq_matrix.readonly();
+    let iq_matrix = iq_matrix.as_array();
+    pulse::apply_iq_inplace(w, iq_matrix);
 }
 
 fn apply_offset(

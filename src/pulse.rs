@@ -458,3 +458,16 @@ where
     }
     Ok(())
 }
+
+pub(crate) fn apply_iq_inplace(mut waveform: ArrayViewMut2<f64>, iq_matrix: ArrayView2<f64>) {
+    assert!(matches!(waveform.shape(), [2, _]));
+    assert!(matches!(iq_matrix.shape(), [2, 2]));
+    for mut col in waveform.columns_mut() {
+        let y = [
+            iq_matrix[(0, 0)] * col[0] + iq_matrix[(0, 1)] * col[1],
+            iq_matrix[(1, 0)] * col[0] + iq_matrix[(1, 1)] * col[1],
+        ];
+        col[0] = y[0];
+        col[1] = y[1];
+    }
+}
