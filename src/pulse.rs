@@ -4,11 +4,12 @@ use std::{
 };
 
 use anyhow::{bail, Context, Result};
+use biquad::Biquad as _;
 use cached::proc_macro::cached;
 use float_cmp::approx_eq;
 use hashbrown::HashMap;
 use itertools::{izip, Itertools};
-use ndarray::{s, ArrayView2, ArrayViewMut2};
+use ndarray::{azip, s, ArrayView1, ArrayView2, ArrayViewMut2, Axis};
 use numpy::Complex64;
 use rayon::prelude::*;
 
@@ -469,5 +470,41 @@ pub(crate) fn apply_iq_inplace(mut waveform: ArrayViewMut2<f64>, iq_matrix: Arra
         ];
         col[0] = y[0];
         col[1] = y[1];
+    }
+}
+
+pub(crate) fn apply_offset_inplace(mut waveform: ArrayViewMut2<f64>, offset: ArrayView1<f64>) {
+    assert!(waveform.shape()[0] == offset.len());
+    azip!((mut row in waveform.axis_iter_mut(Axis(0)), &offset in &offset) row += offset);
+}
+
+pub(crate) fn apply_iir_inplace(mut waveform: ArrayViewMut2<f64>, sos: ArrayView2<f64>) {
+    let mut biquads: Vec<_> = sos
+        .axis_iter(Axis(0))
+        .map(|row| {
+            let b0 = row[0];
+            let b1 = row[1];
+            let b2 = row[2];
+            let a1 = row[4];
+            let a2 = row[5];
+            let coef = biquad::Coefficients { b0, a1, a2, b1, b2 };
+            biquad::DirectForm2Transposed::<f64>::new(coef)
+        })
+        .collect();
+    for mut row in waveform.axis_iter_mut(Axis(0)) {
+        apply_iir_inplace_1d(row.as_slice_mut().unwrap(), &mut biquads);
+    }
+}
+
+fn apply_iir_inplace_1d(waveform: &mut [f64], biquads: &mut [biquad::DirectForm2Transposed<f64>]) {
+    for biquad in biquads.iter_mut() {
+        biquad.reset_state();
+    }
+    for y in waveform.iter_mut() {
+        let mut x = *y;
+        for biquad in biquads.iter_mut() {
+            x = biquad.run(x);
+        }
+        *y = x;
     }
 }

@@ -26,7 +26,7 @@ def gen_n(n: int):
     iir = get_biquad([0.1, -0.1], [100e-9, 1e-6], 2e9)
     fir = [1, 0.1, 0.01, 0.001]
     channels = (
-        {f"xy{i}": Channel(3e6 * i, 2e9, 100000, iq_matrix=[[1, 0.1], [0.1, 1]]) for i in range(nxy)}
+        {f"xy{i}": Channel(3e6 * i, 2e9, 100000, iq_matrix=[[1, 0.1], [0.1, 1]], offset=[0.1, 0.2]) for i in range(nxy)}
         | {f"u{i}": Channel(0, 2e9, 100000, iir=iir, fir=fir, is_real=True) for i in range(nu)}
         | {f"m{i}": Channel(0, 2e9, 100000) for i in range(nm)}
     )

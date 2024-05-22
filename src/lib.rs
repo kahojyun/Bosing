@@ -2023,93 +2023,69 @@ fn sample_waveform(
     if let Some((crosstalk, names)) = &crosstalk {
         sampler.set_crosstalk(crosstalk.as_array(), names.clone());
     }
-    sampler.sample(time_tolerance)?;
+    py.allow_threads(|| sampler.sample(time_tolerance))?;
     Ok(waveforms)
 }
 
-fn post_process<'py>(
-    py: Python<'py>,
-    w: &mut Bound<'py, PyArray2<f64>>,
-    c: &Channel,
-) -> PyResult<()> {
+fn post_process(py: Python, w: &mut Bound<PyArray2<f64>>, c: &Channel) -> PyResult<()> {
     if let Some(iq_matrix) = &c.iq_matrix {
-        apply_iq_matrix(w, iq_matrix.bind(py));
+        apply_iq_matrix(py, w, iq_matrix.bind(py));
     }
     if c.filter_offset {
         if let Some(offset) = &c.offset {
-            apply_offset(py, w, offset.bind(py))?;
+            apply_offset(py, w, offset.bind(py));
         }
         if let Some(iir) = &c.iir {
-            apply_iir(py, w, iir.bind(py))?;
+            apply_iir(py, w, iir.bind(py));
         }
         if let Some(fir) = &c.fir {
             apply_fir(py, w, fir.bind(py))?;
         }
     } else {
         if let Some(iir) = &c.iir {
-            apply_iir(py, w, iir.bind(py))?;
+            apply_iir(py, w, iir.bind(py));
         }
         if let Some(fir) = &c.fir {
             apply_fir(py, w, fir.bind(py))?;
         }
         if let Some(offset) = &c.offset {
-            apply_offset(py, w, offset.bind(py))?;
+            apply_offset(py, w, offset.bind(py));
         }
     }
     Ok(())
 }
 
-fn apply_iq_matrix(w: &mut Bound<PyArray2<f64>>, iq_matrix: &Bound<PyArray2<f64>>) {
+fn apply_iq_matrix(py: Python, w: &mut Bound<PyArray2<f64>>, iq_matrix: &Bound<PyArray2<f64>>) {
     let mut w = w.readwrite();
     let w = w.as_array_mut();
     let iq_matrix = iq_matrix.readonly();
     let iq_matrix = iq_matrix.as_array();
-    pulse::apply_iq_inplace(w, iq_matrix);
+    py.allow_threads(|| {
+        pulse::apply_iq_inplace(w, iq_matrix);
+    });
 }
 
-fn apply_offset(
-    py: Python,
-    w: &Bound<PyArray2<f64>>,
-    offset: &Bound<PyArray1<f64>>,
-) -> PyResult<()> {
-    let locals = PyDict::new_bound(py);
-    locals.set_item("w", w)?;
-    locals.set_item("offset", offset)?;
-    py.run_bound(
-        indoc! {"
-            import numpy as np
-            w += offset[:, np.newaxis]
-        "},
-        None,
-        Some(&locals),
-    )?;
-    Ok(())
+fn apply_offset(py: Python, w: &Bound<PyArray2<f64>>, offset: &Bound<PyArray1<f64>>) {
+    let mut w = w.readwrite();
+    let w = w.as_array_mut();
+    let offset = offset.readonly();
+    let offset = offset.as_array();
+    py.allow_threads(|| {
+        pulse::apply_offset_inplace(w, offset);
+    });
 }
 
-fn apply_iir<'py>(
-    py: Python<'py>,
-    w: &Bound<'py, PyArray2<f64>>,
-    iir: &Bound<'py, PyArray2<f64>>,
-) -> PyResult<()> {
-    let locals = PyDict::new_bound(py);
-    locals.set_item("w", w)?;
-    locals.set_item("iir", iir)?;
-    py.run_bound(
-        indoc! {"
-            from scipy import signal
-            w[:] = signal.sosfilt(np.array(iir), w)
-        "},
-        None,
-        Some(&locals),
-    )?;
-    Ok(())
+fn apply_iir(py: Python, w: &Bound<PyArray2<f64>>, iir: &Bound<PyArray2<f64>>) {
+    let mut w = w.readwrite();
+    let w = w.as_array_mut();
+    let iir = iir.readonly();
+    let iir = iir.as_array();
+    py.allow_threads(|| {
+        pulse::apply_iir_inplace(w, iir);
+    });
 }
 
-fn apply_fir<'py>(
-    py: Python<'py>,
-    w: &Bound<'py, PyArray2<f64>>,
-    fir: &Bound<'py, PyArray1<f64>>,
-) -> PyResult<()> {
+fn apply_fir(py: Python, w: &Bound<PyArray2<f64>>, fir: &Bound<PyArray1<f64>>) -> PyResult<()> {
     let locals = PyDict::new_bound(py);
     locals.set_item("w", w)?;
     locals.set_item("fir", fir)?;
