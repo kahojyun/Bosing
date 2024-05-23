@@ -10,7 +10,7 @@ mod shape;
 use std::{borrow::Borrow, fmt::Debug, str::FromStr, sync::Arc};
 
 use hashbrown::HashMap;
-use indoc::indoc;
+use ndarray::ArrayViewMut2;
 use numpy::{prelude::*, AllowTypeChange, PyArray1, PyArray2, PyArrayLike1, PyArrayLike2};
 use pyo3::{
     exceptions::{PyRuntimeError, PyTypeError, PyValueError},
@@ -21,7 +21,10 @@ use rayon::prelude::*;
 
 use crate::{
     executor::Executor,
-    pulse::{PulseList, Sampler},
+    pulse::{
+        apply_fir_inplace, apply_iir_inplace, apply_iq_inplace, apply_offset_inplace, PulseList,
+        Sampler,
+    },
     quant::{Amplitude, ChannelId, Frequency, Phase, ShapeId, Time},
     schedule::{ElementCommonBuilder, ElementRef},
 };
@@ -1959,19 +1962,21 @@ fn generate_waveforms(
         allow_oversize,
     )?;
     let waveforms = sample_waveform(py, &channels, pulse_lists, crosstalk, time_tolerance)?;
-    py.allow_threads(|| {
+    Ok(py.allow_threads(|| {
         waveforms
             .into_par_iter()
             .map(|(n, w)| {
                 Python::with_gil(|py| {
-                    let mut w = w.into_bound(py);
+                    let w = w.bind(py);
+                    let mut w = w.readwrite();
+                    let mut w = w.as_array_mut();
                     let c = &channels[&n];
-                    post_process(py, &mut w, c)?;
-                    Ok((n, w.unbind()))
-                })
+                    post_process(py, &mut w, c);
+                });
+                (n, w)
             })
-            .collect::<PyResult<_>>()
-    })
+            .collect()
+    }))
 }
 
 fn build_pulse_lists(
@@ -1991,9 +1996,12 @@ fn build_pulse_lists(
         let s = s.bind(py);
         executor.add_shape(n.clone(), Shape::get_rust_shape(s)?);
     }
-    executor
-        .execute(&schedule.get().0)
-        .map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
+    let schedule = &schedule.get().0;
+    py.allow_threads(|| {
+        executor
+            .execute(schedule)
+            .map_err(|e| PyRuntimeError::new_err(e.to_string()))
+    })?;
     Ok(executor.into_result())
 }
 
@@ -2027,78 +2035,43 @@ fn sample_waveform(
     Ok(waveforms)
 }
 
-fn post_process(py: Python, w: &mut Bound<PyArray2<f64>>, c: &Channel) -> PyResult<()> {
-    if let Some(iq_matrix) = &c.iq_matrix {
-        apply_iq_matrix(py, w, iq_matrix.bind(py));
+fn post_process(py: Python, w: &mut ArrayViewMut2<f64>, c: &Channel) {
+    macro_rules! map_as_array {
+        ($n:ident) => {
+            let temp = c.$n.as_ref().map(|x| x.bind(py).readonly());
+            let $n = temp.as_ref().map(|x| x.as_array());
+        };
     }
-    if c.filter_offset {
-        if let Some(offset) = &c.offset {
-            apply_offset(py, w, offset.bind(py));
-        }
-        if let Some(iir) = &c.iir {
-            apply_iir(py, w, iir.bind(py));
-        }
-        if let Some(fir) = &c.fir {
-            apply_fir(py, w, fir.bind(py))?;
-        }
-    } else {
-        if let Some(iir) = &c.iir {
-            apply_iir(py, w, iir.bind(py));
-        }
-        if let Some(fir) = &c.fir {
-            apply_fir(py, w, fir.bind(py))?;
-        }
-        if let Some(offset) = &c.offset {
-            apply_offset(py, w, offset.bind(py));
-        }
-    }
-    Ok(())
-}
-
-fn apply_iq_matrix(py: Python, w: &mut Bound<PyArray2<f64>>, iq_matrix: &Bound<PyArray2<f64>>) {
-    let mut w = w.readwrite();
-    let w = w.as_array_mut();
-    let iq_matrix = iq_matrix.readonly();
-    let iq_matrix = iq_matrix.as_array();
+    map_as_array!(iq_matrix);
+    map_as_array!(offset);
+    map_as_array!(iir);
+    map_as_array!(fir);
     py.allow_threads(|| {
-        pulse::apply_iq_inplace(w, iq_matrix);
+        if let Some(iq_matrix) = iq_matrix {
+            apply_iq_inplace(w, iq_matrix);
+        }
+        if c.filter_offset {
+            if let Some(offset) = offset {
+                apply_offset_inplace(w, offset);
+            }
+            if let Some(iir) = iir {
+                apply_iir_inplace(w, iir);
+            }
+            if let Some(fir) = fir {
+                apply_fir_inplace(w, fir);
+            }
+        } else {
+            if let Some(iir) = iir {
+                apply_iir_inplace(w, iir);
+            }
+            if let Some(fir) = fir {
+                apply_fir_inplace(w, fir);
+            }
+            if let Some(offset) = offset {
+                apply_offset_inplace(w, offset);
+            }
+        }
     });
-}
-
-fn apply_offset(py: Python, w: &Bound<PyArray2<f64>>, offset: &Bound<PyArray1<f64>>) {
-    let mut w = w.readwrite();
-    let w = w.as_array_mut();
-    let offset = offset.readonly();
-    let offset = offset.as_array();
-    py.allow_threads(|| {
-        pulse::apply_offset_inplace(w, offset);
-    });
-}
-
-fn apply_iir(py: Python, w: &Bound<PyArray2<f64>>, iir: &Bound<PyArray2<f64>>) {
-    let mut w = w.readwrite();
-    let w = w.as_array_mut();
-    let iir = iir.readonly();
-    let iir = iir.as_array();
-    py.allow_threads(|| {
-        pulse::apply_iir_inplace(w, iir);
-    });
-}
-
-fn apply_fir(py: Python, w: &Bound<PyArray2<f64>>, fir: &Bound<PyArray1<f64>>) -> PyResult<()> {
-    let locals = PyDict::new_bound(py);
-    locals.set_item("w", w)?;
-    locals.set_item("fir", fir)?;
-    py.run_bound(
-        indoc! {"
-            from scipy import signal
-            for wi in w:
-                wi[:] = signal.convolve(wi, fir, mode='full')[:len(wi)]
-        "},
-        None,
-        Some(&locals),
-    )?;
-    Ok(())
 }
 
 /// Generates microwave pulses for superconducting quantum computing
