@@ -11,6 +11,7 @@ use hashbrown::HashMap;
 use itertools::{izip, Itertools};
 use ndarray::{azip, s, ArrayView1, ArrayView2, ArrayViewMut2, Axis};
 use numpy::Complex64;
+use pulp::{Arch, Simd, WithSimd};
 use rayon::prelude::*;
 
 use crate::{
@@ -460,7 +461,7 @@ where
     Ok(())
 }
 
-pub(crate) fn apply_iq_inplace(mut waveform: ArrayViewMut2<f64>, iq_matrix: ArrayView2<f64>) {
+pub(crate) fn apply_iq_inplace(waveform: &mut ArrayViewMut2<f64>, iq_matrix: ArrayView2<f64>) {
     assert!(matches!(waveform.shape(), [2, _]));
     assert!(matches!(iq_matrix.shape(), [2, 2]));
     for mut col in waveform.columns_mut() {
@@ -473,12 +474,12 @@ pub(crate) fn apply_iq_inplace(mut waveform: ArrayViewMut2<f64>, iq_matrix: Arra
     }
 }
 
-pub(crate) fn apply_offset_inplace(mut waveform: ArrayViewMut2<f64>, offset: ArrayView1<f64>) {
+pub(crate) fn apply_offset_inplace(waveform: &mut ArrayViewMut2<f64>, offset: ArrayView1<f64>) {
     assert!(waveform.shape()[0] == offset.len());
     azip!((mut row in waveform.axis_iter_mut(Axis(0)), &offset in &offset) row += offset);
 }
 
-pub(crate) fn apply_iir_inplace(mut waveform: ArrayViewMut2<f64>, sos: ArrayView2<f64>) {
+pub(crate) fn apply_iir_inplace(waveform: &mut ArrayViewMut2<f64>, sos: ArrayView2<f64>) {
     let mut biquads: Vec<_> = sos
         .axis_iter(Axis(0))
         .map(|row| {
@@ -506,5 +507,67 @@ fn apply_iir_inplace_1d(waveform: &mut [f64], biquads: &mut [biquad::DirectForm2
             x = biquad.run(x);
         }
         *y = x;
+    }
+}
+
+pub(crate) fn apply_fir_inplace(waveform: &mut ArrayViewMut2<f64>, taps: ArrayView1<f64>) {
+    let arch = Arch::new();
+    arch.dispatch(ApplyFirInplace {
+        waveform: waveform.view_mut(),
+        taps,
+    });
+}
+
+struct ApplyFirInplace<'a, 'b> {
+    waveform: ArrayViewMut2<'a, f64>,
+    taps: ArrayView1<'b, f64>,
+}
+
+impl<'a, 'b> WithSimd for ApplyFirInplace<'a, 'b> {
+    type Output = ();
+
+    #[inline(always)]
+    fn with_simd<S: Simd>(mut self, simd: S) -> Self::Output {
+        let lanes = std::mem::size_of::<S::f64s>() / std::mem::size_of::<f64>();
+        let buffer_len = align_ceil(self.taps.len(), lanes);
+        assert!(buffer_len % lanes == 0);
+        let taps_buffer = {
+            let mut buffer = vec![0.0; buffer_len * 2];
+            for (&t, b) in self.taps.iter().zip(buffer[..buffer_len].iter_mut().rev()) {
+                *b = t;
+            }
+            for (&t, b) in self.taps.iter().zip(buffer[buffer_len..].iter_mut().rev()) {
+                *b = t;
+            }
+            buffer
+        };
+        for mut row in self.waveform.axis_iter_mut(Axis(0)) {
+            let mut w_buffer = vec![0.0; buffer_len];
+            for (i, w) in row.iter_mut().enumerate() {
+                let w_buffer_index = i % buffer_len;
+                w_buffer[w_buffer_index] = *w;
+                let tap_buffer_index = buffer_len - w_buffer_index - 1;
+                let (taps_simd, _) = S::f64s_as_simd(&taps_buffer[tap_buffer_index..]);
+                let (w_simd, _) = S::f64s_as_simd(&w_buffer);
+                let sum = taps_simd
+                    .iter()
+                    .zip(w_simd.iter())
+                    .fold(simd.f64s_splat(0.0), |acc, (taps, w)| {
+                        simd.f64s_mul_add_e(*taps, *w, acc)
+                    });
+                let sum = simd.f64s_reduce_sum(sum);
+                *w = sum;
+            }
+        }
+    }
+}
+
+#[inline]
+fn align_ceil(x: usize, n: usize) -> usize {
+    let r = x % n;
+    if r == 0 {
+        x
+    } else {
+        x + n - r
     }
 }
