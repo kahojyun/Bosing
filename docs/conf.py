@@ -7,7 +7,7 @@
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
 project = "bosing"
-copyright = "2023, Jiahao Yuan"
+copyright = "2023, Jiahao Yuan"  # noqa: A001
 author = "Jiahao Yuan"
 
 # -- General configuration ---------------------------------------------------

@@ -19,7 +19,10 @@ classifiers = [
     "Topic :: Scientific/Engineering",
     "License :: OSI Approved :: MIT License",
 ]
-dependencies = ["numpy", "scipy"]
+dependencies = ["numpy >= 1.16.0"]
+
+[project.optional-dependencies]
+docs = ["sphinx", "furo", "matplotlib", "scipy"]
 
 [project.urls]
 Documentation = "https://bosing.readthedocs.io"
@@ -30,12 +33,10 @@ Source = "https://github.com/kahojyun/Bosing"
 features = ["pyo3/extension-module"]
 
 [tool.hatch.envs.default]
+features = ["docs"]
 dependencies = [
     "maturin>=1.5,<2.0",
-    "matplotlib",
     "ipython",
-    "sphinx",
-    "furo",
     "mypy",
 ]
 
@@ -50,21 +51,15 @@ platform.windows.scripts = [
     'clean_docs=rmdir /s /q docs\\_build docs\\generated',
 ]
 
-[tool.hatch.envs.test]
-dependencies = ["pytest"]
-
-[[tool.hatch.envs.test.matrix]]
+[[tool.hatch.envs.hatch-test.matrix]]
 python = ["3.8", "3.9", "3.10", "3.11", "3.12"]
-
-[tool.hatch.envs.test.scripts]
-run = "pytest {args}"
-
-[tool.pytest.ini_options]
-addopts = ["--import-mode=importlib"]
-testpaths = ["tests"]
 
 [tool.hatch.envs.hatch-static-analysis]
 config-path = "ruff_defaults.toml"
 
 [tool.ruff]
 extend = "ruff_defaults.toml"
+
+[tool.ruff.lint.extend-per-file-ignores]
+"docs/conf.py" = ["INP001"]
+"example/*" = ["INP001", "T201"]
