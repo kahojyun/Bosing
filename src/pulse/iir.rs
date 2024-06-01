@@ -258,14 +258,13 @@ where
 
 #[cfg(test)]
 mod tests {
-    use ndarray::Array2;
-    use numpy::array;
+    use ndarray::{array, stack, Array2, Axis};
 
     use super::*;
 
     fn get_test_case() -> (Array2<f64>, Array2<f64>, Array2<f64>) {
         // Generated using scipy.signal.sosfilt
-        let signal = Array2::ones((1, 10));
+        let signal = Array2::ones((2, 10));
         let sos = array![
             [
                 0.41745636685930126,
@@ -284,18 +283,21 @@ mod tests {
                 0.9990956472206675
             ],
         ];
-        let expected = array![[
-            0.41745636685930126,
-            0.419827471396848,
-            0.4221187550258305,
-            0.4243336840250656,
-            0.4264755709173414,
-            0.42854758130187326,
-            0.43055274038309926,
-            0.4324939392093115,
-            0.4343739406340189,
-            0.4361953850123652
-        ]];
+        let expected = {
+            let arr1d = array![
+                0.41745636685930126,
+                0.419827471396848,
+                0.4221187550258305,
+                0.4243336840250656,
+                0.4264755709173414,
+                0.42854758130187326,
+                0.43055274038309926,
+                0.4324939392093115,
+                0.4343739406340189,
+                0.4361953850123652
+            ];
+            stack![Axis(0), arr1d, arr1d]
+        };
         (signal, sos, expected)
     }
 
