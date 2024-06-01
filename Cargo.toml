@@ -10,7 +10,7 @@ name = "bosing"
 crate-type = ["cdylib"]
 
 [dependencies]
-anyhow = "1.0.82"
+anyhow = "1.0.86"
 bspline = "1.1.0"
 cached = "0.50.0"
 float-cmp = "0.9.0"
