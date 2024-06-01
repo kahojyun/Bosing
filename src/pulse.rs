@@ -1,10 +1,11 @@
+mod iir;
+
 use std::{
     ops::{Add, Mul},
     sync::Arc,
 };
 
 use anyhow::{bail, Context, Result};
-use biquad::Biquad as _;
 use cached::proc_macro::cached;
 use float_cmp::approx_eq;
 use hashbrown::HashMap;
@@ -480,34 +481,7 @@ pub(crate) fn apply_offset_inplace(waveform: &mut ArrayViewMut2<f64>, offset: Ar
 }
 
 pub(crate) fn apply_iir_inplace(waveform: &mut ArrayViewMut2<f64>, sos: ArrayView2<f64>) {
-    let mut biquads: Vec<_> = sos
-        .axis_iter(Axis(0))
-        .map(|row| {
-            let b0 = row[0];
-            let b1 = row[1];
-            let b2 = row[2];
-            let a1 = row[4];
-            let a2 = row[5];
-            let coef = biquad::Coefficients { b0, a1, a2, b1, b2 };
-            biquad::DirectForm2Transposed::<f64>::new(coef)
-        })
-        .collect();
-    for mut row in waveform.axis_iter_mut(Axis(0)) {
-        apply_iir_inplace_1d(row.as_slice_mut().unwrap(), &mut biquads);
-    }
-}
-
-fn apply_iir_inplace_1d(waveform: &mut [f64], biquads: &mut [biquad::DirectForm2Transposed<f64>]) {
-    for biquad in biquads.iter_mut() {
-        biquad.reset_state();
-    }
-    for y in waveform.iter_mut() {
-        let mut x = *y;
-        for biquad in biquads.iter_mut() {
-            x = biquad.run(x);
-        }
-        *y = x;
-    }
+    self::iir::iir_filter_inplace(waveform.view_mut(), sos).unwrap()
 }
 
 pub(crate) fn apply_fir_inplace(waveform: &mut ArrayViewMut2<f64>, taps: ArrayView1<f64>) {
