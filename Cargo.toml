@@ -18,7 +18,7 @@ hashbrown = { version = "0.14.5", features = ["rayon"] }
 indoc = "2.0.5"
 itertools = "0.12.1"
 ndarray = { version = "0.15.6", features = ["rayon"] }
-num = "0.4.2"
+num = "0.4.3"
 numpy = "0.21.0"
 ordered-float = "4.2.0"
 pulp = "0.18.14"
