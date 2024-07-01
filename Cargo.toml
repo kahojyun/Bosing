@@ -12,7 +12,7 @@ crate-type = ["cdylib"]
 [dependencies]
 anyhow = "1.0.86"
 bspline = "1.1.0"
-cached = "0.50.0"
+cached = "0.51.4"
 float-cmp = "0.9.0"
 hashbrown = { version = "0.14.5", features = ["rayon"] }
 indoc = "2.0.5"
