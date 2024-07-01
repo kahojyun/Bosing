@@ -20,7 +20,7 @@ itertools = "0.13.0"
 ndarray = { version = "0.15.6", features = ["rayon"] }
 num = "0.4.3"
 numpy = "0.21.0"
-ordered-float = "4.2.0"
+ordered-float = "4.2.1"
 pulp = "0.18.21"
 pyo3 = { version = "0.21.2", features = ["hashbrown", "anyhow"] }
 rayon = "1.10.0"
