@@ -27,3 +27,10 @@
 
 .. plot:: ../example/flexible.py
     :include-source:
+
+
+获取 `Element` 长度
+-------------------
+
+.. plot:: ../example/flexible_length.py
+    :include-source:

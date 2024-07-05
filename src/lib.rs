@@ -26,7 +26,7 @@ use crate::{
         Sampler,
     },
     quant::{Amplitude, ChannelId, Frequency, Phase, ShapeId, Time},
-    schedule::{ElementCommonBuilder, ElementRef},
+    schedule::{ElementCommonBuilder, ElementRef, Measure},
 };
 
 /// Channel configuration.
@@ -451,6 +451,11 @@ impl Element {
     #[getter]
     fn min_duration(&self) -> Time {
         self.0.common.min_duration()
+    }
+
+    /// Measure the minimum duration of the element.
+    fn measure(&self) -> Time {
+        self.0.measure()
     }
 }
 
