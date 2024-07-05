@@ -18,6 +18,7 @@ use pyo3::{
     types::{DerefToPyAny, PyDict},
 };
 use rayon::prelude::*;
+use schedule::Measure;
 
 use crate::{
     executor::Executor,
@@ -451,6 +452,11 @@ impl Element {
     #[getter]
     fn min_duration(&self) -> Time {
         self.0.common.min_duration()
+    }
+
+    /// Measure the minimum duration of the element.
+    fn measure(&self) -> Time {
+        self.0.measure()
     }
 }
 
