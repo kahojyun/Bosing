@@ -18,7 +18,6 @@ use pyo3::{
     types::{DerefToPyAny, PyDict},
 };
 use rayon::prelude::*;
-use schedule::Measure;
 
 use crate::{
     executor::Executor,
@@ -27,7 +26,7 @@ use crate::{
         Sampler,
     },
     quant::{Amplitude, ChannelId, Frequency, Phase, ShapeId, Time},
-    schedule::{ElementCommonBuilder, ElementRef},
+    schedule::{ElementCommonBuilder, ElementRef, Measure},
 };
 
 /// Channel configuration.
