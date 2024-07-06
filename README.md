@@ -62,12 +62,12 @@ pip install -e .
 ### Build docs
 
 ```bash
-hatch run docs:build
+hatch run build_docs
 ```
 
 ### Run tests
 
 ```bash
 cargo test
-hatch run test:run
+hatch test --all
 ```
