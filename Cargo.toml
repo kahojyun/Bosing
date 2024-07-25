@@ -12,7 +12,7 @@ crate-type = ["cdylib"]
 [dependencies]
 anyhow = "1.0.86"
 bspline = "1.1.0"
-cached = "0.51.4"
+cached = "0.53.1"
 float-cmp = "0.9.0"
 hashbrown = { version = "0.14.5", features = ["rayon"] }
 indoc = "2.0.5"
@@ -24,8 +24,8 @@ ordered-float = "4.2.1"
 pulp = "0.18.21"
 pyo3 = { version = "0.21.2", features = ["hashbrown", "anyhow"] }
 rayon = "1.10.0"
-thiserror = "1.0.61"
+thiserror = "1.0.63"
 
 [dev-dependencies]
-mockall = "0.12.1"
+mockall = "0.13.0"
 test-case = "3.3.1"
