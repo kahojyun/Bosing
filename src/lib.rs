@@ -1898,7 +1898,8 @@ impl Grid {
 ///     time_tolerance (float): Tolerance for time comparison. Default is 1e-12.
 ///     amp_tolerance (float): Tolerance for amplitude comparison. Default is
 ///         0.1 / 2^16.
-///     allow_oversize (bool): Allow oversize elements. Default is ``False``.
+///     allow_oversize (bool): Allow elements to occupy a longer duration than
+///         available. Default is ``False``.
 ///     crosstalk (tuple[array_like, Sequence[str]] | None): Crosstalk matrix
 ///         with corresponding channel ids. Default is ``None``.
 /// Returns:
