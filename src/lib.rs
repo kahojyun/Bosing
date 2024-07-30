@@ -171,12 +171,58 @@ impl Channel {
     }
 }
 
+/// State of a channel oscillator.
+///
+/// Args:
+///     base_freq (float): Base frequency of the oscillator.
+///     delta_freq (float): Frequency shift of the oscillator.
+///     phase (float): Phase of the oscillator in **cycles**.
 #[pyclass(get_all, set_all)]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 struct OscState {
     base_freq: Frequency,
     delta_freq: Frequency,
     phase: Phase,
+}
+
+#[pymethods]
+impl OscState {
+    #[new]
+    fn new(base_freq: Frequency, delta_freq: Frequency, phase: Phase) -> Self {
+        OscState {
+            base_freq,
+            delta_freq,
+            phase,
+        }
+    }
+
+    /// Calculate the total frequency of the oscillator.
+    ///
+    /// Returns:
+    ///     float: Total frequency of the oscillator.
+    fn total_freq(&self) -> Frequency {
+        executor::OscState::from(*self).total_freq()
+    }
+
+    /// Calculate the phase of the oscillator at a given time.
+    ///
+    /// Args:
+    ///     time (float): Time.
+    /// Returns:
+    ///     float: Phase of the oscillator in **cycles**.
+    fn phase_at(&self, time: Time) -> Phase {
+        executor::OscState::from(*self).phase_at(time)
+    }
+
+    /// Get a new state with a time shift.
+    ///
+    /// Args:
+    ///     time (float): Time shift.
+    /// Returns:
+    ///     OscState: The new state.
+    fn with_time_shift(&self, time: Time) -> Self {
+        executor::OscState::from(*self).with_time_shift(time).into()
+    }
 }
 
 /// Alignment of a schedule element.
@@ -1994,7 +2040,7 @@ fn generate_waveforms(
     }))
 }
 
-/// Generate waveforms from a schedule.
+/// Generate waveforms from a schedule with initial states.
 ///
 /// .. caution::
 ///
@@ -2011,32 +2057,19 @@ fn generate_waveforms(
 ///         available. Default is ``False``.
 ///     crosstalk (tuple[array_like, Sequence[str]] | None): Crosstalk matrix
 ///         with corresponding channel ids. Default is ``None``.
+///     states (Mapping[str, OscState] | None): Initial states of the channels.
 /// Returns:
-///     Dict[str, numpy.ndarray]: Waveforms of the channels. The key is the
-///         channel name and the value is the waveform. The shape of the
-///         waveform is ``(n, length)``, where ``n`` is 2 for complex waveform
-///         and 1 for real waveform.
+///     (tuple): Tuple containing:
+///
+///         waveforms (dict[str, numpy.ndarray]): Waveforms of the channels. The key is the
+///             channel name and the value is the waveform. The shape of the
+///             waveform is ``(n, length)``, where ``n`` is 2 for complex waveform
+///             and 1 for real waveform.
+///         states (dict[str, OscState]): Final states of the channels.
 /// Raises:
 ///     ValueError: If some input is invalid.
 ///     TypeError: If some input has an invalid type.
 ///     RuntimeError: If waveform generation fails.
-/// Example:
-///     .. code-block:: python
-///
-///         from bosing import Barrier, Channel, Hann, Play, Stack, generate_waveforms
-///         channels = {"xy": Channel(30e6, 2e9, 1000)}
-///         shapes = {"hann": Hann()}
-///         schedule = Stack(duration=500e-9).with_children(
-///             Play(
-///                 channel_id="xy",
-///                 shape_id="hann",
-///                 amplitude=0.3,
-///                 width=100e-9,
-///                 plateau=200e-9,
-///             ),
-///             Barrier(duration=10e-9),
-///         )
-///         result = generate_waveforms(channels, shapes, schedule)
 #[pyfunction]
 #[pyo3(signature = (
     channels,
@@ -2140,9 +2173,14 @@ fn build_pulse_lists(
             .execute(schedule)
             .map_err(|e| PyRuntimeError::new_err(e.to_string()))
     })?;
-    let res = executor.into_result();
+    let states = executor.states();
+    let states = states
+        .into_iter()
+        .map(|(n, s)| Ok((n, Py::new(py, OscState::from(s))?)))
+        .collect::<PyResult<_>>()?;
+    let pulselists = executor.into_result();
 
-    todo!()
+    Ok((pulselists, states))
 }
 
 fn sample_waveform(
@@ -2245,6 +2283,8 @@ fn bosing(_py: Python, m: &Bound<PyModule>) -> PyResult<()> {
     m.add_class::<Shape>()?;
     m.add_class::<Stack>()?;
     m.add_class::<SwapPhase>()?;
+    m.add_class::<OscState>()?;
     m.add_function(wrap_pyfunction!(generate_waveforms, m)?)?;
+    m.add_function(wrap_pyfunction!(generate_waveforms_with_states, m)?)?;
     Ok(())
 }

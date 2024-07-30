@@ -97,10 +97,17 @@ impl Executor {
         self.shapes.insert(name, shape);
     }
 
-    pub(crate) fn into_result(self) -> HashMap<ChannelId, (PulseList, OscState)> {
+    pub(crate) fn states(&self) -> HashMap<ChannelId, OscState> {
+        self.channels
+            .iter()
+            .map(|(n, b)| (n.clone(), b.osc))
+            .collect()
+    }
+
+    pub(crate) fn into_result(self) -> HashMap<ChannelId, PulseList> {
         self.channels
             .into_iter()
-            .map(|(n, b)| (n, (b.pulses.build(), b.osc)))
+            .map(|(n, b)| (n, b.pulses.build()))
             .collect()
     }
 
@@ -231,15 +238,15 @@ impl OscState {
         }
     }
 
-    fn total_freq(&self) -> Frequency {
+    pub(crate) fn total_freq(&self) -> Frequency {
         self.base_freq + self.delta_freq
     }
 
-    fn phase_at(&self, time: Time) -> Phase {
+    pub(crate) fn phase_at(&self, time: Time) -> Phase {
         self.phase + self.total_freq() * time
     }
 
-    fn with_time_shift(&self, time: Time) -> Self {
+    pub(crate) fn with_time_shift(&self, time: Time) -> Self {
         Self {
             base_freq: self.base_freq,
             delta_freq: self.delta_freq,
@@ -308,6 +315,16 @@ impl Channel {
 
 impl From<crate::OscState> for OscState {
     fn from(osc: crate::OscState) -> Self {
+        Self {
+            base_freq: osc.base_freq,
+            delta_freq: osc.delta_freq,
+            phase: osc.phase,
+        }
+    }
+}
+
+impl From<OscState> for crate::OscState {
+    fn from(osc: OscState) -> Self {
         Self {
             base_freq: osc.base_freq,
             delta_freq: osc.delta_freq,

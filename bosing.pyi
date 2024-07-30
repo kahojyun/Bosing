@@ -396,6 +396,21 @@ class Grid(Element):
     @property
     def columns(self) -> Sequence[GridLength]: ...
 
+@final
+class OscState:
+    def __new__(
+        cls,
+        base_freq: float,
+        delta_freq: float,
+        phase: float,
+    ) -> Self: ...
+    base_freq: float
+    delta_freq: float
+    phase: float
+    def total_freq(self) -> float: ...
+    def phase_at(self, time: float) -> float: ...
+    def with_time_shift(self, time: float) -> Self: ...
+
 def generate_waveforms(
     channels: Mapping[str, Channel],
     shapes: Mapping[str, Shape],
@@ -406,3 +421,14 @@ def generate_waveforms(
     allow_oversize: bool = ...,
     crosstalk: tuple[npt.ArrayLike, Sequence[str]] | None = ...,
 ) -> dict[str, npt.NDArray[np.float64]]: ...
+def generate_waveforms_with_states(
+    channels: Mapping[str, Channel],
+    shapes: Mapping[str, Shape],
+    schedule: Element,
+    *,
+    time_tolerance: float = ...,
+    amp_tolerance: float = ...,
+    allow_oversize: bool = ...,
+    crosstalk: tuple[npt.ArrayLike, Sequence[str]] | None = ...,
+    states: Mapping[str, OscState] | None = ...,
+) -> tuple[dict[str, npt.NDArray[np.float64]], dict[str, OscState]]: ...
