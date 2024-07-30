@@ -63,9 +63,7 @@ class Hann(Shape):
 
 @final
 class Interp(Shape):
-    def __new__(
-        cls, knots: Iterable[float], controls: Iterable[float], degree: float
-    ) -> Self: ...
+    def __new__(cls, knots: Iterable[float], controls: Iterable[float], degree: float) -> Self: ...
     @property
     def knots(self) -> Sequence[float]: ...
     @property
@@ -103,9 +101,7 @@ class Play(Element):
         phase: float = ...,
         flexible: bool = ...,
         margin: float | tuple[float, float] | None = ...,
-        alignment: Literal["end", "start", "center", "stretch"]
-        | Alignment
-        | None = ...,
+        alignment: Literal["end", "start", "center", "stretch"] | Alignment | None = ...,
         phantom: bool = ...,
         duration: float | None = ...,
         max_duration: float = ...,
@@ -138,9 +134,7 @@ class ShiftPhase(Element):
         phase: float,
         *,
         margin: float | tuple[float, float] | None = ...,
-        alignment: Literal["end", "start", "center", "stretch"]
-        | Alignment
-        | None = ...,
+        alignment: Literal["end", "start", "center", "stretch"] | Alignment | None = ...,
         phantom: bool = ...,
         duration: float | None = ...,
         max_duration: float = ...,
@@ -159,9 +153,7 @@ class SetPhase(Element):
         phase: float,
         *,
         margin: float | tuple[float, float] | None = ...,
-        alignment: Literal["end", "start", "center", "stretch"]
-        | Alignment
-        | None = ...,
+        alignment: Literal["end", "start", "center", "stretch"] | Alignment | None = ...,
         phantom: bool = ...,
         duration: float | None = ...,
         max_duration: float = ...,
@@ -180,9 +172,7 @@ class ShiftFreq(Element):
         frequency: float,
         *,
         margin: float | tuple[float, float] | None = ...,
-        alignment: Literal["end", "start", "center", "stretch"]
-        | Alignment
-        | None = ...,
+        alignment: Literal["end", "start", "center", "stretch"] | Alignment | None = ...,
         phantom: bool = ...,
         duration: float | None = ...,
         max_duration: float = ...,
@@ -201,9 +191,7 @@ class SetFreq(Element):
         frequency: float,
         *,
         margin: float | tuple[float, float] | None = ...,
-        alignment: Literal["end", "start", "center", "stretch"]
-        | Alignment
-        | None = ...,
+        alignment: Literal["end", "start", "center", "stretch"] | Alignment | None = ...,
         phantom: bool = ...,
         duration: float | None = ...,
         max_duration: float = ...,
@@ -222,9 +210,7 @@ class SwapPhase(Element):
         channel_id2: str,
         *,
         margin: float | tuple[float, float] | None = ...,
-        alignment: Literal["end", "start", "center", "stretch"]
-        | Alignment
-        | None = ...,
+        alignment: Literal["end", "start", "center", "stretch"] | Alignment | None = ...,
         phantom: bool = ...,
         duration: float | None = ...,
         max_duration: float = ...,
@@ -241,9 +227,7 @@ class Barrier(Element):
         cls,
         *channel_ids: str,
         margin: float | tuple[float, float] | None = ...,
-        alignment: Literal["end", "start", "center", "stretch"]
-        | Alignment
-        | None = ...,
+        alignment: Literal["end", "start", "center", "stretch"] | Alignment | None = ...,
         phantom: bool = ...,
         duration: float | None = ...,
         max_duration: float = ...,
@@ -261,9 +245,7 @@ class Repeat(Element):
         spacing: float = ...,
         *,
         margin: float | tuple[float, float] | None = ...,
-        alignment: Literal["end", "start", "center", "stretch"]
-        | Alignment
-        | None = ...,
+        alignment: Literal["end", "start", "center", "stretch"] | Alignment | None = ...,
         phantom: bool = ...,
         duration: float | None = ...,
         max_duration: float = ...,
@@ -290,9 +272,7 @@ class Stack(Element):
         *children: Element,
         direction: Literal["forward", "backward"] | Direction = ...,
         margin: float | tuple[float, float] | None = ...,
-        alignment: Literal["end", "start", "center", "stretch"]
-        | Alignment
-        | None = ...,
+        alignment: Literal["end", "start", "center", "stretch"] | Alignment | None = ...,
         phantom: bool = ...,
         duration: float | None = ...,
         max_duration: float = ...,
@@ -322,9 +302,7 @@ class Absolute(Element):
         cls,
         *children: _AbsoluteEntryLike,
         margin: float | tuple[float, float] | None = ...,
-        alignment: Literal["end", "start", "center", "stretch"]
-        | Alignment
-        | None = ...,
+        alignment: Literal["end", "start", "center", "stretch"] | Alignment | None = ...,
         phantom: bool = ...,
         duration: float | None = ...,
         max_duration: float = ...,
@@ -356,9 +334,7 @@ class GridLength:
     @staticmethod
     def convert(obj: str | float | GridLength) -> GridLength: ...
 
-_GridEntryLike: TypeAlias = (
-    Element | tuple[Element, int] | tuple[Element, int, int] | GridEntry
-)
+_GridEntryLike: TypeAlias = Element | tuple[Element, int] | tuple[Element, int, int] | GridEntry
 
 @final
 class GridEntry:
@@ -379,9 +355,7 @@ class Grid(Element):
         *children: _GridEntryLike,
         columns: Sequence[str | float | GridLength] = ...,
         margin: float | tuple[float, float] | None = ...,
-        alignment: Literal["end", "start", "center", "stretch"]
-        | Alignment
-        | None = ...,
+        alignment: Literal["end", "start", "center", "stretch"] | Alignment | None = ...,
         phantom: bool = ...,
         duration: float | None = ...,
         max_duration: float = ...,
