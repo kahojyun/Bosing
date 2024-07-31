@@ -34,13 +34,18 @@ pub(crate) enum Error {
     NotEnoughDuration { required: Time, available: Time },
 }
 
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct OscState {
+    base_freq: Frequency,
+    delta_freq: Frequency,
+    phase: Phase,
+}
+
 type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Debug, Clone)]
 struct Channel {
-    base_freq: Frequency,
-    delta_freq: Frequency,
-    phase: Phase,
+    osc: OscState,
     pulses: PulseListBuilder,
 }
 
@@ -78,15 +83,25 @@ impl Executor {
         }
     }
 
-    pub(crate) fn add_channel(&mut self, name: ChannelId, base_freq: Frequency) {
+    pub(crate) fn add_channel(&mut self, name: ChannelId, osc: OscState) {
         self.channels.insert(
             name,
-            Channel::new(base_freq, self.amp_tolerance, self.time_tolerance),
+            Channel {
+                osc,
+                pulses: PulseListBuilder::new(self.amp_tolerance, self.time_tolerance),
+            },
         );
     }
 
     pub(crate) fn add_shape(&mut self, name: ShapeId, shape: Shape) {
         self.shapes.insert(name, shape);
+    }
+
+    pub(crate) fn states(&self) -> HashMap<ChannelId, OscState> {
+        self.channels
+            .iter()
+            .map(|(n, b)| (n.clone(), b.osc))
+            .collect()
     }
 
     pub(crate) fn into_result(self) -> HashMap<ChannelId, PulseList> {
@@ -168,28 +183,28 @@ impl Executor {
     fn execute_shift_phase(&mut self, variant: &ShiftPhase) -> Result<()> {
         let delta_phase = variant.phase();
         let channel = self.get_mut_channel(variant.channel_id())?;
-        channel.shift_phase(delta_phase);
+        channel.osc.shift_phase(delta_phase);
         Ok(())
     }
 
     fn execute_set_phase(&mut self, variant: &SetPhase, time: Time) -> Result<()> {
         let phase = variant.phase();
         let channel = self.get_mut_channel(variant.channel_id())?;
-        channel.set_phase(phase, time);
+        channel.osc.set_phase(phase, time);
         Ok(())
     }
 
     fn execute_shift_freq(&mut self, variant: &ShiftFreq, time: Time) -> Result<()> {
         let delta_freq = variant.frequency();
         let channel = self.get_mut_channel(variant.channel_id())?;
-        channel.shift_freq(delta_freq, time);
+        channel.osc.shift_freq(delta_freq, time);
         Ok(())
     }
 
     fn execute_set_freq(&mut self, variant: &SetFreq, time: Time) -> Result<()> {
         let freq = variant.frequency();
         let channel = self.get_mut_channel(variant.channel_id())?;
-        channel.set_freq(freq, time);
+        channel.osc.set_freq(freq, time);
         Ok(())
     }
 
@@ -203,7 +218,7 @@ impl Executor {
             .channels
             .get_many_mut([ch1, ch2])
             .ok_or(Error::ChannelNotFound(vec![ch1.clone(), ch2.clone()]))?;
-        channel.swap_phase(other, time);
+        channel.osc.swap_phase(&mut other.osc, time);
         Ok(())
     }
 
@@ -214,13 +229,28 @@ impl Executor {
     }
 }
 
-impl Channel {
-    fn new(base_freq: Frequency, amp_tolerance: Amplitude, time_tolerance: Time) -> Self {
+impl OscState {
+    pub(crate) fn new(base_freq: Frequency) -> Self {
         Self {
             base_freq,
             delta_freq: Frequency::ZERO,
             phase: Phase::ZERO,
-            pulses: PulseListBuilder::new(amp_tolerance, time_tolerance),
+        }
+    }
+
+    pub(crate) fn total_freq(&self) -> Frequency {
+        self.base_freq + self.delta_freq
+    }
+
+    pub(crate) fn phase_at(&self, time: Time) -> Phase {
+        self.phase + self.total_freq() * time
+    }
+
+    pub(crate) fn with_time_shift(&self, time: Time) -> Self {
+        Self {
+            base_freq: self.base_freq,
+            delta_freq: self.delta_freq,
+            phase: self.phase_at(time),
         }
     }
 
@@ -245,10 +275,6 @@ impl Channel {
         self.phase = phase - self.delta_freq * time;
     }
 
-    fn total_freq(&self) -> Frequency {
-        self.base_freq + self.delta_freq
-    }
-
     fn swap_phase(&mut self, other: &mut Self, time: Time) {
         let delta_freq = self.total_freq() - other.total_freq();
         let phase1 = self.phase;
@@ -256,7 +282,9 @@ impl Channel {
         self.phase = phase2 - delta_freq * time;
         other.phase = phase1 + delta_freq * time;
     }
+}
 
+impl Channel {
     fn add_pulse(
         &mut self,
         AddPulseArgs {
@@ -271,7 +299,7 @@ impl Channel {
         }: AddPulseArgs,
     ) {
         let envelope = Envelope::new(shape, width, plateau);
-        let global_freq = self.total_freq();
+        let global_freq = self.osc.total_freq();
         let local_freq = freq;
         self.pulses.push(PushArgs {
             envelope,
@@ -282,6 +310,26 @@ impl Channel {
             drag_coef,
             phase,
         })
+    }
+}
+
+impl From<crate::OscState> for OscState {
+    fn from(osc: crate::OscState) -> Self {
+        Self {
+            base_freq: osc.base_freq,
+            delta_freq: osc.delta_freq,
+            phase: osc.phase,
+        }
+    }
+}
+
+impl From<OscState> for crate::OscState {
+    fn from(osc: OscState) -> Self {
+        Self {
+            base_freq: osc.base_freq,
+            delta_freq: osc.delta_freq,
+            phase: osc.phase,
+        }
     }
 }
 

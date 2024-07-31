@@ -43,3 +43,33 @@ def test_mixing():
     w2 = w2 * np.exp(1j * (2 * np.pi * freq * np.arange(1000) / 2e9))
 
     assert np.allclose(w1, w2)
+
+
+def test_states():
+    channels = {
+        "xy0": bosing.Channel(100e6, 2e9, 1000),
+        "xy1": bosing.Channel(50e6, 2e9, 1000),
+    }
+    schedule = bosing.Stack(duration=500e-9).with_children(
+        bosing.Play("xy0", "hann", 0.3, 100e-9),
+        bosing.Play("xy1", "hann", 0.5, 200e-9),
+        bosing.ShiftPhase("xy0", 0.1),
+        bosing.ShiftFreq("xy1", 10e6),
+        bosing.Barrier(duration=10e-9),
+    )
+    shapes = {"hann": bosing.Hann()}
+    _, states = bosing.generate_waveforms_with_states(channels, shapes, schedule, states=None)
+    assert states["xy0"].base_freq == 100e6
+    assert states["xy0"].delta_freq == 0
+    assert states["xy0"].phase == 0.1
+    assert states["xy1"].base_freq == 50e6
+    assert states["xy1"].delta_freq == 10e6
+    assert states["xy1"].phase_at(490e-9) == 50e6 * 490e-9
+    shifted_states = {n: s.with_time_shift(500e-9) for n, s in states.items()}
+    _, states = bosing.generate_waveforms_with_states(channels, shapes, schedule, states=shifted_states)
+    assert states["xy0"].base_freq == 100e6
+    assert states["xy0"].delta_freq == 0
+    assert states["xy0"].phase == 0.2 + 100e6 * 500e-9
+    assert states["xy1"].base_freq == 50e6
+    assert states["xy1"].delta_freq == 20e6
+    assert states["xy1"].phase_at(490e-9) == 50e6 * 490e-9 + 60e6 * 500e-9

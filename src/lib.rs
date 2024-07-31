@@ -171,6 +171,60 @@ impl Channel {
     }
 }
 
+/// State of a channel oscillator.
+///
+/// Args:
+///     base_freq (float): Base frequency of the oscillator.
+///     delta_freq (float): Frequency shift of the oscillator.
+///     phase (float): Phase of the oscillator in **cycles**.
+#[pyclass(get_all, set_all)]
+#[derive(Debug, Clone, Copy)]
+struct OscState {
+    base_freq: Frequency,
+    delta_freq: Frequency,
+    phase: Phase,
+}
+
+#[pymethods]
+impl OscState {
+    #[new]
+    fn new(base_freq: Frequency, delta_freq: Frequency, phase: Phase) -> Self {
+        OscState {
+            base_freq,
+            delta_freq,
+            phase,
+        }
+    }
+
+    /// Calculate the total frequency of the oscillator.
+    ///
+    /// Returns:
+    ///     float: Total frequency of the oscillator.
+    fn total_freq(&self) -> Frequency {
+        executor::OscState::from(*self).total_freq()
+    }
+
+    /// Calculate the phase of the oscillator at a given time.
+    ///
+    /// Args:
+    ///     time (float): Time.
+    /// Returns:
+    ///     float: Phase of the oscillator in **cycles**.
+    fn phase_at(&self, time: Time) -> Phase {
+        executor::OscState::from(*self).phase_at(time)
+    }
+
+    /// Get a new state with a time shift.
+    ///
+    /// Args:
+    ///     time (float): Time shift.
+    /// Returns:
+    ///     OscState: The new state.
+    fn with_time_shift(&self, time: Time) -> Self {
+        executor::OscState::from(*self).with_time_shift(time).into()
+    }
+}
+
 /// Alignment of a schedule element.
 ///
 /// The alignment of a schedule element is used to align the element within its
@@ -1885,6 +1939,10 @@ impl Grid {
     }
 }
 
+type ChannelWaveforms = HashMap<ChannelId, Py<PyArray2<f64>>>;
+type ChannelStates = HashMap<ChannelId, Py<OscState>>;
+type ChannelPulses = HashMap<ChannelId, PulseList>;
+
 /// Generate waveforms from a schedule.
 ///
 /// .. caution::
@@ -1898,7 +1956,8 @@ impl Grid {
 ///     time_tolerance (float): Tolerance for time comparison. Default is 1e-12.
 ///     amp_tolerance (float): Tolerance for amplitude comparison. Default is
 ///         0.1 / 2^16.
-///     allow_oversize (bool): Allow oversize elements. Default is ``False``.
+///     allow_oversize (bool): Allow elements to occupy a longer duration than
+///         available. Default is ``False``.
 ///     crosstalk (tuple[array_like, Sequence[str]] | None): Crosstalk matrix
 ///         with corresponding channel ids. Default is ``None``.
 /// Returns:
@@ -1948,7 +2007,75 @@ fn generate_waveforms(
     amp_tolerance: Amplitude,
     allow_oversize: bool,
     crosstalk: Option<(PyArrayLike2<f64, AllowTypeChange>, Vec<ChannelId>)>,
-) -> PyResult<HashMap<ChannelId, Py<PyArray2<f64>>>> {
+) -> PyResult<ChannelWaveforms> {
+    let (waveforms, _) = generate_waveforms_with_states(
+        py,
+        channels,
+        shapes,
+        schedule,
+        time_tolerance,
+        amp_tolerance,
+        allow_oversize,
+        crosstalk,
+        None,
+    )?;
+    Ok(waveforms)
+}
+
+/// Generate waveforms from a schedule with initial states.
+///
+/// .. caution::
+///
+///     Crosstalk matrix will not be applied to offset of the channels.
+///
+/// Args:
+///     channels (Mapping[str, Channel]): Information of the channels.
+///     shapes (Mapping[str, Shape]): Shapes used in the schedule.
+///     schedule (Element): Root element of the schedule.
+///     time_tolerance (float): Tolerance for time comparison. Default is 1e-12.
+///     amp_tolerance (float): Tolerance for amplitude comparison. Default is
+///         0.1 / 2^16.
+///     allow_oversize (bool): Allow elements to occupy a longer duration than
+///         available. Default is ``False``.
+///     crosstalk (tuple[array_like, Sequence[str]] | None): Crosstalk matrix
+///         with corresponding channel ids. Default is ``None``.
+///     states (Mapping[str, OscState] | None): Initial states of the channels.
+/// Returns:
+///     (tuple): Tuple containing:
+///
+///         waveforms (dict[str, numpy.ndarray]): Waveforms of the channels. The key is the
+///             channel name and the value is the waveform. The shape of the
+///             waveform is ``(n, length)``, where ``n`` is 2 for complex waveform
+///             and 1 for real waveform.
+///         states (dict[str, OscState]): Final states of the channels.
+/// Raises:
+///     ValueError: If some input is invalid.
+///     TypeError: If some input has an invalid type.
+///     RuntimeError: If waveform generation fails.
+#[pyfunction]
+#[pyo3(signature = (
+    channels,
+    shapes,
+    schedule,
+    *,
+    time_tolerance=Time::new(1e-12).unwrap(),
+    amp_tolerance=Amplitude::new(0.1 / 2f64.powi(16)).unwrap(),
+    allow_oversize=false,
+    crosstalk=None,
+    states=None,
+))]
+#[allow(clippy::too_many_arguments)]
+fn generate_waveforms_with_states(
+    py: Python,
+    channels: HashMap<ChannelId, Channel>,
+    shapes: HashMap<ShapeId, Py<Shape>>,
+    schedule: Bound<Element>,
+    time_tolerance: Time,
+    amp_tolerance: Amplitude,
+    allow_oversize: bool,
+    crosstalk: Option<(PyArrayLike2<f64, AllowTypeChange>, Vec<ChannelId>)>,
+    states: Option<ChannelStates>,
+) -> PyResult<(ChannelWaveforms, ChannelStates)> {
     if let Some((crosstalk, names)) = &crosstalk {
         let nl = names.len();
         if crosstalk.shape() != [nl, nl] {
@@ -1957,66 +2084,88 @@ fn generate_waveforms(
             ));
         }
     }
-    let pulse_lists = build_pulse_lists(
-        py,
+    let (pulse_lists, new_states) = build_pulse_lists(
         schedule,
         &channels,
         &shapes,
         time_tolerance,
         amp_tolerance,
         allow_oversize,
+        states,
     )?;
     let waveforms = sample_waveform(py, &channels, pulse_lists, crosstalk, time_tolerance)?;
-    Ok(py.allow_threads(|| {
-        waveforms
-            .into_par_iter()
-            .map(|(n, w)| {
-                Python::with_gil(|py| {
-                    let w = w.bind(py);
-                    let mut w = w.readwrite();
-                    let mut w = w.as_array_mut();
-                    let c = &channels[&n];
-                    post_process(py, &mut w, c);
-                });
-                (n, w)
-            })
-            .collect()
-    }))
+    Ok((
+        py.allow_threads(|| {
+            waveforms
+                .into_par_iter()
+                .map(|(n, w)| {
+                    Python::with_gil(|py| {
+                        let w = w.bind(py);
+                        let mut w = w.readwrite();
+                        let mut w = w.as_array_mut();
+                        let c = &channels[&n];
+                        post_process(py, &mut w, c);
+                    });
+                    (n, w)
+                })
+                .collect()
+        }),
+        new_states,
+    ))
 }
 
 fn build_pulse_lists(
-    py: Python,
     schedule: Bound<Element>,
     channels: &HashMap<ChannelId, Channel>,
     shapes: &HashMap<ShapeId, Py<Shape>>,
     time_tolerance: Time,
     amp_tolerance: Amplitude,
     allow_oversize: bool,
-) -> PyResult<HashMap<ChannelId, PulseList>> {
+    states: Option<ChannelStates>,
+) -> PyResult<(ChannelPulses, ChannelStates)> {
+    let py = schedule.py();
     let mut executor = Executor::new(amp_tolerance, time_tolerance, allow_oversize);
     for (n, c) in channels {
-        executor.add_channel(n.clone(), c.base_freq);
+        let osc = match &states {
+            Some(states) => {
+                let state = states
+                    .get(n)
+                    .ok_or_else(|| PyValueError::new_err(format!("No state for channel: {}", n)))?;
+                let state = state.bind(py);
+                state.extract::<OscState>()?.into()
+            }
+            None => executor::OscState::new(c.base_freq),
+        };
+        executor.add_channel(n.clone(), osc);
     }
     for (n, s) in shapes {
         let s = s.bind(py);
         executor.add_shape(n.clone(), Shape::get_rust_shape(s)?);
     }
     let schedule = &schedule.get().0;
-    py.allow_threads(|| {
-        executor
-            .execute(schedule)
-            .map_err(|e| PyRuntimeError::new_err(e.to_string()))
-    })?;
-    Ok(executor.into_result())
+    let (states, pulselists) = py
+        .allow_threads(|| {
+            executor.execute(schedule)?;
+            let states = executor.states();
+            let pulselists = executor.into_result();
+            Ok((states, pulselists))
+        })
+        .map_err(|e: executor::Error| PyRuntimeError::new_err(e.to_string()))?;
+    let states = states
+        .into_iter()
+        .map(|(n, s)| Ok((n, Py::new(py, OscState::from(s))?)))
+        .collect::<PyResult<_>>()?;
+
+    Ok((pulselists, states))
 }
 
 fn sample_waveform(
     py: Python,
     channels: &HashMap<ChannelId, Channel>,
-    pulse_lists: HashMap<ChannelId, PulseList>,
+    pulse_lists: ChannelPulses,
     crosstalk: Option<(PyArrayLike2<f64, AllowTypeChange>, Vec<ChannelId>)>,
     time_tolerance: Time,
-) -> PyResult<HashMap<ChannelId, Py<PyArray2<f64>>>> {
+) -> PyResult<ChannelWaveforms> {
     let waveforms: HashMap<_, _> = channels
         .iter()
         .map(|(n, c)| {
@@ -2110,6 +2259,8 @@ fn bosing(_py: Python, m: &Bound<PyModule>) -> PyResult<()> {
     m.add_class::<Shape>()?;
     m.add_class::<Stack>()?;
     m.add_class::<SwapPhase>()?;
+    m.add_class::<OscState>()?;
     m.add_function(wrap_pyfunction!(generate_waveforms, m)?)?;
+    m.add_function(wrap_pyfunction!(generate_waveforms_with_states, m)?)?;
     Ok(())
 }
