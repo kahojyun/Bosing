@@ -2143,17 +2143,18 @@ fn build_pulse_lists(
         executor.add_shape(n.clone(), Shape::get_rust_shape(s)?);
     }
     let schedule = &schedule.get().0;
-    py.allow_threads(|| {
-        executor
-            .execute(schedule)
-            .map_err(|e| PyRuntimeError::new_err(e.to_string()))
-    })?;
-    let states = executor.states();
+    let (states, pulselists) = py
+        .allow_threads(|| {
+            executor.execute(schedule)?;
+            let states = executor.states();
+            let pulselists = executor.into_result();
+            Ok((states, pulselists))
+        })
+        .map_err(|e: executor::Error| PyRuntimeError::new_err(e.to_string()))?;
     let states = states
         .into_iter()
         .map(|(n, s)| Ok((n, Py::new(py, OscState::from(s))?)))
         .collect::<PyResult<_>>()?;
-    let pulselists = executor.into_result();
 
     Ok((pulselists, states))
 }
