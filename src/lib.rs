@@ -1939,6 +1939,10 @@ impl Grid {
     }
 }
 
+type ChannelWaveforms = HashMap<ChannelId, Py<PyArray2<f64>>>;
+type ChannelStates = HashMap<ChannelId, Py<OscState>>;
+type ChannelPulses = HashMap<ChannelId, PulseList>;
+
 /// Generate waveforms from a schedule.
 ///
 /// .. caution::
@@ -2003,41 +2007,19 @@ fn generate_waveforms(
     amp_tolerance: Amplitude,
     allow_oversize: bool,
     crosstalk: Option<(PyArrayLike2<f64, AllowTypeChange>, Vec<ChannelId>)>,
-) -> PyResult<HashMap<ChannelId, Py<PyArray2<f64>>>> {
-    if let Some((crosstalk, names)) = &crosstalk {
-        let nl = names.len();
-        if crosstalk.shape() != [nl, nl] {
-            return Err(PyValueError::new_err(
-                "The size of the crosstalk matrix must be the same as the number of names.",
-            ));
-        }
-    }
-    let (pulse_lists, _) = build_pulse_lists(
+) -> PyResult<ChannelWaveforms> {
+    let (waveforms, _) = generate_waveforms_with_states(
         py,
+        channels,
+        shapes,
         schedule,
-        &channels,
-        &shapes,
         time_tolerance,
         amp_tolerance,
         allow_oversize,
+        crosstalk,
         None,
     )?;
-    let waveforms = sample_waveform(py, &channels, pulse_lists, crosstalk, time_tolerance)?;
-    Ok(py.allow_threads(|| {
-        waveforms
-            .into_par_iter()
-            .map(|(n, w)| {
-                Python::with_gil(|py| {
-                    let w = w.bind(py);
-                    let mut w = w.readwrite();
-                    let mut w = w.as_array_mut();
-                    let c = &channels[&n];
-                    post_process(py, &mut w, c);
-                });
-                (n, w)
-            })
-            .collect()
-    }))
+    Ok(waveforms)
 }
 
 /// Generate waveforms from a schedule with initial states.
@@ -2092,11 +2074,8 @@ fn generate_waveforms_with_states(
     amp_tolerance: Amplitude,
     allow_oversize: bool,
     crosstalk: Option<(PyArrayLike2<f64, AllowTypeChange>, Vec<ChannelId>)>,
-    states: Option<HashMap<ChannelId, Py<OscState>>>,
-) -> PyResult<(
-    HashMap<ChannelId, Py<PyArray2<f64>>>,
-    HashMap<ChannelId, Py<OscState>>,
-)> {
+    states: Option<ChannelStates>,
+) -> PyResult<(ChannelWaveforms, ChannelStates)> {
     if let Some((crosstalk, names)) = &crosstalk {
         let nl = names.len();
         if crosstalk.shape() != [nl, nl] {
@@ -2106,7 +2085,6 @@ fn generate_waveforms_with_states(
         }
     }
     let (pulse_lists, new_states) = build_pulse_lists(
-        py,
         schedule,
         &channels,
         &shapes,
@@ -2137,18 +2115,15 @@ fn generate_waveforms_with_states(
 }
 
 fn build_pulse_lists(
-    py: Python,
     schedule: Bound<Element>,
     channels: &HashMap<ChannelId, Channel>,
     shapes: &HashMap<ShapeId, Py<Shape>>,
     time_tolerance: Time,
     amp_tolerance: Amplitude,
     allow_oversize: bool,
-    states: Option<HashMap<ChannelId, Py<OscState>>>,
-) -> PyResult<(
-    HashMap<ChannelId, PulseList>,
-    HashMap<ChannelId, Py<OscState>>,
-)> {
+    states: Option<ChannelStates>,
+) -> PyResult<(ChannelPulses, ChannelStates)> {
+    let py = schedule.py();
     let mut executor = Executor::new(amp_tolerance, time_tolerance, allow_oversize);
     for (n, c) in channels {
         let osc = match &states {
@@ -2186,10 +2161,10 @@ fn build_pulse_lists(
 fn sample_waveform(
     py: Python,
     channels: &HashMap<ChannelId, Channel>,
-    pulse_lists: HashMap<ChannelId, PulseList>,
+    pulse_lists: ChannelPulses,
     crosstalk: Option<(PyArrayLike2<f64, AllowTypeChange>, Vec<ChannelId>)>,
     time_tolerance: Time,
-) -> PyResult<HashMap<ChannelId, Py<PyArray2<f64>>>> {
+) -> PyResult<ChannelWaveforms> {
     let waveforms: HashMap<_, _> = channels
         .iter()
         .map(|(n, c)| {
