@@ -11,13 +11,13 @@ requires-python = ">=3.8"
 keywords = []
 authors = [{ name = "kaho", email = "kaho0769@qq.com" }]
 classifiers = [
-    "Development Status :: 3 - Alpha",
-    "Programming Language :: Rust",
-    "Programming Language :: Python :: Implementation :: CPython",
-    "Programming Language :: Python :: Implementation :: PyPy",
-    "Intended Audience :: Science/Research",
-    "Topic :: Scientific/Engineering",
-    "License :: OSI Approved :: MIT License",
+  "Development Status :: 3 - Alpha",
+  "Programming Language :: Rust",
+  "Programming Language :: Python :: Implementation :: CPython",
+  "Programming Language :: Python :: Implementation :: PyPy",
+  "Intended Audience :: Science/Research",
+  "Topic :: Scientific/Engineering",
+  "License :: OSI Approved :: MIT License",
 ]
 dependencies = ["numpy >= 1.16.0"]
 
@@ -32,13 +32,12 @@ Source = "https://github.com/kahojyun/Bosing"
 [tool.maturin]
 features = ["pyo3/extension-module"]
 
+[tool.uv]
+environments = ["python_version>='3.12'"]
+
 [tool.hatch.envs.default]
 features = ["docs"]
-dependencies = [
-    "maturin>=1.5,<2.0",
-    "ipython",
-    "mypy",
-]
+dependencies = ["maturin>=1.5,<2.0", "ipython", "mypy"]
 
 [tool.hatch.envs.default.scripts]
 mip = "maturin develop && ipython"
@@ -48,7 +47,7 @@ clean_docs = "rm -rf docs/_build docs/generated"
 
 [tool.hatch.envs.default.overrides]
 platform.windows.scripts = [
-    'clean_docs=rmdir /s /q docs\\_build docs\\generated',
+  'clean_docs=rmdir /s /q docs\\_build docs\\generated',
 ]
 
 [[tool.hatch.envs.hatch-test.matrix]]
