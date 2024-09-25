@@ -53,7 +53,7 @@ bosing: 微波波形生成器
 示例
 ----
 
-.. literalinclude:: ../example/schedule.py
+.. literalinclude:: ../examples/schedule.py
     :language: python3
     :linenos:
 

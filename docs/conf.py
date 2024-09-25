@@ -2,6 +2,7 @@
 #
 # For the full list of built-in configuration values, see the documentation:
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
+import os
 
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
@@ -40,3 +41,9 @@ exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 
 html_theme = "furo"
 html_static_path = []
+
+# https://github.com/godotengine/godot-docs/pull/8524
+language = os.getenv("READTHEDOCS_LANGUAGE", "zh-cn")
+if "-" in language:
+    (lang_name, lang_country) = language.split("-")
+    language = lang_name + "_" + lang_country.upper()

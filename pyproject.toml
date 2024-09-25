@@ -19,10 +19,7 @@ classifiers = [
   "Topic :: Scientific/Engineering",
   "License :: OSI Approved :: MIT License",
 ]
-dependencies = ["numpy >= 1.16.0"]
-
-[project.optional-dependencies]
-docs = ["sphinx", "furo", "matplotlib", "scipy"]
+dependencies = ["numpy>=1.16.0,<2"]
 
 [project.urls]
 Documentation = "https://bosing.readthedocs.io"
@@ -34,3 +31,11 @@ features = ["pyo3/extension-module"]
 
 [tool.uv]
 environments = ["python_version>='3.12'"]
+dev-dependencies = [
+  "mypy>=1.11.2",
+  "ruff>=0.6.7",
+  "sphinx>=8.0.2",
+  "furo>=2024.8.6",
+  "matplotlib>=3.9.2",
+  "scipy>=1.14.1",
+]

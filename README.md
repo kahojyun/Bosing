@@ -16,7 +16,7 @@ Docs are hosted on [Read the Docs](http://bosing.readthedocs.io/)
 
 ## Usage
 
-Examples can be found in `example`.
+Examples can be found in `examples`.
 
 ```python
 import matplotlib.pyplot as plt
