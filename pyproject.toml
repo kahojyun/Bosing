@@ -1,5 +1,5 @@
 [build-system]
-requires = ["maturin>=1.5,<2.0"]
+requires = ["maturin>=1.7,<2.0"]
 build-backend = "maturin"
 
 [project]
@@ -34,31 +34,3 @@ features = ["pyo3/extension-module"]
 
 [tool.uv]
 environments = ["python_version>='3.12'"]
-
-[tool.hatch.envs.default]
-features = ["docs"]
-dependencies = ["maturin>=1.5,<2.0", "ipython", "mypy"]
-
-[tool.hatch.envs.default.scripts]
-mip = "maturin develop && ipython"
-stubcheck = "maturin develop && stubtest bosing --allowlist stubtest-allowlist.txt"
-build_docs = "maturin develop && sphinx-build -M html docs docs/_build {args}"
-clean_docs = "rm -rf docs/_build docs/generated"
-
-[tool.hatch.envs.default.overrides]
-platform.windows.scripts = [
-  'clean_docs=rmdir /s /q docs\\_build docs\\generated',
-]
-
-[[tool.hatch.envs.hatch-test.matrix]]
-python = ["3.8", "3.9", "3.10", "3.11", "3.12"]
-
-[tool.hatch.envs.hatch-static-analysis]
-config-path = "ruff_defaults.toml"
-
-[tool.ruff]
-extend = "ruff_defaults.toml"
-
-[tool.ruff.lint.extend-per-file-ignores]
-"docs/conf.py" = ["INP001"]
-"example/*" = ["INP001", "T201"]
