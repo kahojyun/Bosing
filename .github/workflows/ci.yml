@@ -40,16 +40,17 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-      - name: Install Hatch
-        uses: pypa/hatch@a3c83ab3d481fbc2dc91dd0088628817488dd1d5
-        with:
-          version: 1.12.0
-      - name: Test
-        run: hatch test --all
+      - name: Install uv
+        uses: astral-sh/setup-uv@v2
+      - name: Sync project
+        run: uv sync --frozen
+      # TODO: Add testing
       - name: Lint
-        run: hatch fmt --check
+        run: |
+          uv run ruff check --output-format=github
+          uv run ruff format --check
       - name: Stubtest
-        run: hatch run stubcheck
+        run: uv run task stubtest
 
   # Should run on every push and PR, but only run semantic-release on push
   release:

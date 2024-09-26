@@ -7,7 +7,16 @@ import numpy as np
 from scipy import signal
 from scipy.interpolate import make_interp_spline
 
-from bosing import Absolute, Barrier, Channel, Hann, Interp, Play, Stack, generate_waveforms
+from bosing import (
+    Absolute,
+    Barrier,
+    Channel,
+    Hann,
+    Interp,
+    Play,
+    Stack,
+    generate_waveforms,
+)
 
 
 def get_biquad(amp, tau, fs):
@@ -26,8 +35,16 @@ def gen_n(n: int):
     iir = get_biquad([0.1, -0.1], [100e-9, 1e-6], 2e9)
     fir = [1, 0.1, 0.01, 0.001]
     channels = (
-        {f"xy{i}": Channel(3e6 * i, 2e9, 100000, iq_matrix=[[1, 0.1], [0.1, 1]], offset=[0.1, 0.2]) for i in range(nxy)}
-        | {f"u{i}": Channel(0, 2e9, 100000, iir=iir, fir=fir, is_real=True) for i in range(nu)}
+        {
+            f"xy{i}": Channel(
+                3e6 * i, 2e9, 100000, iq_matrix=[[1, 0.1], [0.1, 1]], offset=[0.1, 0.2]
+            )
+            for i in range(nxy)
+        }
+        | {
+            f"u{i}": Channel(0, 2e9, 100000, iir=iir, fir=fir, is_real=True)
+            for i in range(nu)
+        }
         | {f"m{i}": Channel(0, 2e9, 100000) for i in range(nm)}
     )
     halfcos = np.sin(np.linspace(0, np.pi, 10))
@@ -38,11 +55,19 @@ def gen_n(n: int):
     }
 
     measure = Absolute().with_children(
-        *(Play(f"m{i}", "hann", 0.1, 30e-9, plateau=1e-6, frequency=20e6 * i) for i in range(nm))
+        *(
+            Play(f"m{i}", "hann", 0.1, 30e-9, plateau=1e-6, frequency=20e6 * i)
+            for i in range(nm)
+        )
     )
-    c_group = Stack().with_children(*(Play(f"u{i}", "halfcos", 0.01 * (i + 1), 50e-9) for i in range(nu)))
+    c_group = Stack().with_children(
+        *(Play(f"u{i}", "halfcos", 0.01 * (i + 1), 50e-9) for i in range(nu))
+    )
     x_group = Stack().with_children(
-        *(Play(f"xy{i}", "hann", 0.01 * (i + 1), 50e-9, drag_coef=5e-10) for i in range(nxy))
+        *(
+            Play(f"xy{i}", "hann", 0.01 * (i + 1), 50e-9, drag_coef=5e-10)
+            for i in range(nxy)
+        )
     )
 
     schedule = Stack(duration=50e-6).with_children(
