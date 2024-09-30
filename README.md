@@ -47,27 +47,16 @@ plt.show()
 
 ### Prerequisites
 
-* Latest stable Rust toolchain.
+* Rustup for rust toolchain management.
 * [maturin](https://github.com/PyO3/maturin) 1.5+.
-* [hatch](https://github.com/pypa/hatch) for python project management.
-
-### Development install
+* [uv](https://github.com/astral-sh/uv) for python project management.
 
 ```bash
 git clone https://github.com/kahojyun/Bosing.git
 cd Bosing
-pip install -e .
-```
-
-### Build docs
-
-```bash
-hatch run build_docs
-```
-
-### Run tests
-
-```bash
-cargo test
-hatch test --all
+uv sync
+uv run task makedocs # build docs
+uv run task format # format rust and python code
+uv run task lint # lint rust and python code
+uv run task test # run cargo test and pytest
 ```
