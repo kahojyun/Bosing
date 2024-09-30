@@ -7,8 +7,7 @@ build:
     python: "3.12"
   commands:
     - curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --no-modify-path --default-toolchain none --profile minimal
-    - . "$HOME/.cargo/env" && cargo build
     - asdf plugin add uv
     - asdf install uv latest
     - asdf global uv latest
-    - uv run --frozen make BUILDDIR="$READTHEDOCS_OUTPUT" O="-T" -C docs html
+    - . "$HOME/.cargo/env" && uv run --frozen make BUILDDIR="$READTHEDOCS_OUTPUT" O="-T" -C docs html
