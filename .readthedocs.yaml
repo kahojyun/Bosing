@@ -5,10 +5,9 @@ build:
   os: ubuntu-24.04
   tools:
     python: "3.12"
-    rust: "1.78"
   commands:
+    - apt-get -y install rustup
     - asdf plugin add uv
     - asdf install uv latest
     - asdf global uv latest
-    - uv sync --frozen
-    - uv run make BUILDDIR="$READTHEDOCS_OUTPUT" O="-T" -C docs html
+    - uv run --frozen make BUILDDIR="$READTHEDOCS_OUTPUT" O="-T" -C docs html

@@ -46,6 +46,7 @@ cache-keys = [
   { file = "pyproject.toml" },
   { file = "Cargo.toml" },
   { file = "Cargo.lock" },
+  { file = "rust-toolchain.toml" },
 ]
 
 [tool.taskipy.tasks]
