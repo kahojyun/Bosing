@@ -507,7 +507,13 @@ impl Element {
         self.0.common.min_duration()
     }
 
-    /// Measure the minimum duration of the element.
+    /// Measure the minimum total duration required by the element.
+    ///
+    /// This value includes both inner `duration` and outer `margin` of the element.
+    ///
+    /// This value is a *minimum* total duration wanted by the element. If the element is a child
+    /// of other element, the final total duration will be determined by `alignment` option and
+    /// parent container type.
     fn measure(&self) -> Time {
         self.0.measure()
     }

@@ -4,7 +4,19 @@ import numpy as np
 from matplotlib import pyplot as plt
 from scipy.interpolate import make_interp_spline
 
-from bosing import Absolute, Barrier, Channel, Grid, Hann, Interp, Play, Repeat, ShiftPhase, Stack, generate_waveforms
+from bosing import (
+    Absolute,
+    Barrier,
+    Channel,
+    Grid,
+    Hann,
+    Interp,
+    Play,
+    Repeat,
+    ShiftPhase,
+    Stack,
+    generate_waveforms,
+)
 
 if __name__ == "__main__":
     length = 100000

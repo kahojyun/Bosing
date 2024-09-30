@@ -1,6 +1,5 @@
 .lazy.lua
 /target
-generated
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -11,30 +10,8 @@ __pycache__/
 *.so
 
 # Distribution / packaging
-.Python
 .venv/
-env/
-bin/
-build/
-develop-eggs/
 dist/
-eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-include/
-man/
-venv/
-*.egg-info/
-.installed.cfg
-*.egg
-
-# Installer logs
-pip-log.txt
-pip-delete-this-directory.txt
-pip-selfcheck.json
 
 # Unit test / coverage reports
 htmlcov/
@@ -44,31 +21,14 @@ htmlcov/
 nosetests.xml
 coverage.xml
 
-# Translations
-*.mo
-
-# Mr Developer
-.mr.developer.cfg
-.project
-.pydevproject
-
-# Rope
-.ropeproject
-
-# Django stuff:
-*.log
-*.pot
-
 .DS_Store
 
 # Sphinx documentation
-docs/_build/
+/docs/_build/
+/docs/generated/
 
 # PyCharm
 .idea/
 
 # VSCode
 .vscode/
-
-# Pyenv
-.python-version

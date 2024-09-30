@@ -1,5 +1,5 @@
 [build-system]
-requires = ["maturin>=1.5,<2.0"]
+requires = ["maturin>=1.7,<2.0"]
 build-backend = "maturin"
 
 [project]
@@ -11,18 +11,15 @@ requires-python = ">=3.8"
 keywords = []
 authors = [{ name = "kaho", email = "kaho0769@qq.com" }]
 classifiers = [
-    "Development Status :: 3 - Alpha",
-    "Programming Language :: Rust",
-    "Programming Language :: Python :: Implementation :: CPython",
-    "Programming Language :: Python :: Implementation :: PyPy",
-    "Intended Audience :: Science/Research",
-    "Topic :: Scientific/Engineering",
-    "License :: OSI Approved :: MIT License",
+  "Development Status :: 3 - Alpha",
+  "Programming Language :: Rust",
+  "Programming Language :: Python :: Implementation :: CPython",
+  "Programming Language :: Python :: Implementation :: PyPy",
+  "Intended Audience :: Science/Research",
+  "Topic :: Scientific/Engineering",
+  "License :: OSI Approved :: MIT License",
 ]
-dependencies = ["numpy >= 1.16.0"]
-
-[project.optional-dependencies]
-docs = ["sphinx", "furo", "matplotlib", "scipy"]
+dependencies = ["numpy>=1.16.0,<2"]
 
 [project.urls]
 Documentation = "https://bosing.readthedocs.io"
@@ -32,34 +29,36 @@ Source = "https://github.com/kahojyun/Bosing"
 [tool.maturin]
 features = ["pyo3/extension-module"]
 
-[tool.hatch.envs.default]
-features = ["docs"]
-dependencies = [
-    "maturin>=1.5,<2.0",
-    "ipython",
-    "mypy",
+[tool.uv]
+environments = ["python_version>='3.10'"]
+dev-dependencies = [
+  "mypy>=1.11.2",
+  "ruff>=0.6.7",
+  "sphinx>=8.0.2",
+  "furo>=2024.8.6",
+  "matplotlib>=3.9.2",
+  "scipy>=1.14.1",
+  "taskipy>=1.13.0",
+  "pytest>=8.3.3",
+]
+cache-keys = [
+  { file = "src/**/*.rs" },
+  { file = "pyproject.toml" },
+  { file = "Cargo.toml" },
+  { file = "Cargo.lock" },
+  { file = "rust-toolchain.toml" },
 ]
 
-[tool.hatch.envs.default.scripts]
-mip = "maturin develop && ipython"
-stubcheck = "maturin develop && stubtest bosing --allowlist stubtest-allowlist.txt"
-build_docs = "maturin develop && sphinx-build -M html docs docs/_build {args}"
-clean_docs = "rm -rf docs/_build docs/generated"
-
-[tool.hatch.envs.default.overrides]
-platform.windows.scripts = [
-    'clean_docs=rmdir /s /q docs\\_build docs\\generated',
-]
-
-[[tool.hatch.envs.hatch-test.matrix]]
-python = ["3.8", "3.9", "3.10", "3.11", "3.12"]
-
-[tool.hatch.envs.hatch-static-analysis]
-config-path = "ruff_defaults.toml"
-
-[tool.ruff]
-extend = "ruff_defaults.toml"
-
-[tool.ruff.lint.extend-per-file-ignores]
-"docs/conf.py" = ["INP001"]
-"example/*" = ["INP001", "T201"]
+[tool.taskipy.tasks]
+format = "task format_py && task format_rs"
+format_py = "ruff format"
+format_rs = "cargo fmt"
+lint = "task lint_py && task lint_rs"
+lint_py = "ruff check"
+lint_rs = "cargo clippy --all-targets"
+test = "task test_py && task test_rs"
+test_py = "pytest"
+test_rs = "cargo test"
+stubtest = "stubtest bosing --allowlist stubtest-allowlist.txt"
+makedocs = "sphinx-build -M html docs docs/_build"
+cleandocs = "sphinx-build -M clean docs docs/_build"

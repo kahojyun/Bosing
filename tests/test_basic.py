@@ -6,7 +6,9 @@ import bosing
 def test_basic():
     channels = {"xy0": bosing.Channel(100e6, 2e9, 100000)}
     shapes = {"hann": bosing.Hann()}
-    schedule = bosing.Stack(duration=49.9e-6).with_children(bosing.Play("xy0", "hann", 0.1, 100e-9))
+    schedule = bosing.Stack(duration=49.9e-6).with_children(
+        bosing.Play("xy0", "hann", 0.1, 100e-9)
+    )
     result = bosing.generate_waveforms(channels, shapes, schedule)
     assert "xy0" in result
     w = result["xy0"]
@@ -58,7 +60,9 @@ def test_states():
         bosing.Barrier(duration=10e-9),
     )
     shapes = {"hann": bosing.Hann()}
-    _, states = bosing.generate_waveforms_with_states(channels, shapes, schedule, states=None)
+    _, states = bosing.generate_waveforms_with_states(
+        channels, shapes, schedule, states=None
+    )
     assert states["xy0"].base_freq == 100e6
     assert states["xy0"].delta_freq == 0
     assert states["xy0"].phase == 0.1
@@ -66,7 +70,9 @@ def test_states():
     assert states["xy1"].delta_freq == 10e6
     assert states["xy1"].phase_at(490e-9) == 50e6 * 490e-9
     shifted_states = {n: s.with_time_shift(500e-9) for n, s in states.items()}
-    _, states = bosing.generate_waveforms_with_states(channels, shapes, schedule, states=shifted_states)
+    _, states = bosing.generate_waveforms_with_states(
+        channels, shapes, schedule, states=shifted_states
+    )
     assert states["xy0"].base_freq == 100e6
     assert states["xy0"].delta_freq == 0
     assert states["xy0"].phase == 0.2 + 100e6 * 500e-9
