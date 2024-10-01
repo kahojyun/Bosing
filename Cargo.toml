@@ -24,7 +24,7 @@ ordered-float = "4.2.2"
 pulp = "0.18.22"
 pyo3 = { version = "0.21.2", features = ["hashbrown", "anyhow"] }
 rayon = "1.10.0"
-thiserror = "1.0.63"
+thiserror = "1.0.64"
 
 [dev-dependencies]
 mockall = "0.13.0"
