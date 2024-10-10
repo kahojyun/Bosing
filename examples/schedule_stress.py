@@ -1,6 +1,7 @@
 """An example of using bosing to generate a pulse sequence."""
 
 import time
+from collections.abc import Sequence
 from itertools import cycle
 
 import numpy as np
@@ -19,7 +20,11 @@ from bosing import (
 )
 
 
-def get_biquad(amp, tau, fs):
+def get_biquad(
+    amp: Sequence[float],
+    tau: Sequence[float],
+    fs: float,
+) -> np.ndarray:
     z = [-1 / (t * (1 + a)) for (a, t) in zip(amp, tau)]
     p = [-1 / t for t in tau]
     k = np.prod([1 + a for a in amp])
@@ -27,7 +32,7 @@ def get_biquad(amp, tau, fs):
     return signal.zpk2sos(p, z, 1 / k)
 
 
-def gen_n(n: int):
+def gen_n(n: int) -> None:
     t0 = time.perf_counter()
     nxy = 64
     nu = 2 * nxy
@@ -37,7 +42,11 @@ def gen_n(n: int):
     channels = (
         {
             f"xy{i}": Channel(
-                3e6 * i, 2e9, 100000, iq_matrix=[[1, 0.1], [0.1, 1]], offset=[0.1, 0.2]
+                3e6 * i,
+                2e9,
+                100000,
+                iq_matrix=[[1.0, 0.1], [0.1, 1.0]],
+                offset=[0.1, 0.2],
             )
             for i in range(nxy)
         }
@@ -58,16 +67,16 @@ def gen_n(n: int):
         *(
             Play(f"m{i}", "hann", 0.1, 30e-9, plateau=1e-6, frequency=20e6 * i)
             for i in range(nm)
-        )
+        ),
     )
     c_group = Stack().with_children(
-        *(Play(f"u{i}", "halfcos", 0.01 * (i + 1), 50e-9) for i in range(nu))
+        *(Play(f"u{i}", "halfcos", 0.01 * (i + 1), 50e-9) for i in range(nu)),
     )
     x_group = Stack().with_children(
         *(
             Play(f"xy{i}", "hann", 0.01 * (i + 1), 50e-9, drag_coef=5e-10)
             for i in range(nxy)
-        )
+        ),
     )
 
     schedule = Stack(duration=50e-6).with_children(
@@ -94,7 +103,7 @@ def gen_n(n: int):
     print(f"Time: {t1-t0:.3f}s")
 
 
-def main():
+def main() -> None:
     for i in cycle(range(349, 350)):
         print(i)
         gen_n(i)

@@ -1,8 +1,10 @@
+# ruff: noqa: PLR0913
 from collections.abc import Iterable, Mapping, Sequence
-from typing import ClassVar, Literal, Self, TypeAlias, final
+from typing import ClassVar, Literal, final
 
 import numpy as np
 import numpy.typing as npt
+from typing_extensions import Self, TypeAlias
 
 @final
 class Channel:
@@ -14,7 +16,7 @@ class Channel:
         *,
         delay: float = ...,
         align_level: int = ...,
-        iq_matrix: npt.ArrayLike | None = ...,
+        iq_matrix: npt.ArrayLike | Sequence[Sequence[float]] | None = ...,
         offset: npt.ArrayLike | None = ...,
         iir: npt.ArrayLike | None = ...,
         fir: npt.ArrayLike | None = ...,
@@ -64,7 +66,10 @@ class Hann(Shape):
 @final
 class Interp(Shape):
     def __new__(
-        cls, knots: Iterable[float], controls: Iterable[float], degree: float
+        cls,
+        knots: Iterable[float],
+        controls: Iterable[float],
+        degree: float,
     ) -> Self: ...
     @property
     def knots(self) -> Sequence[float]: ...
