@@ -27,7 +27,7 @@ Issues = "https://github.com/kahojyun/Bosing/issues"
 Source = "https://github.com/kahojyun/Bosing"
 
 [tool.maturin]
-features = ["pyo3/extension-module", "pyo3/generate-import-lib"]
+features = ["pyo3/extension-module"]
 
 [tool.uv]
 dev-dependencies = [
