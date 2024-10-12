@@ -234,7 +234,7 @@ impl OscState {
 /// - :attr:`Alignment.Start`
 /// - :attr:`Alignment.Center`
 /// - :attr:`Alignment.Stretch`: Stretch the element to fill the parent.
-#[pyclass(frozen)]
+#[pyclass(frozen, eq)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Alignment {
     End,
@@ -1221,7 +1221,7 @@ impl Repeat {
 /// - :attr:`Direction.Forward`:
 ///     Process children in original order and schedule them as early as
 ///     possible.
-#[pyclass(frozen)]
+#[pyclass(frozen, eq)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Direction {
     Backward,
@@ -1567,7 +1567,7 @@ impl Absolute {
 /// - Seconds: Fixed length in seconds.
 /// - Auto: Auto length.
 /// - Star: Ratio of the remaining duration.
-#[pyclass(frozen)]
+#[pyclass(frozen, eq)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum GridLengthUnit {
     Seconds,
