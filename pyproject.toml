@@ -19,7 +19,7 @@ classifiers = [
   "Topic :: Scientific/Engineering",
   "License :: OSI Approved :: MIT License",
 ]
-dependencies = ["numpy>=1.16.0,<2"]
+dependencies = ["numpy>=1.16.0"]
 
 [project.urls]
 Documentation = "https://bosing.readthedocs.io"

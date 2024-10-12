@@ -17,12 +17,12 @@ float-cmp = "0.10.0"
 hashbrown = { version = "0.14.5", features = ["rayon"] }
 indoc = "2.0.5"
 itertools = "0.13.0"
-ndarray = { version = "0.15.6", features = ["rayon"] }
+ndarray = { version = "0.16.1", features = ["rayon"] }
 num = "0.4.3"
-numpy = "0.21.0"
-ordered-float = "4.2.2"
+numpy = "0.22.0"
+ordered-float = "4.3.0"
 pulp = "0.18.22"
-pyo3 = { version = "0.21.2", features = ["hashbrown", "anyhow"] }
+pyo3 = { version = "0.22.4", features = ["hashbrown", "anyhow"] }
 rayon = "1.10.0"
 thiserror = "1.0.64"
 
