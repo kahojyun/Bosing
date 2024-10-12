@@ -62,7 +62,7 @@ use crate::{
 ///         ``False``.
 ///     is_real (bool): Whether the channel is real. Defaults to ``False``.
 #[pyclass(get_all, frozen)]
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 struct Channel {
     base_freq: Frequency,
     sample_rate: Frequency,
@@ -165,6 +165,38 @@ impl Channel {
             offset,
             iir,
             fir,
+            filter_offset,
+            is_real,
+        })
+    }
+}
+
+impl<'py> FromPyObject<'py> for Channel {
+    fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
+        let py = ob.py();
+        let &Self {
+            base_freq,
+            sample_rate,
+            length,
+            delay,
+            align_level,
+            ref iq_matrix,
+            ref offset,
+            ref iir,
+            ref fir,
+            filter_offset,
+            is_real,
+        } = ob.downcast_exact::<Self>()?.get();
+        Ok(Self {
+            base_freq,
+            sample_rate,
+            length,
+            delay,
+            align_level,
+            iq_matrix: iq_matrix.as_ref().map(|x| x.clone_ref(py)),
+            offset: offset.as_ref().map(|x| x.clone_ref(py)),
+            iir: iir.as_ref().map(|x| x.clone_ref(py)),
+            fir: fir.as_ref().map(|x| x.clone_ref(py)),
             filter_offset,
             is_real,
         })
@@ -1147,7 +1179,7 @@ impl Barrier {
 ///     count (int): Number of repetitions.
 ///     spacing (float): Spacing between repetitions. Defaults to 0.
 #[pyclass(extends=Element, get_all, frozen)]
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 struct Repeat {
     child: Py<Element>,
 }
@@ -1282,7 +1314,7 @@ fn extract_direction(obj: &Bound<PyAny>) -> PyResult<Direction> {
 ///     *children (Element): Child elements.
 ///     direction (str | Direction): Layout order. Defaults to 'backward'.
 #[pyclass(extends=Element, get_all, frozen)]
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 struct Stack {
     children: Vec<Py<Element>>,
 }
@@ -1383,10 +1415,19 @@ impl Stack {
 ///     time (float): Time relative to the start of the parent element.
 ///     element (Element): Child element.
 #[pyclass(get_all, frozen)]
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 struct AbsoluteEntry {
     time: Time,
     element: Py<Element>,
+}
+
+impl AbsoluteEntry {
+    fn clone_ref(&self, py: Python) -> Self {
+        Self {
+            time: self.time,
+            element: self.element.clone_ref(py),
+        }
+    }
 }
 
 #[pymethods]
@@ -1431,6 +1472,14 @@ impl AbsoluteEntry {
     }
 }
 
+impl<'py> FromPyObject<'py> for AbsoluteEntry {
+    fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
+        let py = ob.py();
+        let ob = ob.downcast_exact::<Self>()?.get();
+        Ok(ob.clone_ref(py))
+    }
+}
+
 fn extract_absolute_entry(obj: &Bound<PyAny>) -> PyResult<AbsoluteEntry> {
     AbsoluteEntry::convert(obj).and_then(|x| x.extract(obj.py()))
 }
@@ -1457,8 +1506,8 @@ fn extract_absolute_entry(obj: &Bound<PyAny>) -> PyResult<AbsoluteEntry> {
 ///             (1.0, element2),
 ///             AbsoluteEntry(2.0, element3),
 ///         )
-#[pyclass(extends=Element, get_all, frozen)]
-#[derive(Debug, Clone)]
+#[pyclass(extends=Element, frozen)]
+#[derive(Debug)]
 struct Absolute {
     children: Vec<AbsoluteEntry>,
 }
@@ -1557,6 +1606,12 @@ impl Absolute {
                 Element(Arc::new(schedule::Element::new(common, variant))),
             ),
         )
+    }
+
+    #[getter]
+    fn children(slf: &Bound<Self>) -> Vec<AbsoluteEntry> {
+        let py = slf.py();
+        slf.get().children.iter().map(|x| x.clone_ref(py)).collect()
     }
 }
 
@@ -1717,11 +1772,21 @@ fn extract_grid_length(obj: &Bound<PyAny>) -> PyResult<GridLength> {
 ///     column (int): Column index.
 ///     span (int): Column span.
 #[pyclass(get_all, frozen)]
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 struct GridEntry {
     element: Py<Element>,
     column: usize,
     span: usize,
+}
+
+impl GridEntry {
+    fn clone_ref(&self, py: Python) -> Self {
+        Self {
+            element: self.element.clone_ref(py),
+            column: self.column,
+            span: self.span,
+        }
+    }
 }
 
 #[pymethods]
@@ -1775,6 +1840,14 @@ impl GridEntry {
     }
 }
 
+impl<'py> FromPyObject<'py> for GridEntry {
+    fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
+        let py = ob.py();
+        let ob = ob.downcast_exact::<Self>()?.get();
+        Ok(ob.clone_ref(py))
+    }
+}
+
 fn extract_grid_entry(obj: &Bound<PyAny>) -> PyResult<GridEntry> {
     GridEntry::convert(obj).and_then(|x| x.extract(obj.py()))
 }
@@ -1823,8 +1896,8 @@ fn extract_grid_entry(obj: &Bound<PyAny>) -> PyResult<GridEntry> {
 ///             element4,
 ///             columns=['auto', '1*', '2'],
 ///         )
-#[pyclass(extends=Element, get_all, frozen)]
-#[derive(Debug, Clone)]
+#[pyclass(extends=Element, frozen)]
+#[derive(Debug)]
 struct Grid {
     children: Vec<GridEntry>,
 }
@@ -1942,6 +2015,12 @@ impl Grid {
     #[getter]
     fn columns(slf: &Bound<Self>) -> Vec<GridLength> {
         Self::variant(slf).columns().to_vec()
+    }
+
+    #[getter]
+    fn children(slf: &Bound<Self>) -> Vec<GridEntry> {
+        let py = slf.py();
+        slf.get().children.iter().map(|x| x.clone_ref(py)).collect()
     }
 }
 
