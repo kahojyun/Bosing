@@ -7,7 +7,7 @@ name = "bosing"
 dynamic = ["version"]
 description = "Waveform generator for pulse sequences in quantum computing"
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 keywords = []
 authors = [{ name = "kaho", email = "kaho0769@qq.com" }]
 classifiers = [
@@ -30,16 +30,15 @@ Source = "https://github.com/kahojyun/Bosing"
 features = ["pyo3/extension-module"]
 
 [tool.uv]
-environments = ["python_version>='3.10'"]
 dev-dependencies = [
   "mypy>=1.11.2",
   "ruff>=0.6.7",
-  "sphinx>=8.0.2",
-  "furo>=2024.8.6",
   "matplotlib>=3.9.2",
-  "scipy>=1.14.1",
   "taskipy>=1.13.0",
   "pytest>=8.3.3",
+  "scipy>=1.13.1",
+  "furo>=2024.8.6",
+  "sphinx>=7.4.7",
 ]
 cache-keys = [
   { file = "src/**/*.rs" },
@@ -62,3 +61,27 @@ test_rs = "cargo test"
 stubtest = "stubtest bosing --allowlist stubtest-allowlist.txt"
 makedocs = "sphinx-build -M html docs docs/_build"
 cleandocs = "sphinx-build -M clean docs docs/_build"
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = ["COM812", "ISC001"]
+isort.known-first-party = ["bosing"]
+[tool.ruff.lint.per-file-ignores]
+"examples/*.py" = ["INP", "D", "T201"]
+"tests/*.py" = ["INP", "D", "S101"]
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.basedpyright]
+include = ["examples", "tests", "docs"]
+exclude = ["**/node_modules", "**/__pycache__", "docs/_build"]
+[[tool.basedpyright.executionEnvironments]]
+root = "examples"
+reportAny = "none"
+reportMissingTypeStubs = "none"
+reportUnknownArgumentType = "none"
+reportUnknownVariableType = "none"
+reportUnknownMemberType = "none"
+reportUnknownParameterType = "none"
+reportUnusedCallResult = "none"
+reportMissingTypeArgument = "none"
