@@ -68,12 +68,13 @@ ignore = ["COM812", "ISC001"]
 isort.known-first-party = ["bosing"]
 [tool.ruff.lint.per-file-ignores]
 "examples/*.py" = ["INP", "D", "T201"]
+"benches/*.py" = ["INP", "D", "T201"]
 "tests/*.py" = ["INP", "D", "S101"]
 [tool.ruff.lint.pydocstyle]
 convention = "google"
 
 [tool.basedpyright]
-include = ["examples", "tests", "docs"]
+include = ["examples", "tests", "docs", "benches"]
 exclude = ["**/node_modules", "**/__pycache__", "docs/_build"]
 [[tool.basedpyright.executionEnvironments]]
 root = "examples"
