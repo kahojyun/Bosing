@@ -43,12 +43,18 @@ plt.legend()
 plt.show()
 ```
 
+## Performance
+
+`examples/schedule_stress.py` (0.15 s) vs `benches/naive.py` (1.4 s)
+
+CPU: AMD Ryzen 5 5600
+
 ## Development
 
 ### Prerequisites
 
 * Rustup for rust toolchain management.
-* [maturin](https://github.com/PyO3/maturin) 1.5+.
+* [maturin](https://github.com/PyO3/maturin) 1.7+.
 * [uv](https://github.com/astral-sh/uv) for python project management.
 
 ```bash

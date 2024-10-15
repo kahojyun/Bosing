@@ -33,8 +33,8 @@ bosing: 微波波形生成器
 从源码安装
 ----------
 
-#. 安装 Rust toolchain 1.74+
-#. 安装 Python 3.8+
+#. 安装 Rustup
+#. 安装 Python 3.9+
 #. Clone 本项目并安装
     .. code-block:: console
 
