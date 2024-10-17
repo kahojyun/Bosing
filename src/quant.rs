@@ -1,4 +1,5 @@
 use std::{
+    fmt::Display,
     iter::Sum,
     ops::{Add, AddAssign, Div, Mul, Neg, Sub, SubAssign},
     sync::Arc,
@@ -249,6 +250,12 @@ macro_rules! impl_quant {
             }
         }
 
+        impl ToPyObject for $t {
+            fn to_object(&self, py: Python<'_>) -> PyObject {
+                PyFloat::new_bound(py, self.value()).into()
+            }
+        }
+
         impl From<$t> for f64 {
             fn from(q: $t) -> Self {
                 q.value()
@@ -260,6 +267,12 @@ macro_rules! impl_quant {
 
             fn try_from(value: f64) -> Result<Self> {
                 Self::new(value)
+            }
+        }
+
+        impl Display for $t {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                self.value().fmt(f)
             }
         }
     };

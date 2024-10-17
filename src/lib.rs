@@ -10,12 +10,14 @@ mod shape;
 use std::{borrow::Borrow, fmt::Debug, str::FromStr, sync::Arc};
 
 use hashbrown::HashMap;
+use itertools::Itertools;
 use ndarray::ArrayViewMut2;
 use numpy::{prelude::*, AllowTypeChange, PyArray1, PyArray2, PyArrayLike1, PyArrayLike2};
 use pyo3::{
     exceptions::{PyRuntimeError, PyTypeError, PyValueError},
+    intern,
     prelude::*,
-    types::{DerefToPyAny, PyDict},
+    types::{DerefToPyAny, PyDict, PyString},
 };
 use rayon::prelude::*;
 
@@ -102,15 +104,15 @@ impl Channel {
         length: usize,
         delay: Time,
         align_level: i32,
-        mut iq_matrix: Option<PyArrayLike2<f64, AllowTypeChange>>,
+        iq_matrix: Option<PyArrayLike2<f64, AllowTypeChange>>,
         offset: Option<PyArrayLike1<f64, AllowTypeChange>>,
         iir: Option<PyArrayLike2<f64, AllowTypeChange>>,
         fir: Option<PyArrayLike1<f64, AllowTypeChange>>,
         filter_offset: bool,
         is_real: bool,
     ) -> PyResult<Self> {
-        if is_real {
-            iq_matrix = None;
+        if is_real && iq_matrix.is_some() {
+            return Err(PyValueError::new_err("iq_matrix conflicts with is_real"));
         }
         let iq_matrix = if let Some(iq_matrix) = iq_matrix {
             if iq_matrix.shape() != [2, 2] {
@@ -168,6 +170,119 @@ impl Channel {
             filter_offset,
             is_real,
         })
+    }
+
+    fn __repr__(&self, py: Python) -> PyResult<String> {
+        self.to_repr("Channel", py)
+    }
+
+    fn __rich_repr__(&self, py: Python) -> Vec<PyObject> {
+        self.to_rich_repr(py)
+    }
+}
+
+macro_rules! repr_list {
+    ($self:ident, $py:ident, $($pos:ident),* $(,)*; $($kw:ident),* $(,)*; $($kwn:ident=$kwd:expr),* $(,)*) => {
+        [
+            $(Arg::pos($self.$pos, $py),)*
+            $(Arg::kw(
+                intern!($py, stringify!($kw)).clone().unbind(),
+                &$self.$kw,
+                $py,
+            ),)*
+            $(Arg::kwd(
+                intern!($py, stringify!($kwn)).clone().unbind(),
+                &$self.$kwn,
+                &$kwd,
+                $py,
+            ),)*
+        ]
+    };
+}
+
+trait RichRepr {
+    fn repr(&self, py: Python) -> impl IntoIterator<Item = Arg>;
+
+    fn to_rich_repr(&self, py: Python) -> Vec<PyObject> {
+        self.repr(py)
+            .into_iter()
+            .map(|x| x.into_rich_item(py))
+            .collect()
+    }
+
+    fn to_repr(&self, cls_name: &str, py: Python) -> PyResult<String> {
+        Ok(format!(
+            "{}({})",
+            cls_name,
+            self.repr(py)
+                .into_iter()
+                .map(|x| x.fmt(py))
+                .flatten_ok()
+                .collect::<PyResult<Vec<_>>>()?
+                .join(", ")
+        ))
+    }
+}
+
+impl RichRepr for Channel {
+    fn repr(&self, py: Python<'_>) -> impl IntoIterator<Item = Arg> {
+        repr_list!(self, py,
+            base_freq,
+            sample_rate,
+            length,
+            ;;
+            delay=Time::ZERO,
+            align_level=-10,
+            iq_matrix=None,
+            offset=None,
+            fir=None,
+            iir=None,
+            filter_offset=false,
+            is_real=false,
+        )
+    }
+}
+
+enum Arg {
+    Pos(PyObject),
+    Kw(Py<PyString>, PyObject),
+    KwDefault(Py<PyString>, PyObject, PyObject),
+}
+
+impl Arg {
+    fn pos<T: ToPyObject>(value: T, py: Python) -> Self {
+        Self::Pos(value.to_object(py))
+    }
+
+    fn kw<T: ToPyObject>(key: Py<PyString>, value: T, py: Python) -> Self {
+        Self::Kw(key, value.to_object(py))
+    }
+
+    fn kwd<T: ToPyObject>(key: Py<PyString>, value: T, default: T, py: Python) -> Self {
+        Self::KwDefault(key, value.to_object(py), default.to_object(py))
+    }
+
+    fn fmt(&self, py: Python) -> PyResult<Option<String>> {
+        let result = match self {
+            Arg::Pos(v) => Some(v.bind(py).repr()?.to_string()),
+            Arg::Kw(n, v) => Some(format!("{}={}", n, v.bind(py).repr()?)),
+            Arg::KwDefault(n, v, d) => {
+                if !matches!(v.bind(py).eq(d), Ok(true)) {
+                    Some(format!("{}={}", n, v.bind(py).repr()?))
+                } else {
+                    None
+                }
+            }
+        };
+        Ok(result)
+    }
+
+    fn into_rich_item(self, py: Python) -> PyObject {
+        match self {
+            Arg::Pos(v) => (v,).into_py(py),
+            Arg::Kw(n, v) => (n, v).into_py(py),
+            Arg::KwDefault(n, v, d) => (n, v, d).into_py(py),
+        }
     }
 }
 
@@ -254,6 +369,20 @@ impl OscState {
     ///     OscState: The new state.
     fn with_time_shift(&self, time: Time) -> Self {
         executor::OscState::from(*self).with_time_shift(time).into()
+    }
+
+    fn __repr__(&self, py: Python) -> PyResult<String> {
+        self.to_repr("Channel", py)
+    }
+
+    fn __rich_repr__(&self, py: Python) -> Vec<PyObject> {
+        self.to_rich_repr(py)
+    }
+}
+
+impl RichRepr for OscState {
+    fn repr(&self, py: Python) -> impl IntoIterator<Item = Arg> {
+        repr_list!(self, py, base_freq, delta_freq, phase;;)
     }
 }
 
