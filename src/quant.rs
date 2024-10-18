@@ -299,7 +299,7 @@ macro_rules! impl_id {
 
         impl<'py> FromPyObject<'py> for $t {
             fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
-                let name = ob.extract::<&str>()?;
+                let name = ob.extract::<String>()?;
                 Ok(Self::new(name))
             }
         }
