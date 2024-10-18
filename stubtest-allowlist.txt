@@ -1,1 +1,17 @@
 bosing.bosing
+bosing.Absolute.__rich_repr__
+bosing.AbsoluteEntry.__rich_repr__
+bosing.Barrier.__rich_repr__
+bosing.Channel.__rich_repr__
+bosing.Grid.__rich_repr__
+bosing.GridEntry.__rich_repr__
+bosing.GridLength.__rich_repr__
+bosing.OscState.__rich_repr__
+bosing.Play.__rich_repr__
+bosing.Repeat.__rich_repr__
+bosing.SetFreq.__rich_repr__
+bosing.SetPhase.__rich_repr__
+bosing.ShiftFreq.__rich_repr__
+bosing.ShiftPhase.__rich_repr__
+bosing.Stack.__rich_repr__
+bosing.SwapPhase.__rich_repr__
