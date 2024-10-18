@@ -435,8 +435,8 @@ impl Alignment {
         if let Ok(slf) = obj.extract() {
             return Ok(slf);
         }
-        if let Ok(s) = obj.extract() {
-            let alignment = match s {
+        if let Ok(s) = obj.extract::<String>() {
+            let alignment = match s.as_str() {
                 "end" => Some(Alignment::End),
                 "start" => Some(Alignment::Start),
                 "center" => Some(Alignment::Center),
@@ -1666,8 +1666,8 @@ impl Direction {
         if let Ok(slf) = obj.extract() {
             return Ok(slf);
         }
-        if let Ok(s) = obj.extract() {
-            let direction = match s {
+        if let Ok(s) = obj.extract::<String>() {
+            let direction = match s.as_str() {
                 "backward" => Some(Direction::Backward),
                 "forward" => Some(Direction::Forward),
                 _ => None,
@@ -2171,8 +2171,8 @@ impl GridLength {
         if let Ok(v) = obj.extract() {
             return Py::new(py, GridLength::fixed(v)?);
         }
-        if let Ok(s) = obj.extract() {
-            return Py::new(py, GridLength::from_str(s)?);
+        if let Ok(s) = obj.extract::<String>() {
+            return Py::new(py, GridLength::from_str(&s)?);
         }
         Err(PyValueError::new_err(
             "Failed to convert the value to GridLength.",
