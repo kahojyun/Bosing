@@ -191,7 +191,7 @@ impl Channel {
 macro_rules! repr_list {
     ($self:ident, $py:ident, $($pos:ident),* $(,)*; $($kw:ident),* $(,)*; $($kwn:ident=$kwd:expr),* $(,)*) => {
         [
-            $(Arg::pos($self.$pos, $py),)*
+            $(Arg::pos(&$self.$pos, $py),)*
             $(Arg::kw(
                 intern!($py, stringify!($kw)).clone().unbind(),
                 &$self.$kw,
@@ -2152,6 +2152,21 @@ impl AbsoluteEntry {
             "Failed to convert the value to AbsoluteEntry",
         ))
     }
+
+    fn __repr__(slf: &Bound<Self>) -> PyResult<String> {
+        let cls_name = slf.get_type().qualname()?;
+        slf.borrow().to_repr(cls_name, slf.py())
+    }
+
+    fn __rich_repr__(&self, py: Python) -> Vec<PyObject> {
+        self.to_rich_repr(py)
+    }
+}
+
+impl RichRepr for AbsoluteEntry {
+    fn repr(&self, py: Python) -> impl IntoIterator<Item = Arg> {
+        repr_list!(self, py, time, element;;)
+    }
 }
 
 impl<'py> FromPyObject<'py> for AbsoluteEntry {
@@ -2369,6 +2384,12 @@ enum GridLengthUnit {
     Star,
 }
 
+impl ToPyObject for GridLengthUnit {
+    fn to_object(&self, py: Python<'_>) -> PyObject {
+        (*self).into_py(py)
+    }
+}
+
 /// Length of a grid column.
 ///
 /// :class:`GridLength` is used to specify the length of a grid column. The
@@ -2463,6 +2484,21 @@ impl GridLength {
         Err(PyValueError::new_err(
             "Failed to convert the value to GridLength.",
         ))
+    }
+
+    fn __repr__(slf: &Bound<Self>) -> PyResult<String> {
+        let cls_name = slf.get_type().qualname()?;
+        slf.borrow().to_repr(cls_name, slf.py())
+    }
+
+    fn __rich_repr__(&self, py: Python) -> Vec<PyObject> {
+        self.to_rich_repr(py)
+    }
+}
+
+impl RichRepr for GridLength {
+    fn repr(&self, py: Python) -> impl IntoIterator<Item = Arg> {
+        repr_list!(self, py, value, unit;;)
     }
 }
 
@@ -2582,6 +2618,21 @@ impl GridEntry {
         Err(PyValueError::new_err(
             "Failed to convert the value to GridEntry.",
         ))
+    }
+
+    fn __repr__(slf: &Bound<Self>) -> PyResult<String> {
+        let cls_name = slf.get_type().qualname()?;
+        slf.borrow().to_repr(cls_name, slf.py())
+    }
+
+    fn __rich_repr__(&self, py: Python) -> Vec<PyObject> {
+        self.to_rich_repr(py)
+    }
+}
+
+impl RichRepr for GridEntry {
+    fn repr(&self, py: Python) -> impl IntoIterator<Item = Arg> {
+        repr_list!(self, py, element;; column=0, span=1)
     }
 }
 
