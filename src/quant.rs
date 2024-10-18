@@ -315,6 +315,12 @@ macro_rules! impl_id {
                 self.0.to_object(py)
             }
         }
+
+        impl ToPyObject for $t {
+            fn to_object(&self, py: Python<'_>) -> PyObject {
+                self.0.to_object(py)
+            }
+        }
     };
 }
 
