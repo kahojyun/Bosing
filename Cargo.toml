@@ -20,9 +20,9 @@ itertools = "0.13.0"
 ndarray = { version = "0.16.1", features = ["rayon"] }
 num = "0.4.3"
 numpy = "0.22.0"
-ordered-float = "4.3.0"
+ordered-float = "4.4.0"
 pulp = "0.18.22"
-pyo3 = { version = "0.22.4", features = ["hashbrown", "anyhow"] }
+pyo3 = { version = "0.22.5", features = ["hashbrown", "anyhow"] }
 rayon = "1.10.0"
 thiserror = "1.0.64"
 
