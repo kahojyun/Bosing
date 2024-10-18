@@ -7,17 +7,25 @@ mod quant;
 mod schedule;
 mod shape;
 
-use std::{borrow::Borrow, fmt::Debug, str::FromStr, sync::Arc};
+use std::{
+    borrow::Borrow,
+    fmt::{Debug, Display},
+    str::FromStr,
+    sync::Arc,
+};
 
 use hashbrown::HashMap;
+use itertools::Itertools;
 use ndarray::ArrayViewMut2;
 use numpy::{prelude::*, AllowTypeChange, PyArray1, PyArray2, PyArrayLike1, PyArrayLike2};
 use pyo3::{
     exceptions::{PyRuntimeError, PyTypeError, PyValueError},
+    intern,
     prelude::*,
-    types::{DerefToPyAny, PyDict},
+    types::{DerefToPyAny, PyDict, PyString},
 };
 use rayon::prelude::*;
+use schedule::ElementCommon;
 
 use crate::{
     executor::Executor,
@@ -102,15 +110,15 @@ impl Channel {
         length: usize,
         delay: Time,
         align_level: i32,
-        mut iq_matrix: Option<PyArrayLike2<f64, AllowTypeChange>>,
+        iq_matrix: Option<PyArrayLike2<f64, AllowTypeChange>>,
         offset: Option<PyArrayLike1<f64, AllowTypeChange>>,
         iir: Option<PyArrayLike2<f64, AllowTypeChange>>,
         fir: Option<PyArrayLike1<f64, AllowTypeChange>>,
         filter_offset: bool,
         is_real: bool,
     ) -> PyResult<Self> {
-        if is_real {
-            iq_matrix = None;
+        if is_real && iq_matrix.is_some() {
+            return Err(PyValueError::new_err("iq_matrix conflicts with is_real"));
         }
         let iq_matrix = if let Some(iq_matrix) = iq_matrix {
             if iq_matrix.shape() != [2, 2] {
@@ -168,6 +176,120 @@ impl Channel {
             filter_offset,
             is_real,
         })
+    }
+
+    fn __repr__(slf: &Bound<Self>) -> PyResult<String> {
+        let cls_name = slf.get_type().qualname()?;
+        slf.get().to_repr(cls_name, slf.py())
+    }
+
+    fn __rich_repr__(&self, py: Python) -> Vec<PyObject> {
+        self.to_rich_repr(py)
+    }
+}
+
+macro_rules! repr_list {
+    ($self:ident, $py:ident, $($pos:ident),* $(,)*; $($kw:ident),* $(,)*; $($kwn:ident=$kwd:expr),* $(,)*) => {
+        [
+            $(Arg::pos(&$self.$pos, $py),)*
+            $(Arg::kw(
+                intern!($py, stringify!($kw)).clone().unbind(),
+                &$self.$kw,
+                $py,
+            ),)*
+            $(Arg::kwd(
+                intern!($py, stringify!($kwn)).clone().unbind(),
+                &$self.$kwn,
+                &$kwd,
+                $py,
+            ),)*
+        ]
+    };
+}
+
+trait RichRepr {
+    fn repr(&self, py: Python) -> impl IntoIterator<Item = Arg>;
+
+    fn to_rich_repr(&self, py: Python) -> Vec<PyObject> {
+        self.repr(py)
+            .into_iter()
+            .map(|x| x.into_rich_item(py))
+            .collect()
+    }
+
+    fn to_repr(&self, cls_name: impl Display, py: Python) -> PyResult<String> {
+        Ok(format!(
+            "{}({})",
+            cls_name,
+            self.repr(py)
+                .into_iter()
+                .map(|x| x.fmt(py))
+                .flatten_ok()
+                .collect::<PyResult<Vec<_>>>()?
+                .join(", ")
+        ))
+    }
+}
+
+impl RichRepr for Channel {
+    fn repr(&self, py: Python<'_>) -> impl IntoIterator<Item = Arg> {
+        repr_list!(self, py,
+            base_freq,
+            sample_rate,
+            length,
+            ;;
+            delay=Time::ZERO,
+            align_level=-10,
+            iq_matrix=None,
+            offset=None,
+            fir=None,
+            iir=None,
+            filter_offset=false,
+            is_real=false,
+        )
+    }
+}
+
+enum Arg {
+    Pos(PyObject),
+    Kw(Py<PyString>, PyObject),
+    KwDefault(Py<PyString>, PyObject, PyObject),
+}
+
+impl Arg {
+    fn pos<T: ToPyObject>(value: T, py: Python) -> Self {
+        Self::Pos(value.to_object(py))
+    }
+
+    fn kw<T: ToPyObject>(key: Py<PyString>, value: T, py: Python) -> Self {
+        Self::Kw(key, value.to_object(py))
+    }
+
+    fn kwd<T: ToPyObject>(key: Py<PyString>, value: T, default: T, py: Python) -> Self {
+        Self::KwDefault(key, value.to_object(py), default.to_object(py))
+    }
+
+    fn fmt(&self, py: Python) -> PyResult<Option<String>> {
+        let result = match self {
+            Arg::Pos(v) => Some(v.bind(py).repr()?.to_string()),
+            Arg::Kw(n, v) => Some(format!("{}={}", n, v.bind(py).repr()?)),
+            Arg::KwDefault(n, v, d) => {
+                if !matches!(v.bind(py).eq(d), Ok(true)) {
+                    Some(format!("{}={}", n, v.bind(py).repr()?))
+                } else {
+                    None
+                }
+            }
+        };
+        Ok(result)
+    }
+
+    fn into_rich_item(self, py: Python) -> PyObject {
+        match self {
+            Arg::Pos(v) => (v,).into_py(py),
+            Arg::Kw(n, v) => (n, v).into_py(py),
+            Arg::KwDefault(n, v, d) => (n, v, d).into_py(py),
+        }
     }
 }
 
@@ -254,6 +376,21 @@ impl OscState {
     ///     OscState: The new state.
     fn with_time_shift(&self, time: Time) -> Self {
         executor::OscState::from(*self).with_time_shift(time).into()
+    }
+
+    fn __repr__(slf: &Bound<Self>) -> PyResult<String> {
+        let cls_name = slf.get_type().qualname()?;
+        slf.borrow().to_repr(cls_name, slf.py())
+    }
+
+    fn __rich_repr__(&self, py: Python) -> Vec<PyObject> {
+        self.to_rich_repr(py)
+    }
+}
+
+impl RichRepr for OscState {
+    fn repr(&self, py: Python) -> impl IntoIterator<Item = Arg> {
+        repr_list!(self, py, base_freq, delta_freq, phase;;)
     }
 }
 
@@ -558,11 +695,20 @@ where
 {
     type Variant: Into<schedule::ElementVariant>;
 
-    fn variant<'a>(slf: &'a Bound<Self>) -> &'a Self::Variant {
+    fn inner<'a>(slf: &'a Bound<Self>) -> &'a ElementRef {
         slf.downcast::<Element>()
             .expect("Self should be a subclass of Element")
             .get()
             .0
+            .borrow()
+    }
+
+    fn common<'a>(slf: &'a Bound<Self>) -> &'a ElementCommon {
+        Self::inner(slf).common.borrow()
+    }
+
+    fn variant<'a>(slf: &'a Bound<Self>) -> &'a Self::Variant {
+        Self::inner(slf)
             .variant
             .borrow()
             .try_into()
@@ -592,6 +738,48 @@ where
             .min_duration(min_duration);
         let common = builder.build()?;
         Ok(Element(Arc::new(schedule::Element::new(common, variant))))
+    }
+
+    fn common_repr(slf: &Bound<Self>) -> impl IntoIterator<Item = Arg> {
+        let py = slf.py();
+        [
+            Arg::kwd(
+                intern!(py, "margin").clone().unbind(),
+                Self::common(slf).margin(),
+                (Time::ZERO, Time::ZERO),
+                py,
+            ),
+            Arg::kwd(
+                intern!(py, "alignment").clone().unbind(),
+                Self::common(slf).alignment().into_py(py),
+                Alignment::End.into_py(py),
+                py,
+            ),
+            Arg::kwd(
+                intern!(py, "phantom").clone().unbind(),
+                Self::common(slf).phantom(),
+                false,
+                py,
+            ),
+            Arg::kwd(
+                intern!(py, "duration").clone().unbind(),
+                Self::common(slf).duration(),
+                None,
+                py,
+            ),
+            Arg::kwd(
+                intern!(py, "max_duration").clone().unbind(),
+                Self::common(slf).max_duration(),
+                Time::INFINITY,
+                py,
+            ),
+            Arg::kwd(
+                intern!(py, "min_duration").clone().unbind(),
+                Self::common(slf).min_duration(),
+                Time::ZERO,
+                py,
+            ),
+        ]
     }
 }
 
@@ -747,6 +935,58 @@ impl Play {
     fn flexible(slf: &Bound<Self>) -> bool {
         Self::variant(slf).flexible()
     }
+
+    fn __repr__(slf: &Bound<Self>) -> PyResult<String> {
+        let cls_name = slf.get_type().qualname()?;
+        slf.to_repr(cls_name, slf.py())
+    }
+
+    fn __rich_repr__(slf: &Bound<Self>) -> Vec<PyObject> {
+        slf.to_rich_repr(slf.py())
+    }
+}
+
+impl<'py> RichRepr for Bound<'py, Play> {
+    fn repr(&self, py: Python) -> impl IntoIterator<Item = Arg> {
+        [
+            Arg::pos(Play::variant(self).channel_id(), py),
+            Arg::pos(Play::variant(self).shape_id(), py),
+            Arg::pos(Play::variant(self).amplitude(), py),
+            Arg::pos(Play::variant(self).width(), py),
+            Arg::kwd(
+                intern!(py, "plateau").clone().unbind(),
+                Play::variant(self).plateau(),
+                Time::ZERO,
+                py,
+            ),
+            Arg::kwd(
+                intern!(py, "drag_coef").clone().unbind(),
+                Play::variant(self).drag_coef(),
+                0.0,
+                py,
+            ),
+            Arg::kwd(
+                intern!(py, "frequency").clone().unbind(),
+                Play::variant(self).frequency(),
+                Frequency::ZERO,
+                py,
+            ),
+            Arg::kwd(
+                intern!(py, "phase").clone().unbind(),
+                Play::variant(self).phase(),
+                Phase::ZERO,
+                py,
+            ),
+            Arg::kwd(
+                intern!(py, "flexible").clone().unbind(),
+                Play::variant(self).flexible(),
+                false,
+                py,
+            ),
+        ]
+        .into_iter()
+        .chain(Play::common_repr(self))
+    }
 }
 
 /// A phase shift element.
@@ -818,6 +1058,26 @@ impl ShiftPhase {
     #[getter]
     fn phase(slf: &Bound<Self>) -> Phase {
         Self::variant(slf).phase()
+    }
+
+    fn __repr__(slf: &Bound<Self>) -> PyResult<String> {
+        let cls_name = slf.get_type().qualname()?;
+        slf.to_repr(cls_name, slf.py())
+    }
+
+    fn __rich_repr__(slf: &Bound<Self>) -> Vec<PyObject> {
+        slf.to_rich_repr(slf.py())
+    }
+}
+
+impl<'py> RichRepr for Bound<'py, ShiftPhase> {
+    fn repr(&self, py: Python) -> impl IntoIterator<Item = Arg> {
+        [
+            Arg::pos(ShiftPhase::variant(self).channel_id(), py),
+            Arg::pos(ShiftPhase::variant(self).phase(), py),
+        ]
+        .into_iter()
+        .chain(ShiftPhase::common_repr(self))
     }
 }
 
@@ -899,6 +1159,26 @@ impl SetPhase {
     fn phase(slf: &Bound<Self>) -> Phase {
         Self::variant(slf).phase()
     }
+
+    fn __repr__(slf: &Bound<Self>) -> PyResult<String> {
+        let cls_name = slf.get_type().qualname()?;
+        slf.to_repr(cls_name, slf.py())
+    }
+
+    fn __rich_repr__(slf: &Bound<Self>) -> Vec<PyObject> {
+        slf.to_rich_repr(slf.py())
+    }
+}
+
+impl<'py> RichRepr for Bound<'py, SetPhase> {
+    fn repr(&self, py: Python) -> impl IntoIterator<Item = Arg> {
+        [
+            Arg::pos(SetPhase::variant(self).channel_id(), py),
+            Arg::pos(SetPhase::variant(self).phase(), py),
+        ]
+        .into_iter()
+        .chain(SetPhase::common_repr(self))
+    }
 }
 
 /// A frequency shift element.
@@ -966,6 +1246,26 @@ impl ShiftFreq {
     #[getter]
     fn frequency(slf: &Bound<Self>) -> Frequency {
         Self::variant(slf).frequency()
+    }
+
+    fn __repr__(slf: &Bound<Self>) -> PyResult<String> {
+        let cls_name = slf.get_type().qualname()?;
+        slf.to_repr(cls_name, slf.py())
+    }
+
+    fn __rich_repr__(slf: &Bound<Self>) -> Vec<PyObject> {
+        slf.to_rich_repr(slf.py())
+    }
+}
+
+impl<'py> RichRepr for Bound<'py, ShiftFreq> {
+    fn repr(&self, py: Python) -> impl IntoIterator<Item = Arg> {
+        [
+            Arg::pos(ShiftFreq::variant(self).channel_id(), py),
+            Arg::pos(ShiftFreq::variant(self).frequency(), py),
+        ]
+        .into_iter()
+        .chain(ShiftFreq::common_repr(self))
     }
 }
 
@@ -1035,6 +1335,26 @@ impl SetFreq {
     #[getter]
     fn frequency(slf: &Bound<Self>) -> Frequency {
         Self::variant(slf).frequency()
+    }
+
+    fn __repr__(slf: &Bound<Self>) -> PyResult<String> {
+        let cls_name = slf.get_type().qualname()?;
+        slf.to_repr(cls_name, slf.py())
+    }
+
+    fn __rich_repr__(slf: &Bound<Self>) -> Vec<PyObject> {
+        slf.to_rich_repr(slf.py())
+    }
+}
+
+impl<'py> RichRepr for Bound<'py, SetFreq> {
+    fn repr(&self, py: Python) -> impl IntoIterator<Item = Arg> {
+        [
+            Arg::pos(SetFreq::variant(self).channel_id(), py),
+            Arg::pos(SetFreq::variant(self).frequency(), py),
+        ]
+        .into_iter()
+        .chain(SetFreq::common_repr(self))
     }
 }
 
@@ -1107,6 +1427,26 @@ impl SwapPhase {
     fn channel_id2<'a>(slf: &'a Bound<Self>) -> &'a ChannelId {
         Self::variant(slf).channel_id2()
     }
+
+    fn __repr__(slf: &Bound<Self>) -> PyResult<String> {
+        let cls_name = slf.get_type().qualname()?;
+        slf.to_repr(cls_name, slf.py())
+    }
+
+    fn __rich_repr__(slf: &Bound<Self>) -> Vec<PyObject> {
+        slf.to_rich_repr(slf.py())
+    }
+}
+
+impl<'py> RichRepr for Bound<'py, SwapPhase> {
+    fn repr(&self, py: Python) -> impl IntoIterator<Item = Arg> {
+        [
+            Arg::pos(SwapPhase::variant(self).channel_id1(), py),
+            Arg::pos(SwapPhase::variant(self).channel_id2(), py),
+        ]
+        .into_iter()
+        .chain(SwapPhase::common_repr(self))
+    }
 }
 
 /// A barrier element.
@@ -1167,6 +1507,26 @@ impl Barrier {
     #[getter]
     fn channel_ids(slf: &Bound<Self>) -> Vec<ChannelId> {
         Self::variant(slf).channel_ids().to_vec()
+    }
+
+    fn __repr__(slf: &Bound<Self>) -> PyResult<String> {
+        let cls_name = slf.get_type().qualname()?;
+        slf.to_repr(cls_name, slf.py())
+    }
+
+    fn __rich_repr__(slf: &Bound<Self>) -> Vec<PyObject> {
+        slf.to_rich_repr(slf.py())
+    }
+}
+
+impl<'py> RichRepr for Bound<'py, Barrier> {
+    fn repr(&self, py: Python) -> impl IntoIterator<Item = Arg> {
+        Barrier::variant(self)
+            .channel_ids()
+            .iter()
+            .map(|x| Arg::pos(x, py))
+            .chain(Barrier::common_repr(self))
+            .collect_vec()
     }
 }
 
@@ -1239,6 +1599,32 @@ impl Repeat {
     #[getter]
     fn spacing(slf: &Bound<Self>) -> Time {
         Self::variant(slf).spacing()
+    }
+
+    fn __repr__(slf: &Bound<Self>) -> PyResult<String> {
+        let cls_name = slf.get_type().qualname()?;
+        slf.to_repr(cls_name, slf.py())
+    }
+
+    fn __rich_repr__(slf: &Bound<Self>) -> Vec<PyObject> {
+        slf.to_rich_repr(slf.py())
+    }
+}
+
+impl<'py> RichRepr for Bound<'py, Repeat> {
+    fn repr(&self, py: Python) -> impl IntoIterator<Item = Arg> {
+        [
+            Arg::pos(&self.get().child, py),
+            Arg::pos(Repeat::variant(self).count(), py),
+            Arg::kwd(
+                intern!(py, "spacing").clone().unbind(),
+                Repeat::variant(self).spacing(),
+                Time::ZERO,
+                py,
+            ),
+        ]
+        .into_iter()
+        .chain(Repeat::common_repr(self))
     }
 }
 
@@ -1404,6 +1790,32 @@ impl Stack {
     fn direction(slf: &Bound<Self>) -> Direction {
         Self::variant(slf).direction()
     }
+
+    fn __repr__(slf: &Bound<Self>) -> PyResult<String> {
+        let cls_name = slf.get_type().qualname()?;
+        slf.to_repr(cls_name, slf.py())
+    }
+
+    fn __rich_repr__(slf: &Bound<Self>) -> Vec<PyObject> {
+        slf.to_rich_repr(slf.py())
+    }
+}
+
+impl<'py> RichRepr for Bound<'py, Stack> {
+    fn repr(&self, py: Python) -> impl IntoIterator<Item = Arg> {
+        self.get()
+            .children
+            .iter()
+            .map(|x| Arg::pos(x, py))
+            .chain([Arg::kwd(
+                intern!(py, "direction").clone().unbind(),
+                Stack::variant(self).direction().into_py(py),
+                Direction::Backward.into_py(py),
+                py,
+            )])
+            .chain(Stack::common_repr(self))
+            .collect_vec()
+    }
 }
 
 /// A child element with an absolute time in a absolute layout.
@@ -1469,6 +1881,21 @@ impl AbsoluteEntry {
         Err(PyValueError::new_err(
             "Failed to convert the value to AbsoluteEntry",
         ))
+    }
+
+    fn __repr__(slf: &Bound<Self>) -> PyResult<String> {
+        let cls_name = slf.get_type().qualname()?;
+        slf.borrow().to_repr(cls_name, slf.py())
+    }
+
+    fn __rich_repr__(&self, py: Python) -> Vec<PyObject> {
+        self.to_rich_repr(py)
+    }
+}
+
+impl RichRepr for AbsoluteEntry {
+    fn repr(&self, py: Python) -> impl IntoIterator<Item = Arg> {
+        repr_list!(self, py, time, element;;)
     }
 }
 
@@ -1613,6 +2040,26 @@ impl Absolute {
         let py = slf.py();
         slf.get().children.iter().map(|x| x.clone_ref(py)).collect()
     }
+
+    fn __repr__(slf: &Bound<Self>) -> PyResult<String> {
+        let cls_name = slf.get_type().qualname()?;
+        slf.to_repr(cls_name, slf.py())
+    }
+
+    fn __rich_repr__(slf: &Bound<Self>) -> Vec<PyObject> {
+        slf.to_rich_repr(slf.py())
+    }
+}
+
+impl<'py> RichRepr for Bound<'py, Absolute> {
+    fn repr(&self, py: Python) -> impl IntoIterator<Item = Arg> {
+        self.get()
+            .children
+            .iter()
+            .map(|x| Arg::pos(x.clone_ref(py).into_py(py), py))
+            .chain(Absolute::common_repr(self))
+            .collect_vec()
+    }
 }
 
 /// Unit of grid length.
@@ -1628,6 +2075,12 @@ enum GridLengthUnit {
     Seconds,
     Auto,
     Star,
+}
+
+impl ToPyObject for GridLengthUnit {
+    fn to_object(&self, py: Python<'_>) -> PyObject {
+        (*self).into_py(py)
+    }
 }
 
 /// Length of a grid column.
@@ -1725,6 +2178,21 @@ impl GridLength {
             "Failed to convert the value to GridLength.",
         ))
     }
+
+    fn __repr__(slf: &Bound<Self>) -> PyResult<String> {
+        let cls_name = slf.get_type().qualname()?;
+        slf.borrow().to_repr(cls_name, slf.py())
+    }
+
+    fn __rich_repr__(&self, py: Python) -> Vec<PyObject> {
+        self.to_rich_repr(py)
+    }
+}
+
+impl RichRepr for GridLength {
+    fn repr(&self, py: Python) -> impl IntoIterator<Item = Arg> {
+        repr_list!(self, py, value, unit;;)
+    }
 }
 
 impl GridLength {
@@ -1758,6 +2226,12 @@ impl FromStr for GridLength {
             return Ok(GridLength::fixed(v)?);
         }
         Err(anyhow::anyhow!("Invalid GridLength string: {}", s))
+    }
+}
+
+impl ToPyObject for GridLength {
+    fn to_object(&self, py: Python<'_>) -> PyObject {
+        self.clone().into_py(py)
     }
 }
 
@@ -1837,6 +2311,21 @@ impl GridEntry {
         Err(PyValueError::new_err(
             "Failed to convert the value to GridEntry.",
         ))
+    }
+
+    fn __repr__(slf: &Bound<Self>) -> PyResult<String> {
+        let cls_name = slf.get_type().qualname()?;
+        slf.borrow().to_repr(cls_name, slf.py())
+    }
+
+    fn __rich_repr__(&self, py: Python) -> Vec<PyObject> {
+        self.to_rich_repr(py)
+    }
+}
+
+impl RichRepr for GridEntry {
+    fn repr(&self, py: Python) -> impl IntoIterator<Item = Arg> {
+        repr_list!(self, py, element;; column=0, span=1)
     }
 }
 
@@ -2021,6 +2510,31 @@ impl Grid {
     fn children(slf: &Bound<Self>) -> Vec<GridEntry> {
         let py = slf.py();
         slf.get().children.iter().map(|x| x.clone_ref(py)).collect()
+    }
+
+    fn __repr__(slf: &Bound<Self>) -> PyResult<String> {
+        let cls_name = slf.get_type().qualname()?;
+        slf.to_repr(cls_name, slf.py())
+    }
+
+    fn __rich_repr__(slf: &Bound<Self>) -> Vec<PyObject> {
+        slf.to_rich_repr(slf.py())
+    }
+}
+
+impl<'py> RichRepr for Bound<'py, Grid> {
+    fn repr(&self, py: Python) -> impl IntoIterator<Item = Arg> {
+        self.get()
+            .children
+            .iter()
+            .map(|x| Arg::pos(x.clone_ref(py).into_py(py), py))
+            .chain([Arg::kw(
+                intern!(py, "columns").clone().unbind(),
+                Grid::variant(self).columns(),
+                py,
+            )])
+            .chain(Grid::common_repr(self))
+            .collect_vec()
     }
 }
 

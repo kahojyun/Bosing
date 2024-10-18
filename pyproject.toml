@@ -39,6 +39,7 @@ dev-dependencies = [
   "scipy>=1.13.1",
   "furo>=2024.8.6",
   "sphinx>=7.4.7",
+  "rich>=13.9.2",
 ]
 cache-keys = [
   { file = "src/**/*.rs" },
