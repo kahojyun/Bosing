@@ -739,6 +739,48 @@ where
         let common = builder.build()?;
         Ok(Element(Arc::new(schedule::Element::new(common, variant))))
     }
+
+    fn common_repr(slf: &Bound<Self>) -> impl IntoIterator<Item = Arg> {
+        let py = slf.py();
+        [
+            Arg::kwd(
+                intern!(py, "margin").clone().unbind(),
+                Self::common(slf).margin(),
+                (Time::ZERO, Time::ZERO),
+                py,
+            ),
+            Arg::kwd(
+                intern!(py, "alignment").clone().unbind(),
+                Self::common(slf).alignment().into_py(py),
+                Alignment::End.into_py(py),
+                py,
+            ),
+            Arg::kwd(
+                intern!(py, "phantom").clone().unbind(),
+                Self::common(slf).phantom(),
+                false,
+                py,
+            ),
+            Arg::kwd(
+                intern!(py, "duration").clone().unbind(),
+                Self::common(slf).duration(),
+                None,
+                py,
+            ),
+            Arg::kwd(
+                intern!(py, "max_duration").clone().unbind(),
+                Self::common(slf).max_duration(),
+                Time::INFINITY,
+                py,
+            ),
+            Arg::kwd(
+                intern!(py, "min_duration").clone().unbind(),
+                Self::common(slf).min_duration(),
+                Time::ZERO,
+                py,
+            ),
+        ]
+    }
 }
 
 /// A pulse play element.
@@ -941,43 +983,9 @@ impl<'py> RichRepr for Bound<'py, Play> {
                 false,
                 py,
             ),
-            Arg::kwd(
-                intern!(py, "margin").clone().unbind(),
-                Play::common(self).margin(),
-                (Time::ZERO, Time::ZERO),
-                py,
-            ),
-            Arg::kwd(
-                intern!(py, "alignment").clone().unbind(),
-                Play::common(self).alignment().into_py(py),
-                Alignment::End.into_py(py),
-                py,
-            ),
-            Arg::kwd(
-                intern!(py, "phantom").clone().unbind(),
-                Play::common(self).phantom(),
-                false,
-                py,
-            ),
-            Arg::kwd(
-                intern!(py, "duration").clone().unbind(),
-                Play::common(self).duration(),
-                None,
-                py,
-            ),
-            Arg::kwd(
-                intern!(py, "max_duration").clone().unbind(),
-                Play::common(self).max_duration(),
-                Time::INFINITY,
-                py,
-            ),
-            Arg::kwd(
-                intern!(py, "min_duration").clone().unbind(),
-                Play::common(self).min_duration(),
-                Time::ZERO,
-                py,
-            ),
         ]
+        .into_iter()
+        .chain(Play::common_repr(self))
     }
 }
 
@@ -1067,43 +1075,9 @@ impl<'py> RichRepr for Bound<'py, ShiftPhase> {
         [
             Arg::pos(ShiftPhase::variant(self).channel_id(), py),
             Arg::pos(ShiftPhase::variant(self).phase(), py),
-            Arg::kwd(
-                intern!(py, "margin").clone().unbind(),
-                ShiftPhase::common(self).margin(),
-                (Time::ZERO, Time::ZERO),
-                py,
-            ),
-            Arg::kwd(
-                intern!(py, "alignment").clone().unbind(),
-                ShiftPhase::common(self).alignment().into_py(py),
-                Alignment::End.into_py(py),
-                py,
-            ),
-            Arg::kwd(
-                intern!(py, "phantom").clone().unbind(),
-                ShiftPhase::common(self).phantom(),
-                false,
-                py,
-            ),
-            Arg::kwd(
-                intern!(py, "duration").clone().unbind(),
-                ShiftPhase::common(self).duration(),
-                None,
-                py,
-            ),
-            Arg::kwd(
-                intern!(py, "max_duration").clone().unbind(),
-                ShiftPhase::common(self).max_duration(),
-                Time::INFINITY,
-                py,
-            ),
-            Arg::kwd(
-                intern!(py, "min_duration").clone().unbind(),
-                ShiftPhase::common(self).min_duration(),
-                Time::ZERO,
-                py,
-            ),
         ]
+        .into_iter()
+        .chain(ShiftPhase::common_repr(self))
     }
 }
 
@@ -1201,43 +1175,9 @@ impl<'py> RichRepr for Bound<'py, SetPhase> {
         [
             Arg::pos(SetPhase::variant(self).channel_id(), py),
             Arg::pos(SetPhase::variant(self).phase(), py),
-            Arg::kwd(
-                intern!(py, "margin").clone().unbind(),
-                SetPhase::common(self).margin(),
-                (Time::ZERO, Time::ZERO),
-                py,
-            ),
-            Arg::kwd(
-                intern!(py, "alignment").clone().unbind(),
-                SetPhase::common(self).alignment().into_py(py),
-                Alignment::End.into_py(py),
-                py,
-            ),
-            Arg::kwd(
-                intern!(py, "phantom").clone().unbind(),
-                SetPhase::common(self).phantom(),
-                false,
-                py,
-            ),
-            Arg::kwd(
-                intern!(py, "duration").clone().unbind(),
-                SetPhase::common(self).duration(),
-                None,
-                py,
-            ),
-            Arg::kwd(
-                intern!(py, "max_duration").clone().unbind(),
-                SetPhase::common(self).max_duration(),
-                Time::INFINITY,
-                py,
-            ),
-            Arg::kwd(
-                intern!(py, "min_duration").clone().unbind(),
-                SetPhase::common(self).min_duration(),
-                Time::ZERO,
-                py,
-            ),
         ]
+        .into_iter()
+        .chain(SetPhase::common_repr(self))
     }
 }
 
@@ -1323,43 +1263,9 @@ impl<'py> RichRepr for Bound<'py, ShiftFreq> {
         [
             Arg::pos(ShiftFreq::variant(self).channel_id(), py),
             Arg::pos(ShiftFreq::variant(self).frequency(), py),
-            Arg::kwd(
-                intern!(py, "margin").clone().unbind(),
-                ShiftFreq::common(self).margin(),
-                (Time::ZERO, Time::ZERO),
-                py,
-            ),
-            Arg::kwd(
-                intern!(py, "alignment").clone().unbind(),
-                ShiftFreq::common(self).alignment().into_py(py),
-                Alignment::End.into_py(py),
-                py,
-            ),
-            Arg::kwd(
-                intern!(py, "phantom").clone().unbind(),
-                ShiftFreq::common(self).phantom(),
-                false,
-                py,
-            ),
-            Arg::kwd(
-                intern!(py, "duration").clone().unbind(),
-                ShiftFreq::common(self).duration(),
-                None,
-                py,
-            ),
-            Arg::kwd(
-                intern!(py, "max_duration").clone().unbind(),
-                ShiftFreq::common(self).max_duration(),
-                Time::INFINITY,
-                py,
-            ),
-            Arg::kwd(
-                intern!(py, "min_duration").clone().unbind(),
-                ShiftFreq::common(self).min_duration(),
-                Time::ZERO,
-                py,
-            ),
         ]
+        .into_iter()
+        .chain(ShiftFreq::common_repr(self))
     }
 }
 
@@ -1446,43 +1352,9 @@ impl<'py> RichRepr for Bound<'py, SetFreq> {
         [
             Arg::pos(SetFreq::variant(self).channel_id(), py),
             Arg::pos(SetFreq::variant(self).frequency(), py),
-            Arg::kwd(
-                intern!(py, "margin").clone().unbind(),
-                SetFreq::common(self).margin(),
-                (Time::ZERO, Time::ZERO),
-                py,
-            ),
-            Arg::kwd(
-                intern!(py, "alignment").clone().unbind(),
-                SetFreq::common(self).alignment().into_py(py),
-                Alignment::End.into_py(py),
-                py,
-            ),
-            Arg::kwd(
-                intern!(py, "phantom").clone().unbind(),
-                SetFreq::common(self).phantom(),
-                false,
-                py,
-            ),
-            Arg::kwd(
-                intern!(py, "duration").clone().unbind(),
-                SetFreq::common(self).duration(),
-                None,
-                py,
-            ),
-            Arg::kwd(
-                intern!(py, "max_duration").clone().unbind(),
-                SetFreq::common(self).max_duration(),
-                Time::INFINITY,
-                py,
-            ),
-            Arg::kwd(
-                intern!(py, "min_duration").clone().unbind(),
-                SetFreq::common(self).min_duration(),
-                Time::ZERO,
-                py,
-            ),
         ]
+        .into_iter()
+        .chain(SetFreq::common_repr(self))
     }
 }
 
@@ -1571,43 +1443,9 @@ impl<'py> RichRepr for Bound<'py, SwapPhase> {
         [
             Arg::pos(SwapPhase::variant(self).channel_id1(), py),
             Arg::pos(SwapPhase::variant(self).channel_id2(), py),
-            Arg::kwd(
-                intern!(py, "margin").clone().unbind(),
-                SwapPhase::common(self).margin(),
-                (Time::ZERO, Time::ZERO),
-                py,
-            ),
-            Arg::kwd(
-                intern!(py, "alignment").clone().unbind(),
-                SwapPhase::common(self).alignment().into_py(py),
-                Alignment::End.into_py(py),
-                py,
-            ),
-            Arg::kwd(
-                intern!(py, "phantom").clone().unbind(),
-                SwapPhase::common(self).phantom(),
-                false,
-                py,
-            ),
-            Arg::kwd(
-                intern!(py, "duration").clone().unbind(),
-                SwapPhase::common(self).duration(),
-                None,
-                py,
-            ),
-            Arg::kwd(
-                intern!(py, "max_duration").clone().unbind(),
-                SwapPhase::common(self).max_duration(),
-                Time::INFINITY,
-                py,
-            ),
-            Arg::kwd(
-                intern!(py, "min_duration").clone().unbind(),
-                SwapPhase::common(self).min_duration(),
-                Time::ZERO,
-                py,
-            ),
         ]
+        .into_iter()
+        .chain(SwapPhase::common_repr(self))
     }
 }
 
@@ -1687,44 +1525,7 @@ impl<'py> RichRepr for Bound<'py, Barrier> {
             .channel_ids()
             .iter()
             .map(|x| Arg::pos(x, py))
-            .chain([
-                Arg::kwd(
-                    intern!(py, "margin").clone().unbind(),
-                    Barrier::common(self).margin(),
-                    (Time::ZERO, Time::ZERO),
-                    py,
-                ),
-                Arg::kwd(
-                    intern!(py, "alignment").clone().unbind(),
-                    Barrier::common(self).alignment().into_py(py),
-                    Alignment::End.into_py(py),
-                    py,
-                ),
-                Arg::kwd(
-                    intern!(py, "phantom").clone().unbind(),
-                    Barrier::common(self).phantom(),
-                    false,
-                    py,
-                ),
-                Arg::kwd(
-                    intern!(py, "duration").clone().unbind(),
-                    Barrier::common(self).duration(),
-                    None,
-                    py,
-                ),
-                Arg::kwd(
-                    intern!(py, "max_duration").clone().unbind(),
-                    Barrier::common(self).max_duration(),
-                    Time::INFINITY,
-                    py,
-                ),
-                Arg::kwd(
-                    intern!(py, "min_duration").clone().unbind(),
-                    Barrier::common(self).min_duration(),
-                    Time::ZERO,
-                    py,
-                ),
-            ])
+            .chain(Barrier::common_repr(self))
             .collect_vec()
     }
 }
@@ -1821,43 +1622,9 @@ impl<'py> RichRepr for Bound<'py, Repeat> {
                 Time::ZERO,
                 py,
             ),
-            Arg::kwd(
-                intern!(py, "margin").clone().unbind(),
-                Repeat::common(self).margin(),
-                (Time::ZERO, Time::ZERO),
-                py,
-            ),
-            Arg::kwd(
-                intern!(py, "alignment").clone().unbind(),
-                Repeat::common(self).alignment().into_py(py),
-                Alignment::End.into_py(py),
-                py,
-            ),
-            Arg::kwd(
-                intern!(py, "phantom").clone().unbind(),
-                Repeat::common(self).phantom(),
-                false,
-                py,
-            ),
-            Arg::kwd(
-                intern!(py, "duration").clone().unbind(),
-                Repeat::common(self).duration(),
-                None,
-                py,
-            ),
-            Arg::kwd(
-                intern!(py, "max_duration").clone().unbind(),
-                Repeat::common(self).max_duration(),
-                Time::INFINITY,
-                py,
-            ),
-            Arg::kwd(
-                intern!(py, "min_duration").clone().unbind(),
-                Repeat::common(self).min_duration(),
-                Time::ZERO,
-                py,
-            ),
         ]
+        .into_iter()
+        .chain(Repeat::common_repr(self))
     }
 }
 
@@ -2040,50 +1807,13 @@ impl<'py> RichRepr for Bound<'py, Stack> {
             .children
             .iter()
             .map(|x| Arg::pos(x, py))
-            .chain([
-                Arg::kwd(
-                    intern!(py, "direction").clone().unbind(),
-                    Stack::variant(self).direction().into_py(py),
-                    Direction::Backward.into_py(py),
-                    py,
-                ),
-                Arg::kwd(
-                    intern!(py, "margin").clone().unbind(),
-                    Stack::common(self).margin(),
-                    (Time::ZERO, Time::ZERO),
-                    py,
-                ),
-                Arg::kwd(
-                    intern!(py, "alignment").clone().unbind(),
-                    Stack::common(self).alignment().into_py(py),
-                    Alignment::End.into_py(py),
-                    py,
-                ),
-                Arg::kwd(
-                    intern!(py, "phantom").clone().unbind(),
-                    Stack::common(self).phantom(),
-                    false,
-                    py,
-                ),
-                Arg::kwd(
-                    intern!(py, "duration").clone().unbind(),
-                    Stack::common(self).duration(),
-                    None,
-                    py,
-                ),
-                Arg::kwd(
-                    intern!(py, "max_duration").clone().unbind(),
-                    Stack::common(self).max_duration(),
-                    Time::INFINITY,
-                    py,
-                ),
-                Arg::kwd(
-                    intern!(py, "min_duration").clone().unbind(),
-                    Stack::common(self).min_duration(),
-                    Time::ZERO,
-                    py,
-                ),
-            ])
+            .chain([Arg::kwd(
+                intern!(py, "direction").clone().unbind(),
+                Stack::variant(self).direction().into_py(py),
+                Direction::Backward.into_py(py),
+                py,
+            )])
+            .chain(Stack::common_repr(self))
             .collect_vec()
     }
 }
@@ -2327,44 +2057,7 @@ impl<'py> RichRepr for Bound<'py, Absolute> {
             .children
             .iter()
             .map(|x| Arg::pos(x.clone_ref(py).into_py(py), py))
-            .chain([
-                Arg::kwd(
-                    intern!(py, "margin").clone().unbind(),
-                    Absolute::common(self).margin(),
-                    (Time::ZERO, Time::ZERO),
-                    py,
-                ),
-                Arg::kwd(
-                    intern!(py, "alignment").clone().unbind(),
-                    Absolute::common(self).alignment().into_py(py),
-                    Alignment::End.into_py(py),
-                    py,
-                ),
-                Arg::kwd(
-                    intern!(py, "phantom").clone().unbind(),
-                    Absolute::common(self).phantom(),
-                    false,
-                    py,
-                ),
-                Arg::kwd(
-                    intern!(py, "duration").clone().unbind(),
-                    Absolute::common(self).duration(),
-                    None,
-                    py,
-                ),
-                Arg::kwd(
-                    intern!(py, "max_duration").clone().unbind(),
-                    Absolute::common(self).max_duration(),
-                    Time::INFINITY,
-                    py,
-                ),
-                Arg::kwd(
-                    intern!(py, "min_duration").clone().unbind(),
-                    Absolute::common(self).min_duration(),
-                    Time::ZERO,
-                    py,
-                ),
-            ])
+            .chain(Absolute::common_repr(self))
             .collect_vec()
     }
 }
@@ -2835,49 +2528,12 @@ impl<'py> RichRepr for Bound<'py, Grid> {
             .children
             .iter()
             .map(|x| Arg::pos(x.clone_ref(py).into_py(py), py))
-            .chain([
-                Arg::kw(
-                    intern!(py, "columns").clone().unbind(),
-                    Grid::variant(self).columns(),
-                    py,
-                ),
-                Arg::kwd(
-                    intern!(py, "margin").clone().unbind(),
-                    Grid::common(self).margin(),
-                    (Time::ZERO, Time::ZERO),
-                    py,
-                ),
-                Arg::kwd(
-                    intern!(py, "alignment").clone().unbind(),
-                    Grid::common(self).alignment().into_py(py),
-                    Alignment::End.into_py(py),
-                    py,
-                ),
-                Arg::kwd(
-                    intern!(py, "phantom").clone().unbind(),
-                    Grid::common(self).phantom(),
-                    false,
-                    py,
-                ),
-                Arg::kwd(
-                    intern!(py, "duration").clone().unbind(),
-                    Grid::common(self).duration(),
-                    None,
-                    py,
-                ),
-                Arg::kwd(
-                    intern!(py, "max_duration").clone().unbind(),
-                    Grid::common(self).max_duration(),
-                    Time::INFINITY,
-                    py,
-                ),
-                Arg::kwd(
-                    intern!(py, "min_duration").clone().unbind(),
-                    Grid::common(self).min_duration(),
-                    Time::ZERO,
-                    py,
-                ),
-            ])
+            .chain([Arg::kw(
+                intern!(py, "columns").clone().unbind(),
+                Grid::variant(self).columns(),
+                py,
+            )])
+            .chain(Grid::common_repr(self))
             .collect_vec()
     }
 }
