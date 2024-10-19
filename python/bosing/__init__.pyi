@@ -6,6 +6,34 @@ import numpy as np
 import numpy.typing as npt
 from typing_extensions import Self, TypeAlias
 
+__all__ = [
+    "Absolute",
+    "AbsoluteEntry",
+    "Alignment",
+    "Barrier",
+    "Channel",
+    "Direction",
+    "Element",
+    "Grid",
+    "GridEntry",
+    "GridLength",
+    "GridLengthUnit",
+    "Hann",
+    "Interp",
+    "Play",
+    "Repeat",
+    "SetFreq",
+    "SetPhase",
+    "ShiftFreq",
+    "ShiftPhase",
+    "Shape",
+    "Stack",
+    "SwapPhase",
+    "OscState",
+    "generate_waveforms",
+    "generate_waveforms_with_states",
+]
+
 @final
 class Channel:
     def __new__(

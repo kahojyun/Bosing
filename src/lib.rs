@@ -2835,7 +2835,7 @@ fn post_process(py: Python, w: &mut ArrayViewMut2<f64>, c: &Channel) {
 ///     The unit of phase is number of cycles, not radians. For example, a phase
 ///     of :math:`0.5` means a phase shift of :math:`\pi` radians.
 #[pymodule]
-fn bosing(_py: Python, m: &Bound<PyModule>) -> PyResult<()> {
+fn _bosing(m: &Bound<PyModule>) -> PyResult<()> {
     m.add_class::<Absolute>()?;
     m.add_class::<AbsoluteEntry>()?;
     m.add_class::<Alignment>()?;

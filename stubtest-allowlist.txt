@@ -1,4 +1,3 @@
-bosing.bosing
 bosing.Absolute.__rich_repr__
 bosing.AbsoluteEntry.__rich_repr__
 bosing.Barrier.__rich_repr__
