@@ -66,7 +66,7 @@ cleandocs = "sphinx-build -M clean docs docs/_build"
 
 [tool.ruff.lint]
 select = ["ALL"]
-ignore = ["COM812", "ISC001"]
+ignore = ["COM812", "ISC001", "PLC0414"]
 isort.known-first-party = ["bosing"]
 [tool.ruff.lint.per-file-ignores]
 "examples/*.py" = ["INP", "D", "T201"]
@@ -76,7 +76,7 @@ isort.known-first-party = ["bosing"]
 convention = "google"
 
 [tool.basedpyright]
-include = ["examples", "tests", "docs", "benches"]
+include = ["examples", "tests", "docs", "benches", "python"]
 exclude = ["**/node_modules", "**/__pycache__", "docs/_build"]
 [[tool.basedpyright.executionEnvironments]]
 root = "examples"
