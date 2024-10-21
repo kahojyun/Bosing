@@ -69,7 +69,7 @@ use crate::{
 ///     filter_offset (bool): Whether to apply filter to the offset. Defaults to
 ///         ``False``.
 ///     is_real (bool): Whether the channel is real. Defaults to ``False``.
-#[pyclass(get_all, frozen)]
+#[pyclass(module = "bosing", get_all, frozen)]
 #[derive(Debug)]
 struct Channel {
     base_freq: Frequency,
@@ -331,7 +331,7 @@ impl<'py> FromPyObject<'py> for Channel {
 ///     base_freq (float): Base frequency of the oscillator.
 ///     delta_freq (float): Frequency shift of the oscillator.
 ///     phase (float): Phase of the oscillator in **cycles**.
-#[pyclass(get_all, set_all)]
+#[pyclass(module = "bosing", get_all, set_all)]
 #[derive(Debug, Clone, Copy)]
 struct OscState {
     base_freq: Frequency,
@@ -403,7 +403,7 @@ impl RichRepr for OscState {
 /// - :attr:`Alignment.Start`
 /// - :attr:`Alignment.Center`
 /// - :attr:`Alignment.Stretch`: Stretch the element to fill the parent.
-#[pyclass(frozen, eq)]
+#[pyclass(module = "bosing", frozen, eq)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Alignment {
     End,
@@ -470,7 +470,7 @@ fn extract_alignment(obj: &Bound<PyAny>) -> PyResult<Alignment> {
 ///
 /// - :class:`Hann`: Hann window.
 /// - :class:`Interp`: Interpolated shape.
-#[pyclass(subclass, frozen)]
+#[pyclass(module = "bosing", subclass, frozen)]
 #[derive(Debug, Clone)]
 struct Shape;
 
@@ -492,7 +492,7 @@ impl Shape {
 }
 
 /// A Hann shape.
-#[pyclass(extends=Shape, frozen)]
+#[pyclass(module="bosing",extends=Shape, frozen)]
 #[derive(Debug, Clone)]
 struct Hann;
 
@@ -529,7 +529,7 @@ impl Hann {
 ///         x = (x - x[0]) / (x[-1] - x[0]) - 0.5 # Normalize x to [-0.5, 0.5]
 ///         spline = make_interp_spline(x, y, k=3)
 ///         interp = Interp(spline.t, spline.c, spline.k)
-#[pyclass(extends=Shape, get_all, frozen)]
+#[pyclass(module="bosing",extends=Shape, get_all, frozen)]
 #[derive(Debug, Clone)]
 struct Interp {
     knots: Vec<f64>,
@@ -640,7 +640,7 @@ fn extract_margin(obj: &Bound<PyAny>) -> PyResult<(Time, Time)> {
 ///     max_duration (float): Maximum duration of the element. Defaults to
 ///         ``inf``.
 ///     min_duration (float): Minimum duration of the element. Defaults to 0.
-#[pyclass(subclass, frozen)]
+#[pyclass(module = "bosing", subclass, frozen)]
 #[derive(Debug, Clone)]
 struct Element(ElementRef);
 
@@ -824,7 +824,7 @@ where
 ///         0.
 ///     flexible (bool): Whether the pulse has flexible plateau length. Defaults
 ///         to ``False``.
-#[pyclass(extends=Element, frozen)]
+#[pyclass(module="bosing",extends=Element, frozen)]
 #[derive(Debug, Clone)]
 struct Play;
 
@@ -1002,7 +1002,7 @@ impl<'py> RichRepr for Bound<'py, Play> {
 /// Args:
 ///     channel_id (str): Target channel ID.
 ///     phase (float): Phase shift in **cycles**.
-#[pyclass(extends=Element, frozen)]
+#[pyclass(module="bosing",extends=Element, frozen)]
 #[derive(Debug, Clone)]
 struct ShiftPhase;
 
@@ -1102,7 +1102,7 @@ impl<'py> RichRepr for Bound<'py, ShiftPhase> {
 /// Args:
 ///     channel_id (str): Target channel ID.
 ///     phase (float): Target phase value in **cycles**.
-#[pyclass(extends=Element, frozen)]
+#[pyclass(module="bosing",extends=Element, frozen)]
 #[derive(Debug, Clone)]
 struct SetPhase;
 
@@ -1190,7 +1190,7 @@ impl<'py> RichRepr for Bound<'py, SetPhase> {
 /// Args:
 ///     channel_id (str): Target channel ID.
 ///     frequency (float): Delta frequency.
-#[pyclass(extends=Element, frozen)]
+#[pyclass(module="bosing",extends=Element, frozen)]
 #[derive(Debug, Clone)]
 struct ShiftFreq;
 
@@ -1279,7 +1279,7 @@ impl<'py> RichRepr for Bound<'py, ShiftFreq> {
 /// Args:
 ///     channel_id (str): Target channel ID.
 ///     frequency (float): Target frequency.
-#[pyclass(extends=Element, frozen)]
+#[pyclass(module="bosing",extends=Element, frozen)]
 #[derive(Debug, Clone)]
 struct SetFreq;
 
@@ -1370,7 +1370,7 @@ impl<'py> RichRepr for Bound<'py, SetFreq> {
 /// Args:
 ///     channel_id1 (str): Target channel ID 1.
 ///     channel_id2 (str): Target channel ID 2.
-#[pyclass(extends=Element, frozen)]
+#[pyclass(module="bosing",extends=Element, frozen)]
 #[derive(Debug, Clone)]
 struct SwapPhase;
 
@@ -1460,7 +1460,7 @@ impl<'py> RichRepr for Bound<'py, SwapPhase> {
 ///
 /// Args:
 ///     *channel_ids (str): Channel IDs. Defaults to empty.
-#[pyclass(extends=Element, frozen)]
+#[pyclass(module="bosing",extends=Element, frozen)]
 #[derive(Debug, Clone)]
 struct Barrier;
 
@@ -1538,7 +1538,7 @@ impl<'py> RichRepr for Bound<'py, Barrier> {
 ///     child (Element): Child element to repeat.
 ///     count (int): Number of repetitions.
 ///     spacing (float): Spacing between repetitions. Defaults to 0.
-#[pyclass(extends=Element, get_all, frozen)]
+#[pyclass(module="bosing",extends=Element, get_all, frozen)]
 #[derive(Debug)]
 struct Repeat {
     child: Py<Element>,
@@ -1639,7 +1639,7 @@ impl<'py> RichRepr for Bound<'py, Repeat> {
 /// - :attr:`Direction.Forward`:
 ///     Process children in original order and schedule them as early as
 ///     possible.
-#[pyclass(frozen, eq)]
+#[pyclass(module = "bosing", frozen, eq)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Direction {
     Backward,
@@ -1699,7 +1699,7 @@ fn extract_direction(obj: &Bound<PyAny>) -> PyResult<Direction> {
 /// Args:
 ///     *children (Element): Child elements.
 ///     direction (str | Direction): Layout order. Defaults to 'backward'.
-#[pyclass(extends=Element, get_all, frozen)]
+#[pyclass(module="bosing",extends=Element, get_all, frozen)]
 #[derive(Debug)]
 struct Stack {
     children: Vec<Py<Element>>,
@@ -1826,7 +1826,7 @@ impl<'py> RichRepr for Bound<'py, Stack> {
 /// Args:
 ///     time (float): Time relative to the start of the parent element.
 ///     element (Element): Child element.
-#[pyclass(get_all, frozen)]
+#[pyclass(module = "bosing", get_all, frozen)]
 #[derive(Debug)]
 struct AbsoluteEntry {
     time: Time,
@@ -1933,7 +1933,7 @@ fn extract_absolute_entry(obj: &Bound<PyAny>) -> PyResult<AbsoluteEntry> {
 ///             (1.0, element2),
 ///             AbsoluteEntry(2.0, element3),
 ///         )
-#[pyclass(extends=Element, frozen)]
+#[pyclass(module="bosing",extends=Element, frozen)]
 #[derive(Debug)]
 struct Absolute {
     children: Vec<AbsoluteEntry>,
@@ -2069,7 +2069,7 @@ impl<'py> RichRepr for Bound<'py, Absolute> {
 /// - Seconds: Fixed length in seconds.
 /// - Auto: Auto length.
 /// - Star: Ratio of the remaining duration.
-#[pyclass(frozen, eq)]
+#[pyclass(module = "bosing", frozen, eq)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum GridLengthUnit {
     Seconds,
@@ -2088,7 +2088,7 @@ impl ToPyObject for GridLengthUnit {
 /// :class:`GridLength` is used to specify the length of a grid column. The
 /// length can be specified in seconds, as a fraction of the remaining duration,
 /// or automatically.
-#[pyclass(get_all, frozen)]
+#[pyclass(module = "bosing", get_all, frozen)]
 #[derive(Debug, Clone)]
 struct GridLength {
     value: f64,
@@ -2245,7 +2245,7 @@ fn extract_grid_length(obj: &Bound<PyAny>) -> PyResult<GridLength> {
 ///     element (Element): Child element.
 ///     column (int): Column index.
 ///     span (int): Column span.
-#[pyclass(get_all, frozen)]
+#[pyclass(module = "bosing", get_all, frozen)]
 #[derive(Debug)]
 struct GridEntry {
     element: Py<Element>,
@@ -2385,7 +2385,7 @@ fn extract_grid_entry(obj: &Bound<PyAny>) -> PyResult<GridEntry> {
 ///             element4,
 ///             columns=['auto', '1*', '2'],
 ///         )
-#[pyclass(extends=Element, frozen)]
+#[pyclass(module="bosing",extends=Element, frozen)]
 #[derive(Debug)]
 struct Grid {
     children: Vec<GridEntry>,
@@ -2827,15 +2827,8 @@ fn post_process(py: Python, w: &mut ArrayViewMut2<f64>, c: &Channel) {
     });
 }
 
-/// Generates microwave pulses for superconducting quantum computing
-/// experiments.
-///
-/// .. caution::
-///
-///     The unit of phase is number of cycles, not radians. For example, a phase
-///     of :math:`0.5` means a phase shift of :math:`\pi` radians.
 #[pymodule]
-fn bosing(_py: Python, m: &Bound<PyModule>) -> PyResult<()> {
+fn _bosing(m: &Bound<PyModule>) -> PyResult<()> {
     m.add_class::<Absolute>()?;
     m.add_class::<AbsoluteEntry>()?;
     m.add_class::<Alignment>()?;

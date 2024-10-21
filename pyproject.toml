@@ -19,7 +19,7 @@ classifiers = [
   "Topic :: Scientific/Engineering",
   "License :: OSI Approved :: MIT License",
 ]
-dependencies = ["numpy>=1.16.0"]
+dependencies = ["matplotlib>=3.0.0", "numpy>=1.16.0"]
 
 [project.urls]
 Documentation = "https://bosing.readthedocs.io"
@@ -27,13 +27,14 @@ Issues = "https://github.com/kahojyun/Bosing/issues"
 Source = "https://github.com/kahojyun/Bosing"
 
 [tool.maturin]
+python-source = "python"
+module-name = "bosing._bosing"
 features = ["pyo3/extension-module"]
 
 [tool.uv]
 dev-dependencies = [
   "mypy>=1.11.2",
   "ruff>=0.6.7",
-  "matplotlib>=3.9.2",
   "taskipy>=1.13.0",
   "pytest>=8.3.3",
   "scipy>=1.13.1",
@@ -65,7 +66,7 @@ cleandocs = "sphinx-build -M clean docs docs/_build"
 
 [tool.ruff.lint]
 select = ["ALL"]
-ignore = ["COM812", "ISC001"]
+ignore = ["COM812", "ISC001", "PLC0414"]
 isort.known-first-party = ["bosing"]
 [tool.ruff.lint.per-file-ignores]
 "examples/*.py" = ["INP", "D", "T201"]
@@ -75,7 +76,7 @@ isort.known-first-party = ["bosing"]
 convention = "google"
 
 [tool.basedpyright]
-include = ["examples", "tests", "docs", "benches"]
+include = ["examples", "tests", "docs", "benches", "python"]
 exclude = ["**/node_modules", "**/__pycache__", "docs/_build"]
 [[tool.basedpyright.executionEnvironments]]
 root = "examples"

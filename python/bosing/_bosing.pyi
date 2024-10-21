@@ -1,10 +1,40 @@
 # ruff: noqa: PLR0913
 from collections.abc import Iterable, Mapping, Sequence
-from typing import ClassVar, Literal, final
+from typing import Any, ClassVar, Literal, final
 
 import numpy as np
 import numpy.typing as npt
 from typing_extensions import Self, TypeAlias
+
+__all__ = [
+    "Absolute",
+    "AbsoluteEntry",
+    "Alignment",
+    "Barrier",
+    "Channel",
+    "Direction",
+    "Element",
+    "Grid",
+    "GridEntry",
+    "GridLength",
+    "GridLengthUnit",
+    "Hann",
+    "Interp",
+    "Play",
+    "Repeat",
+    "SetFreq",
+    "SetPhase",
+    "ShiftFreq",
+    "ShiftPhase",
+    "Shape",
+    "Stack",
+    "SwapPhase",
+    "OscState",
+    "generate_waveforms",
+    "generate_waveforms_with_states",
+]
+
+_RichReprResult: TypeAlias = list[Any]
 
 @final
 class Channel:
@@ -45,6 +75,7 @@ class Channel:
     def filter_offset(self) -> bool: ...
     @property
     def is_real(self) -> bool: ...
+    def __rich_repr__(self) -> _RichReprResult: ...  # undocumented
 
 @final
 class Alignment:
@@ -134,6 +165,7 @@ class Play(Element):
     def phase(self) -> float: ...
     @property
     def flexible(self) -> bool: ...
+    def __rich_repr__(self) -> _RichReprResult: ...  # undocumented
 
 @final
 class ShiftPhase(Element):
@@ -155,6 +187,7 @@ class ShiftPhase(Element):
     def channel_id(self) -> str: ...
     @property
     def phase(self) -> float: ...
+    def __rich_repr__(self) -> _RichReprResult: ...  # undocumented
 
 @final
 class SetPhase(Element):
@@ -176,6 +209,7 @@ class SetPhase(Element):
     def channel_id(self) -> str: ...
     @property
     def phase(self) -> float: ...
+    def __rich_repr__(self) -> _RichReprResult: ...  # undocumented
 
 @final
 class ShiftFreq(Element):
@@ -197,6 +231,7 @@ class ShiftFreq(Element):
     def channel_id(self) -> str: ...
     @property
     def frequency(self) -> float: ...
+    def __rich_repr__(self) -> _RichReprResult: ...  # undocumented
 
 @final
 class SetFreq(Element):
@@ -218,6 +253,7 @@ class SetFreq(Element):
     def channel_id(self) -> str: ...
     @property
     def frequency(self) -> float: ...
+    def __rich_repr__(self) -> _RichReprResult: ...  # undocumented
 
 @final
 class SwapPhase(Element):
@@ -239,6 +275,7 @@ class SwapPhase(Element):
     def channel_id1(self) -> str: ...
     @property
     def channel_id2(self) -> str: ...
+    def __rich_repr__(self) -> _RichReprResult: ...  # undocumented
 
 @final
 class Barrier(Element):
@@ -256,6 +293,7 @@ class Barrier(Element):
     ) -> Self: ...
     @property
     def channel_ids(self) -> Sequence[str]: ...
+    def __rich_repr__(self) -> _RichReprResult: ...  # undocumented
 
 @final
 class Repeat(Element):
@@ -280,6 +318,7 @@ class Repeat(Element):
     def count(self) -> int: ...
     @property
     def spacing(self) -> float: ...
+    def __rich_repr__(self) -> _RichReprResult: ...  # undocumented
 
 @final
 class Direction:
@@ -308,6 +347,7 @@ class Stack(Element):
     def direction(self) -> Direction: ...
     @property
     def children(self) -> Sequence[Element]: ...
+    def __rich_repr__(self) -> _RichReprResult: ...  # undocumented
 
 _AbsoluteEntryLike: TypeAlias = Element | tuple[float, Element] | AbsoluteEntry
 
@@ -320,6 +360,7 @@ class AbsoluteEntry:
     def element(self) -> Element: ...
     @staticmethod
     def convert(obj: _AbsoluteEntryLike) -> AbsoluteEntry: ...
+    def __rich_repr__(self) -> _RichReprResult: ...  # undocumented
 
 @final
 class Absolute(Element):
@@ -338,6 +379,7 @@ class Absolute(Element):
     def with_children(self, *children: _AbsoluteEntryLike) -> Absolute: ...
     @property
     def children(self) -> Sequence[AbsoluteEntry]: ...
+    def __rich_repr__(self) -> _RichReprResult: ...  # undocumented
 
 @final
 class GridLengthUnit:
@@ -360,6 +402,7 @@ class GridLength:
     def fixed(value: float) -> GridLength: ...
     @staticmethod
     def convert(obj: str | float | GridLength) -> GridLength: ...
+    def __rich_repr__(self) -> _RichReprResult: ...  # undocumented
 
 _GridEntryLike: TypeAlias = (
     Element | tuple[Element, int] | tuple[Element, int, int] | GridEntry
@@ -376,6 +419,7 @@ class GridEntry:
     def element(self) -> Element: ...
     @staticmethod
     def convert(obj: _GridEntryLike) -> GridEntry: ...
+    def __rich_repr__(self) -> _RichReprResult: ...  # undocumented
 
 @final
 class Grid(Element):
@@ -400,6 +444,7 @@ class Grid(Element):
     def children(self) -> Sequence[GridEntry]: ...
     @property
     def columns(self) -> Sequence[GridLength]: ...
+    def __rich_repr__(self) -> _RichReprResult: ...  # undocumented
 
 @final
 class OscState:
@@ -415,6 +460,7 @@ class OscState:
     def total_freq(self) -> float: ...
     def phase_at(self, time: float) -> float: ...
     def with_time_shift(self, time: float) -> Self: ...
+    def __rich_repr__(self) -> _RichReprResult: ...  # undocumented
 
 def generate_waveforms(
     channels: Mapping[str, Channel],
