@@ -1,32 +1,46 @@
+use itertools::Itertools as _;
+
 use crate::{
-    quant::{ChannelId, Time},
+    quant::Time,
     schedule::{Arrange as _, ElementRef, ElementVariant, Measure as _, TimeRange},
     util::{pre_order_iter, IterVariant},
+    ItemKind, PlotItem,
 };
 
-pub(crate) fn arrange_to_plot(root: &ElementRef) -> impl Iterator<Item = PlotItem> + use<'_> {
+pub(crate) fn arrange_to_plot(root: ElementRef) -> impl Iterator<Item = PlotItem> {
     let time_range = TimeRange {
         start: Time::ZERO,
         span: root.measure(),
     };
-    arrange_tree(root, time_range).flat_map(|x| {
-        x.item.channels().iter().map(move |c| PlotItem {
-            channel: c.clone(),
-            time_range: x.time_range,
-            depth: x.depth,
-            kind: ItemKind::from_variant(&x.item.variant),
-        })
-    })
+    arrange_tree(root, time_range).flat_map(
+        |ArrangedItem {
+             item,
+             time_range: TimeRange { start, span },
+             depth,
+         }| {
+            let kind = ItemKind::from_variant(&item.variant);
+            item.channels()
+                .iter()
+                .map(move |c| PlotItem {
+                    channel: c.clone(),
+                    start,
+                    span,
+                    depth,
+                    kind,
+                })
+                .collect_vec()
+        },
+    )
 }
 
-#[derive(Debug, Clone, Copy)]
-struct ArrangedItem<'a> {
-    item: &'a ElementRef,
+#[derive(Debug, Clone)]
+struct ArrangedItem {
+    item: ElementRef,
     time_range: TimeRange,
     depth: usize,
 }
 
-fn arrange_tree(root: &ElementRef, time_range: TimeRange) -> impl Iterator<Item = ArrangedItem> {
+fn arrange_tree(root: ElementRef, time_range: TimeRange) -> impl Iterator<Item = ArrangedItem> {
     pre_order_iter(
         ArrangedItem {
             item: root,
@@ -54,50 +68,11 @@ fn arrange_children(
     }
     .map(move |x| {
         x.map(move |x| ArrangedItem {
-            item: x.item,
+            item: x.item.clone(),
             time_range: x.time_range,
             depth: depth + 1,
         })
+        .collect_vec()
+        .into_iter()
     })
-}
-
-#[derive(Debug)]
-pub(crate) struct PlotItem {
-    channel: ChannelId,
-    time_range: TimeRange,
-    depth: usize,
-    kind: ItemKind,
-}
-
-#[derive(Debug)]
-pub(crate) enum ItemKind {
-    Play,
-    ShiftPhase,
-    SetPhase,
-    ShiftFreq,
-    SetFreq,
-    SwapPhase,
-    Barrier,
-    Repeat,
-    Stack,
-    Absolute,
-    Grid,
-}
-
-impl ItemKind {
-    fn from_variant(variant: &ElementVariant) -> Self {
-        match variant {
-            ElementVariant::Play(_) => Self::Play,
-            ElementVariant::ShiftPhase(_) => Self::ShiftPhase,
-            ElementVariant::SetPhase(_) => Self::SetPhase,
-            ElementVariant::ShiftFreq(_) => Self::ShiftFreq,
-            ElementVariant::SetFreq(_) => Self::SetFreq,
-            ElementVariant::SwapPhase(_) => Self::SwapPhase,
-            ElementVariant::Barrier(_) => Self::Barrier,
-            ElementVariant::Repeat(_) => Self::Repeat,
-            ElementVariant::Stack(_) => Self::Stack,
-            ElementVariant::Absolute(_) => Self::Absolute,
-            ElementVariant::Grid(_) => Self::Grid,
-        }
-    }
 }

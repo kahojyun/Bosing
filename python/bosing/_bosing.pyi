@@ -464,6 +464,33 @@ class OscState:
     def with_time_shift(self, time: float) -> Self: ...
     def __rich_repr__(self) -> _RichReprResult: ...  # undocumented
 
+@final
+class PlotItem:
+    @property
+    def channel(self) -> str: ...
+    @property
+    def start(self) -> float: ...
+    @property
+    def span(self) -> float: ...
+    @property
+    def depth(self) -> int: ...
+    @property
+    def kind(self) -> ItemKind: ...
+
+@final
+class ItemKind:
+    Play: ClassVar[ItemKind]
+    ShiftPhase: ClassVar[ItemKind]
+    SetPhase: ClassVar[ItemKind]
+    ShiftFreq: ClassVar[ItemKind]
+    SetFreq: ClassVar[ItemKind]
+    SwapPhase: ClassVar[ItemKind]
+    Barrier: ClassVar[ItemKind]
+    Repeat: ClassVar[ItemKind]
+    Stack: ClassVar[ItemKind]
+    Absolute: ClassVar[ItemKind]
+    Grid: ClassVar[ItemKind]
+
 def generate_waveforms(
     channels: Mapping[str, Channel],
     shapes: Mapping[str, Shape],

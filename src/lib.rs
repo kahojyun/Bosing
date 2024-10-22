@@ -27,7 +27,7 @@ use pyo3::{
     types::{DerefToPyAny, PyDict, PyString},
 };
 use rayon::prelude::*;
-use schedule::ElementCommon;
+use schedule::{ElementCommon, ElementVariant};
 
 use crate::{
     executor::Executor,
@@ -692,9 +692,70 @@ impl Element {
     #[pyo3(signature = (ax=None))]
     fn plot(&self, py: Python, ax: Option<PyObject>) -> PyResult<PyObject> {
         let m = py.import_bound(intern!(py, "bosing._plot"))?;
-        let blocks = (0..100000).map(|x| (x as f64, 0.5)).collect_vec();
-        let result = m.call_method1(intern!(py, "plot"), (ax, blocks))?;
+        let plot_items = Box::new(plot::arrange_to_plot(self.0.clone()));
+        let py_iter = PlotIter { inner: plot_items };
+        let result = m.call_method1(intern!(py, "plot"), (ax, py_iter))?;
         Ok(result.into())
+    }
+}
+
+#[pyclass]
+struct PlotIter {
+    inner: Box<dyn Iterator<Item = PlotItem> + Send>,
+}
+
+#[pymethods]
+impl PlotIter {
+    fn __iter__(slf: Bound<Self>) -> Bound<Self> {
+        slf
+    }
+
+    fn __next__(mut slf: PyRefMut<Self>) -> Option<PyObject> {
+        slf.inner.next().map(|x| x.into_py(slf.py()))
+    }
+}
+
+#[pyclass(frozen, get_all)]
+#[derive(Debug)]
+struct PlotItem {
+    channel: ChannelId,
+    start: Time,
+    span: Time,
+    depth: usize,
+    kind: ItemKind,
+}
+
+#[pyclass(frozen, eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ItemKind {
+    Play,
+    ShiftPhase,
+    SetPhase,
+    ShiftFreq,
+    SetFreq,
+    SwapPhase,
+    Barrier,
+    Repeat,
+    Stack,
+    Absolute,
+    Grid,
+}
+
+impl ItemKind {
+    fn from_variant(variant: &ElementVariant) -> Self {
+        match variant {
+            ElementVariant::Play(_) => Self::Play,
+            ElementVariant::ShiftPhase(_) => Self::ShiftPhase,
+            ElementVariant::SetPhase(_) => Self::SetPhase,
+            ElementVariant::ShiftFreq(_) => Self::ShiftFreq,
+            ElementVariant::SetFreq(_) => Self::SetFreq,
+            ElementVariant::SwapPhase(_) => Self::SwapPhase,
+            ElementVariant::Barrier(_) => Self::Barrier,
+            ElementVariant::Repeat(_) => Self::Repeat,
+            ElementVariant::Stack(_) => Self::Stack,
+            ElementVariant::Absolute(_) => Self::Absolute,
+            ElementVariant::Grid(_) => Self::Grid,
+        }
     }
 }
 
