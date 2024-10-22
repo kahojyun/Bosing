@@ -2,10 +2,12 @@
 //! possible to create cyclic references because we don't allow mutate the
 //! children after creation.
 mod executor;
+mod plot;
 mod pulse;
 mod quant;
 mod schedule;
 mod shape;
+mod util;
 
 use std::{
     borrow::Borrow,
@@ -685,6 +687,14 @@ impl Element {
     /// parent container type.
     fn measure(&self) -> Time {
         self.0.measure()
+    }
+
+    #[pyo3(signature = (ax=None))]
+    fn plot(&self, py: Python, ax: Option<PyObject>) -> PyResult<PyObject> {
+        let m = py.import_bound(intern!(py, "bosing._plot"))?;
+        let blocks = (0..100000).map(|x| (x as f64, 0.5)).collect_vec();
+        let result = m.call_method1(intern!(py, "plot"), (ax, blocks))?;
+        Ok(result.into())
     }
 }
 

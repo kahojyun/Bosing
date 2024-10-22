@@ -41,6 +41,7 @@ dev-dependencies = [
   "furo>=2024.8.6",
   "sphinx>=7.4.7",
   "rich>=13.9.2",
+  "pyside6>=6.8.0.1",
 ]
 cache-keys = [
   { file = "src/**/*.rs" },

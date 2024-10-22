@@ -4,6 +4,7 @@ from typing import Any, ClassVar, Literal, final
 
 import numpy as np
 import numpy.typing as npt
+from matplotlib.axes import Axes
 from typing_extensions import Self, TypeAlias
 
 __all__ = [
@@ -123,6 +124,7 @@ class Element:
     @property
     def min_duration(self) -> float: ...
     def measure(self) -> float: ...
+    def plot(self, ax: Axes | None = ...) -> Axes: ...
 
 @final
 class Play(Element):
