@@ -2,7 +2,7 @@ use itertools::Itertools as _;
 
 use crate::{
     quant::Time,
-    schedule::{Arrange as _, ElementRef, ElementVariant, Measure as _, TimeRange},
+    schedule::{Arrange as _, Arranged, ElementRef, ElementVariant, Measure as _, TimeRange},
     util::{pre_order_iter, IterVariant},
     ItemKind, PlotItem,
 };
@@ -12,23 +12,21 @@ pub(crate) fn arrange_to_plot(root: ElementRef) -> impl Iterator<Item = PlotItem
         start: Time::ZERO,
         span: root.measure(),
     };
-    arrange_tree(root, time_range).flat_map(
+    arrange_tree(root, time_range).map(
         |ArrangedItem {
              item,
              time_range: TimeRange { start, span },
              depth,
          }| {
             let kind = ItemKind::from_variant(&item.variant);
-            item.channels()
-                .iter()
-                .map(move |c| PlotItem {
-                    channel: c.clone(),
-                    start,
-                    span,
-                    depth,
-                    kind,
-                })
-                .collect_vec()
+            let channels = item.channels().to_vec();
+            PlotItem {
+                channels,
+                start,
+                span,
+                depth,
+                kind,
+            }
         },
     )
 }
@@ -67,9 +65,9 @@ fn arrange_children(
         _ => None,
     }
     .map(move |x| {
-        x.map(move |x| ArrangedItem {
-            item: x.item.clone(),
-            time_range: x.time_range,
+        x.map(move |Arranged { item, time_range }| ArrangedItem {
+            item: item.clone(),
+            time_range,
             depth: depth + 1,
         })
         .collect_vec()

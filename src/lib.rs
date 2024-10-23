@@ -699,7 +699,7 @@ impl Element {
     }
 }
 
-#[pyclass]
+#[pyclass(module = "_bosing")]
 struct PlotIter {
     inner: Box<dyn Iterator<Item = PlotItem> + Send>,
 }
@@ -715,18 +715,18 @@ impl PlotIter {
     }
 }
 
-#[pyclass(frozen, get_all)]
+#[pyclass(module = "_bosing", frozen, get_all)]
 #[derive(Debug)]
 struct PlotItem {
-    channel: ChannelId,
+    channels: Vec<ChannelId>,
     start: Time,
     span: Time,
     depth: usize,
     kind: ItemKind,
 }
 
-#[pyclass(frozen, eq)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[pyclass(module = "_bosing", frozen, eq, hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 enum ItemKind {
     Play,
     ShiftPhase,
@@ -2925,5 +2925,6 @@ fn _bosing(m: &Bound<PyModule>) -> PyResult<()> {
     m.add_class::<OscState>()?;
     m.add_function(wrap_pyfunction!(generate_waveforms, m)?)?;
     m.add_function(wrap_pyfunction!(generate_waveforms_with_states, m)?)?;
+    m.add_class::<ItemKind>()?;
     Ok(())
 }

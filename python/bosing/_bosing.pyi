@@ -1,6 +1,6 @@
 # ruff: noqa: PLR0913
 from collections.abc import Iterable, Mapping, Sequence
-from typing import Any, ClassVar, Literal, final
+from typing import Any, ClassVar, Literal, final, type_check_only
 
 import numpy as np
 import numpy.typing as npt
@@ -33,6 +33,7 @@ __all__ = [
     "OscState",
     "generate_waveforms",
     "generate_waveforms_with_states",
+    "ItemKind",
 ]
 
 _RichReprResult: TypeAlias = list[Any]
@@ -464,10 +465,11 @@ class OscState:
     def with_time_shift(self, time: float) -> Self: ...
     def __rich_repr__(self) -> _RichReprResult: ...  # undocumented
 
+@type_check_only
 @final
 class PlotItem:
     @property
-    def channel(self) -> str: ...
+    def channels(self) -> list[str]: ...
     @property
     def start(self) -> float: ...
     @property
