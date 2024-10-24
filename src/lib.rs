@@ -689,6 +689,17 @@ impl Element {
         self.0.measure()
     }
 
+    /// Plot arrange result with the element as root.
+    ///
+    /// Args:
+    ///     ax (matplotlib.axes.Axes | None): Axes to plot. If ``None``, `matplotlib.pyplot.gca` is
+    ///         used.
+    ///     channels (Sequence[str] | None): Channels to plot. If ``None``, all channels are
+    ///         plotted.
+    ///     max_depth (int): Maximum depth to plot. Defaults to 5.
+    ///
+    /// Returns:
+    ///     matplotlib.axes.Axes: Axes with the plot.
     #[pyo3(signature = (ax=None, *, channels=None, max_depth=5))]
     fn plot(
         &self,
