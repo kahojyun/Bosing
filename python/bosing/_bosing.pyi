@@ -1,9 +1,10 @@
 # ruff: noqa: PLR0913
 from collections.abc import Iterable, Mapping, Sequence
-from typing import Any, ClassVar, Literal, final
+from typing import Any, ClassVar, Literal, final, type_check_only
 
 import numpy as np
 import numpy.typing as npt
+from matplotlib.axes import Axes
 from typing_extensions import Self, TypeAlias
 
 __all__ = [
@@ -32,6 +33,7 @@ __all__ = [
     "OscState",
     "generate_waveforms",
     "generate_waveforms_with_states",
+    "ItemKind",
 ]
 
 _RichReprResult: TypeAlias = list[Any]
@@ -123,6 +125,13 @@ class Element:
     @property
     def min_duration(self) -> float: ...
     def measure(self) -> float: ...
+    def plot(
+        self,
+        ax: Axes | None = ...,
+        *,
+        channels: Sequence[str] | None = ...,
+        max_depth: int = ...,
+    ) -> Axes: ...
 
 @final
 class Play(Element):
@@ -461,6 +470,34 @@ class OscState:
     def phase_at(self, time: float) -> float: ...
     def with_time_shift(self, time: float) -> Self: ...
     def __rich_repr__(self) -> _RichReprResult: ...  # undocumented
+
+@type_check_only
+@final
+class PlotItem:
+    @property
+    def channels(self) -> list[str]: ...
+    @property
+    def start(self) -> float: ...
+    @property
+    def span(self) -> float: ...
+    @property
+    def depth(self) -> int: ...
+    @property
+    def kind(self) -> ItemKind: ...
+
+@final
+class ItemKind:
+    Play: ClassVar[ItemKind]
+    ShiftPhase: ClassVar[ItemKind]
+    SetPhase: ClassVar[ItemKind]
+    ShiftFreq: ClassVar[ItemKind]
+    SetFreq: ClassVar[ItemKind]
+    SwapPhase: ClassVar[ItemKind]
+    Barrier: ClassVar[ItemKind]
+    Repeat: ClassVar[ItemKind]
+    Stack: ClassVar[ItemKind]
+    Absolute: ClassVar[ItemKind]
+    Grid: ClassVar[ItemKind]
 
 def generate_waveforms(
     channels: Mapping[str, Channel],

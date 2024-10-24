@@ -2,10 +2,12 @@
 //! possible to create cyclic references because we don't allow mutate the
 //! children after creation.
 mod executor;
+mod plot;
 mod pulse;
 mod quant;
 mod schedule;
 mod shape;
+mod util;
 
 use std::{
     borrow::Borrow,
@@ -22,10 +24,10 @@ use pyo3::{
     exceptions::{PyRuntimeError, PyTypeError, PyValueError},
     intern,
     prelude::*,
-    types::{DerefToPyAny, PyDict, PyString},
+    types::{DerefToPyAny, PyDict, PyList, PyString},
 };
 use rayon::prelude::*;
-use schedule::ElementCommon;
+use schedule::{ElementCommon, ElementVariant};
 
 use crate::{
     executor::Executor,
@@ -685,6 +687,96 @@ impl Element {
     /// parent container type.
     fn measure(&self) -> Time {
         self.0.measure()
+    }
+
+    /// Plot arrange result with the element as root.
+    ///
+    /// Args:
+    ///     ax (matplotlib.axes.Axes | None): Axes to plot. If ``None``, `matplotlib.pyplot.gca` is
+    ///         used.
+    ///     channels (Sequence[str] | None): Channels to plot. If ``None``, all channels are
+    ///         plotted.
+    ///     max_depth (int): Maximum depth to plot. Defaults to 5.
+    ///
+    /// Returns:
+    ///     matplotlib.axes.Axes: Axes with the plot.
+    #[pyo3(signature = (ax=None, *, channels=None, max_depth=5))]
+    fn plot(
+        &self,
+        py: Python,
+        ax: Option<PyObject>,
+        channels: Option<Vec<ChannelId>>,
+        max_depth: usize,
+    ) -> PyResult<PyObject> {
+        let m = py.import_bound(intern!(py, "bosing._plot"))?;
+        let plot_items = Box::new(plot::arrange_to_plot(self.0.clone()));
+        let blocks = PlotIter { inner: plot_items };
+        let channels = match channels {
+            Some(channels) => PyList::new_bound(py, channels),
+            None => PyList::new_bound(py, self.0.channels()),
+        };
+        let result = m.call_method1(intern!(py, "plot"), (ax, blocks, channels, max_depth))?;
+        Ok(result.into())
+    }
+}
+
+#[pyclass(module = "_bosing")]
+struct PlotIter {
+    inner: Box<dyn Iterator<Item = PlotItem> + Send>,
+}
+
+#[pymethods]
+impl PlotIter {
+    fn __iter__(slf: Bound<Self>) -> Bound<Self> {
+        slf
+    }
+
+    fn __next__(mut slf: PyRefMut<Self>) -> Option<PyObject> {
+        slf.inner.next().map(|x| x.into_py(slf.py()))
+    }
+}
+
+#[pyclass(module = "_bosing", frozen, get_all)]
+#[derive(Debug)]
+struct PlotItem {
+    channels: Vec<ChannelId>,
+    start: Time,
+    span: Time,
+    depth: usize,
+    kind: ItemKind,
+}
+
+#[pyclass(module = "_bosing", frozen, eq, hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+enum ItemKind {
+    Play,
+    ShiftPhase,
+    SetPhase,
+    ShiftFreq,
+    SetFreq,
+    SwapPhase,
+    Barrier,
+    Repeat,
+    Stack,
+    Absolute,
+    Grid,
+}
+
+impl ItemKind {
+    fn from_variant(variant: &ElementVariant) -> Self {
+        match variant {
+            ElementVariant::Play(_) => Self::Play,
+            ElementVariant::ShiftPhase(_) => Self::ShiftPhase,
+            ElementVariant::SetPhase(_) => Self::SetPhase,
+            ElementVariant::ShiftFreq(_) => Self::ShiftFreq,
+            ElementVariant::SetFreq(_) => Self::SetFreq,
+            ElementVariant::SwapPhase(_) => Self::SwapPhase,
+            ElementVariant::Barrier(_) => Self::Barrier,
+            ElementVariant::Repeat(_) => Self::Repeat,
+            ElementVariant::Stack(_) => Self::Stack,
+            ElementVariant::Absolute(_) => Self::Absolute,
+            ElementVariant::Grid(_) => Self::Grid,
+        }
     }
 }
 
@@ -2854,5 +2946,6 @@ fn _bosing(m: &Bound<PyModule>) -> PyResult<()> {
     m.add_class::<OscState>()?;
     m.add_function(wrap_pyfunction!(generate_waveforms, m)?)?;
     m.add_function(wrap_pyfunction!(generate_waveforms_with_states, m)?)?;
+    m.add_class::<ItemKind>()?;
     Ok(())
 }

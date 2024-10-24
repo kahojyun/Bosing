@@ -1,0 +1,5 @@
+bosing._plot.Axes
+bosing._plot.Iterator
+bosing._plot.PathPatch.set
+bosing._plot.Sequence
+bosing._plot.TypeAlias

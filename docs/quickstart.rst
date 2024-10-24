@@ -34,3 +34,10 @@
 
 .. plot:: ../examples/flexible_length.py
     :include-source:
+
+
+画图展示编排结果
+----------------
+
+.. plot:: ../examples/plot.py
+    :include-source:
