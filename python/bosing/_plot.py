@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from collections import defaultdict
 from typing import TYPE_CHECKING
 
 import matplotlib.pyplot as plt
@@ -10,90 +11,75 @@ from matplotlib.patches import Patch, Rectangle
 from bosing._bosing import ItemKind
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections.abc import Iterator, Sequence
 
     from matplotlib.axes import Axes
 
     from bosing._bosing import PlotItem
 
-
 logger = logging.getLogger(__name__)
 
-
-def get_play_patch(item: PlotItem) -> Patch:
-    return Rectangle((item.start, item.depth), item.span, 1)
-
-
-def get_shiftphase_patch(item: PlotItem) -> Patch:
-    return Rectangle((item.start, item.depth), item.span, 1)
-
-
-def get_setphase_patch(item: PlotItem) -> Patch:
-    return Rectangle((item.start, item.depth), item.span, 1)
-
-
-def get_shiftfreq_patch(item: PlotItem) -> Patch:
-    return Rectangle((item.start, item.depth), item.span, 1)
-
-
-def get_setfreq_patch(item: PlotItem) -> Patch:
-    return Rectangle((item.start, item.depth), item.span, 1)
-
-
-def get_swapphase_patch(item: PlotItem) -> Patch:
-    return Rectangle((item.start, item.depth), item.span, 1)
-
-
-def get_barrier_patch(item: PlotItem) -> Patch:
-    return Rectangle((item.start, item.depth), item.span, 1)
-
-
-def get_repeat_patch(item: PlotItem) -> Patch:
-    return Rectangle((item.start, item.depth), item.span, 1)
-
-
-def get_stack_patch(item: PlotItem) -> Patch:
-    return Rectangle((item.start, item.depth), item.span, 1)
-
-
-def get_absolute_patch(item: PlotItem) -> Patch:
-    return Rectangle((item.start, item.depth), item.span, 1)
-
-
-def get_grid_patch(item: PlotItem) -> Patch:
-    return Rectangle((item.start, item.depth), item.span, 1)
-
-
-DISPATCH = {
-    ItemKind.Play: get_play_patch,
-    ItemKind.ShiftPhase: get_shiftphase_patch,
-    ItemKind.SetPhase: get_setphase_patch,
-    ItemKind.ShiftFreq: get_shiftfreq_patch,
-    ItemKind.SetFreq: get_setfreq_patch,
-    ItemKind.SwapPhase: get_swapphase_patch,
-    ItemKind.Barrier: get_barrier_patch,
-    ItemKind.Repeat: get_repeat_patch,
-    ItemKind.Stack: get_stack_patch,
-    ItemKind.Absolute: get_absolute_patch,
-    ItemKind.Grid: get_grid_patch,
+FACECOLORS = {
+    ItemKind.Play: "blue",
+    ItemKind.ShiftPhase: "green",
+    ItemKind.SetPhase: "green",
+    ItemKind.ShiftFreq: "red",
+    ItemKind.SetFreq: "red",
+    ItemKind.SwapPhase: "purple",
+    ItemKind.Barrier: "gray",
+    ItemKind.Repeat: "yellow",
+    ItemKind.Stack: "orange",
+    ItemKind.Absolute: "cyan",
+    ItemKind.Grid: "black",
 }
 
 
-def plot(ax: Axes | None, blocks: Iterator[PlotItem]) -> Axes:
+def manage_channel_stack(ch_stack: list[list[str]], x: PlotItem) -> None:
+    prev_depth = len(ch_stack) - 1
+    if x.depth > prev_depth:
+        ch_stack.append(x.channels)
+    elif x.depth < prev_depth:
+        _ = ch_stack.pop()
+        ch_stack[-1] = x.channels
+    else:
+        ch_stack[-1] = x.channels
+
+
+def get_plot_channels(
+    ch_stack: list[list[str]], x: PlotItem, channels: Sequence[str]
+) -> Sequence[str]:
+    if x.kind == ItemKind.Barrier and len(x.channels) == 0:
+        for chs in reversed(ch_stack):
+            if len(chs) > 0:
+                return chs
+        return channels
+    return x.channels
+
+
+def process_blocks(
+    blocks: Iterator[PlotItem], channels: Sequence[str], max_depth: int
+) -> defaultdict[ItemKind, list[Patch]]:
+    ch_stack: list[list[str]] = []
+    patches: defaultdict[ItemKind, list[Patch]] = defaultdict(list)
+    channels_ystart = {c: i * (max_depth + 1) for i, c in enumerate(channels)}
+
+    for x in blocks:
+        manage_channel_stack(ch_stack, x)
+        for c in get_plot_channels(ch_stack, x, channels):
+            if c in channels_ystart:
+                y = channels_ystart[c] + x.depth
+                patches[x.kind].append(Rectangle((x.start, y), x.span, 1))
+    return patches
+
+
+def plot(
+    ax: Axes | None, blocks: Iterator[PlotItem], channels: Sequence[str], max_depth: int
+) -> Axes:
     if ax is None:
         ax = plt.gca()
-    channels: list[list[str]] = []
-    patches: list[Patch] = []
-    for x in blocks:
-        prev_depth = len(channels) - 1
-        if x.depth > prev_depth:
-            channels.append(x.channels)
-        elif x.depth < prev_depth:
-            _ = channels.pop()
-            channels[-1] = x.channels
-        else:
-            channels[-1] = x.channels
-        patches.append(DISPATCH[x.kind](x))
-    collection = PatchCollection(patches)
-    _ = ax.add_collection(collection)
+    patches = process_blocks(blocks, channels, max_depth)
+    for k, p in patches.items():
+        collection = PatchCollection(p)
+        collection.set_facecolor(FACECOLORS[k])
+        _ = ax.add_collection(collection)
     return ax

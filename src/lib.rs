@@ -24,7 +24,7 @@ use pyo3::{
     exceptions::{PyRuntimeError, PyTypeError, PyValueError},
     intern,
     prelude::*,
-    types::{DerefToPyAny, PyDict, PyString},
+    types::{DerefToPyAny, PyDict, PyList, PyString},
 };
 use rayon::prelude::*;
 use schedule::{ElementCommon, ElementVariant};
@@ -693,8 +693,10 @@ impl Element {
     fn plot(&self, py: Python, ax: Option<PyObject>) -> PyResult<PyObject> {
         let m = py.import_bound(intern!(py, "bosing._plot"))?;
         let plot_items = Box::new(plot::arrange_to_plot(self.0.clone()));
-        let py_iter = PlotIter { inner: plot_items };
-        let result = m.call_method1(intern!(py, "plot"), (ax, py_iter))?;
+        let blocks = PlotIter { inner: plot_items };
+        let channels = PyList::new_bound(py, self.0.channels());
+        let max_depth = 5;
+        let result = m.call_method1(intern!(py, "plot"), (ax, blocks, channels, max_depth))?;
         Ok(result.into())
     }
 }

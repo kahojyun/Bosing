@@ -5,6 +5,6 @@ from bosing import Barrier, Repeat, Stack
 
 mplstyle.use("fast")
 plt.figure()
-ax = Stack(Repeat(Barrier("xy", duration=1), 500, 1)).plot()
+ax = Stack(Repeat(Barrier("xy", "z", duration=1), 500, 1)).plot()
 ax.autoscale()
 plt.show()
