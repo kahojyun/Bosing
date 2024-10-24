@@ -125,7 +125,13 @@ class Element:
     @property
     def min_duration(self) -> float: ...
     def measure(self) -> float: ...
-    def plot(self, ax: Axes | None = ...) -> Axes: ...
+    def plot(
+        self,
+        ax: Axes | None = ...,
+        *,
+        channels: Sequence[str] | None = ...,
+        max_depth: int = ...,
+    ) -> Axes: ...
 
 @final
 class Play(Element):

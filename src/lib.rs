@@ -689,13 +689,21 @@ impl Element {
         self.0.measure()
     }
 
-    #[pyo3(signature = (ax=None))]
-    fn plot(&self, py: Python, ax: Option<PyObject>) -> PyResult<PyObject> {
+    #[pyo3(signature = (ax=None, *, channels=None, max_depth=5))]
+    fn plot(
+        &self,
+        py: Python,
+        ax: Option<PyObject>,
+        channels: Option<Vec<ChannelId>>,
+        max_depth: usize,
+    ) -> PyResult<PyObject> {
         let m = py.import_bound(intern!(py, "bosing._plot"))?;
         let plot_items = Box::new(plot::arrange_to_plot(self.0.clone()));
         let blocks = PlotIter { inner: plot_items };
-        let channels = PyList::new_bound(py, self.0.channels());
-        let max_depth = 5;
+        let channels = match channels {
+            Some(channels) => PyList::new_bound(py, channels),
+            None => PyList::new_bound(py, self.0.channels()),
+        };
         let result = m.call_method1(intern!(py, "plot"), (ax, blocks, channels, max_depth))?;
         Ok(result.into())
     }

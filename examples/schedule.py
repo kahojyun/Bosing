@@ -66,6 +66,9 @@ if __name__ == "__main__":
         Barrier(duration=15e-9),
     )
 
+    schedule.plot(channels=["xy0", "u0", "m0"], max_depth=6)
+    plt.show()
+
     result = generate_waveforms(channels, shapes, schedule, time_tolerance=1e-13)
 
     t = np.arange(length) / 2e9

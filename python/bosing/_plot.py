@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 import matplotlib.pyplot as plt
 from matplotlib.collections import PatchCollection
 from matplotlib.patches import Patch, Rectangle
+from matplotlib.ticker import EngFormatter
 
 from bosing._bosing import ItemKind
 
@@ -57,14 +58,18 @@ def get_plot_channels(
 
 
 def process_blocks(
-    blocks: Iterator[PlotItem], channels: Sequence[str], max_depth: int
+    blocks: Iterator[PlotItem],
+    channels: Sequence[str],
+    max_depth: int,
+    channels_ystart: dict[str, int],
 ) -> defaultdict[ItemKind, list[Patch]]:
     ch_stack: list[list[str]] = []
     patches: defaultdict[ItemKind, list[Patch]] = defaultdict(list)
-    channels_ystart = {c: i * (max_depth + 1) for i, c in enumerate(channels)}
 
     for x in blocks:
         manage_channel_stack(ch_stack, x)
+        if x.depth >= max_depth:
+            continue
         for c in get_plot_channels(ch_stack, x, channels):
             if c in channels_ystart:
                 y = channels_ystart[c] + x.depth
@@ -77,9 +82,20 @@ def plot(
 ) -> Axes:
     if ax is None:
         ax = plt.gca()
-    patches = process_blocks(blocks, channels, max_depth)
+
+    channels_ystart = {c: i * (max_depth + 1) for i, c in enumerate(channels)}
+    patches = process_blocks(blocks, channels, max_depth, channels_ystart)
+
     for k, p in patches.items():
         collection = PatchCollection(p)
         collection.set_facecolor(FACECOLORS[k])
+        collection.set_edgecolor("black")
         _ = ax.add_collection(collection)
+
+    _ = ax.set_yticks(list(channels_ystart.values()), channels_ystart.keys())  # pyright: ignore[reportUnknownMemberType]
+    ax.xaxis.set_major_formatter(EngFormatter(places=3))
+    _ = ax.set_xlabel("Time")  # pyright: ignore[reportUnknownMemberType]
+    _ = ax.set_ylabel("Channels")  # pyright: ignore[reportUnknownMemberType]
+    ax.autoscale()
+
     return ax
