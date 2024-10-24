@@ -91,6 +91,8 @@ jobs:
         platform:
           - runner: ubuntu-latest
             target: x86_64
+          - runner: ubuntu-latest
+            target: aarch64
     steps:
       - uses: actions/checkout@v4
       - name: Replace version in Cargo.toml
@@ -120,6 +122,8 @@ jobs:
         platform:
           - runner: windows-latest
             target: x64
+          - runner: windows-latest
+            target: aarch64
     steps:
       - uses: actions/checkout@v4
       - name: Replace version in Cargo.toml

@@ -23,7 +23,12 @@ num = "0.4.3"
 numpy = "0.22.0"
 ordered-float = "4.4.0"
 pulp = "0.18.22"
-pyo3 = { version = "0.22.5", features = ["hashbrown", "anyhow", "abi3-py39"] }
+pyo3 = { version = "0.22.5", features = [
+  "hashbrown",
+  "anyhow",
+  "generate-import-lib",
+  "abi3-py39",
+] }
 rayon = "1.10.0"
 thiserror = "1.0.64"
 
