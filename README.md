@@ -1,6 +1,7 @@
 # Bosing
 
 [![Documentation Status](https://readthedocs.org/projects/bosing/badge/?version=latest)](https://bosing.readthedocs.io/zh-cn/latest/?badge=latest)
+[![PyPI - Version](https://img.shields.io/pypi/v/bosing)](https://pypi.org/project/bosing/)
 
 Waveform generator for superconducting circuits.
 
