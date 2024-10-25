@@ -50,6 +50,8 @@ jobs:
         run: uv run ruff check --output-format=github
       - name: Stubtest
         run: uv run task stubtest
+      - name: Check cargo dependencies
+        uses: EmbarkStudios/cargo-deny-action@v2
 
   # Should run on every push and PR, but only run semantic-release on push
   release:
