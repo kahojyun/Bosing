@@ -235,20 +235,56 @@ trait RichRepr {
 
 impl RichRepr for Channel {
     fn repr(&self, py: Python<'_>) -> impl IntoIterator<Item = Arg> {
-        repr_list!(self, py,
-            base_freq,
-            sample_rate,
-            length,
-            ;;
-            delay=Time::ZERO,
-            align_level=-10,
-            iq_matrix=None,
-            offset=None,
-            fir=None,
-            iir=None,
-            filter_offset=false,
-            is_real=false,
-        )
+        let mut result = Vec::from([
+            Arg::pos(self.base_freq, py),
+            Arg::pos(self.sample_rate, py),
+            Arg::pos(self.length, py),
+            Arg::kwd(
+                intern!(py, "delay").clone().unbind(),
+                self.delay,
+                Time::ZERO,
+                py,
+            ),
+            Arg::kwd(
+                intern!(py, "align_level").clone().unbind(),
+                self.align_level,
+                -10,
+                py,
+            ),
+        ]);
+        // NOTE: workaround for rich issue #3531
+        if let Some(iq_matrix) = &self.iq_matrix {
+            result.push(Arg::kw(
+                intern!(py, "iq_matrix").clone().unbind(),
+                iq_matrix,
+                py,
+            ));
+        }
+        if let Some(offset) = &self.offset {
+            result.push(Arg::kw(intern!(py, "offset").clone().unbind(), offset, py));
+        }
+        if let Some(iir) = &self.iir {
+            result.push(Arg::kw(intern!(py, "iir").clone().unbind(), iir, py));
+        }
+        if let Some(fir) = &self.fir {
+            result.push(Arg::kw(intern!(py, "fir").clone().unbind(), fir, py));
+        }
+        result.extend([
+            Arg::kwd(
+                intern!(py, "filter_offset").clone().unbind(),
+                self.filter_offset,
+                false,
+                py,
+            ),
+            Arg::kwd(
+                intern!(py, "is_real").clone().unbind(),
+                self.is_real,
+                false,
+                py,
+            ),
+        ]);
+
+        result
     }
 }
 
