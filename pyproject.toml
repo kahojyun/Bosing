@@ -31,18 +31,31 @@ python-source = "python"
 module-name = "bosing._bosing"
 features = ["pyo3/extension-module"]
 
-[tool.uv]
-dev-dependencies = [
-  "mypy>=1.11.2",
-  "ruff>=0.6.7",
-  "taskipy>=1.13.0",
-  "pytest>=8.3.3",
-  "scipy>=1.13.1",
+[dependency-groups]
+dev = [
+  "rich>=13.9.2",
+  "ipython>=8.18.1",
+  "pyside6>=6.8.0.1",
+  { include-group = "docs" },
+  { include-group = "ci" },
+]
+ci = [
+  { include-group = "task" },
+  { include-group = "lint" },
+  { include-group = "test" },
+]
+docs = [
   "furo>=2024.8.6",
   "sphinx>=7.4.7",
-  "rich>=13.9.2",
-  "pyside6>=6.8.0.1",
+  { include-group = "examples" },
+  { include-group = "task" },
 ]
+task = ["taskipy>=1.13.0"]
+lint = ["mypy>=1.11.2", "ruff>=0.6.7"]
+test = ["pytest>=8.3.3"]
+examples = ["scipy>=1.13.1"]
+
+[tool.uv]
 cache-keys = [
   { file = "src/**/*.rs" },
   { file = "pyproject.toml" },
