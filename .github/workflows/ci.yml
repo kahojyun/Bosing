@@ -27,7 +27,8 @@ jobs:
   test:
     name: Test
     runs-on: ubuntu-latest
-
+    env:
+      UV_NO_SYNC: 1
     steps:
       - uses: actions/checkout@v4
       - name: Cargo build
@@ -41,7 +42,7 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v3
       - name: Sync project
-        run: uv sync --locked
+        run: uv sync --locked --no-dev --group ci
       - name: Pytest
         run: uv run pytest
       - name: Ruff format
