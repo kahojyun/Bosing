@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING
 
 import numpy as np
+from rich.pretty import pretty_repr
 
 import bosing
 
@@ -103,4 +104,25 @@ def test_states() -> None:
     assert (
         states["xy1"].phase_at(shift_instant)
         == base_freq1 * shift_instant + (base_freq1 + freq_shift) * duration
+    )
+
+
+def test_measure() -> None:
+    inner_duration = 10
+    margin = 10
+    schedule = bosing.Stack(bosing.Barrier(duration=inner_duration), margin=margin)
+
+    measure_result = schedule.measure()
+
+    assert measure_result == inner_duration + 2 * margin
+
+
+def test_repr() -> None:
+    c = bosing.Channel(2e9, 2e9, 1000, fir=[1, 2, 3])
+    assert (
+        pretty_repr(c)
+        == "Channel(2000000000.0, 2000000000.0, 1000, fir=array([1., 2., 3.]))"
+    )
+    assert (
+        repr(c) == "Channel(2000000000.0, 2000000000.0, 1000, fir=array([1., 2., 3.]))"
     )

@@ -56,6 +56,7 @@ dependencies = [
 ci = [
     { name = "mypy" },
     { name = "pytest" },
+    { name = "rich" },
     { name = "ruff" },
     { name = "taskipy" },
 ]
@@ -89,6 +90,7 @@ task = [
 ]
 test = [
     { name = "pytest" },
+    { name = "rich" },
 ]
 
 [package.metadata]
@@ -101,6 +103,7 @@ requires-dist = [
 ci = [
     { name = "mypy", specifier = ">=1.11.2" },
     { name = "pytest", specifier = ">=8.3.3" },
+    { name = "rich", specifier = ">=13.9.2" },
     { name = "ruff", specifier = ">=0.6.7" },
     { name = "taskipy", specifier = ">=1.13.0" },
 ]
@@ -128,7 +131,10 @@ lint = [
     { name = "ruff", specifier = ">=0.6.7" },
 ]
 task = [{ name = "taskipy", specifier = ">=1.13.0" }]
-test = [{ name = "pytest", specifier = ">=8.3.3" }]
+test = [
+    { name = "pytest", specifier = ">=8.3.3" },
+    { name = "rich", specifier = ">=13.9.2" },
+]
 
 [[package]]
 name = "certifi"
