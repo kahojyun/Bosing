@@ -33,7 +33,6 @@ features = ["pyo3/extension-module"]
 
 [dependency-groups]
 dev = [
-  "rich>=13.9.2",
   "ipython>=8.18.1",
   "pyside6>=6.8.0.1",
   { include-group = "docs" },
@@ -52,7 +51,7 @@ docs = [
 ]
 task = ["taskipy>=1.13.0"]
 lint = ["mypy>=1.11.2", "ruff>=0.6.7"]
-test = ["pytest>=8.3.3"]
+test = ["rich>=13.9.2", "pytest>=8.3.3"]
 examples = ["scipy>=1.13.1"]
 
 [tool.uv]
