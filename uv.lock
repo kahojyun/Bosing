@@ -52,7 +52,7 @@ dependencies = [
     { name = "numpy" },
 ]
 
-[package.dependency-groups]
+[package.dev-dependencies]
 ci = [
     { name = "mypy" },
     { name = "pytest" },
@@ -95,11 +95,11 @@ test = [
 
 [package.metadata]
 requires-dist = [
-    { name = "matplotlib", specifier = ">=3.0.0" },
+    { name = "matplotlib", specifier = ">=3.5.0" },
     { name = "numpy", specifier = ">=1.16.0" },
 ]
 
-[package.metadata.dependency-groups]
+[package.metadata.requires-dev]
 ci = [
     { name = "mypy", specifier = ">=1.11.2" },
     { name = "pytest", specifier = ">=8.3.3" },

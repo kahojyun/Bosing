@@ -19,7 +19,7 @@ classifiers = [
   "Topic :: Scientific/Engineering",
   "License :: OSI Approved :: MIT License",
 ]
-dependencies = ["matplotlib>=3.0.0", "numpy>=1.16.0"]
+dependencies = ["matplotlib>=3.5.0", "numpy>=1.16.0"]
 
 [project.urls]
 Documentation = "https://bosing.readthedocs.io"
