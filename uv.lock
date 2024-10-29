@@ -52,7 +52,7 @@ dependencies = [
     { name = "numpy" },
 ]
 
-[package.dependency-groups]
+[package.dev-dependencies]
 ci = [
     { name = "mypy" },
     { name = "pytest" },
@@ -95,11 +95,11 @@ test = [
 
 [package.metadata]
 requires-dist = [
-    { name = "matplotlib", specifier = ">=3.0.0" },
-    { name = "numpy", specifier = ">=1.16.0" },
+    { name = "matplotlib", specifier = ">=3.5.0" },
+    { name = "numpy", specifier = ">=1.19.3" },
 ]
 
-[package.metadata.dependency-groups]
+[package.metadata.requires-dev]
 ci = [
     { name = "mypy", specifier = ">=1.11.2" },
     { name = "pytest", specifier = ">=8.3.3" },
@@ -111,21 +111,21 @@ dev = [
     { name = "furo", specifier = ">=2024.8.6" },
     { name = "ipython", specifier = ">=8.18.1" },
     { name = "mypy", specifier = ">=1.11.2" },
-    { name = "pyside6", specifier = ">=6.8.0.1" },
+    { name = "pyside6", specifier = ">=6.3" },
     { name = "pytest", specifier = ">=8.3.3" },
     { name = "rich", specifier = ">=13.9.2" },
     { name = "ruff", specifier = ">=0.6.7" },
-    { name = "scipy", specifier = ">=1.13.1" },
+    { name = "scipy", specifier = ">=1.9.3" },
     { name = "sphinx", specifier = ">=7.4.7" },
     { name = "taskipy", specifier = ">=1.13.0" },
 ]
 docs = [
     { name = "furo", specifier = ">=2024.8.6" },
-    { name = "scipy", specifier = ">=1.13.1" },
+    { name = "scipy", specifier = ">=1.9.3" },
     { name = "sphinx", specifier = ">=7.4.7" },
     { name = "taskipy", specifier = ">=1.13.0" },
 ]
-examples = [{ name = "scipy", specifier = ">=1.13.1" }]
+examples = [{ name = "scipy", specifier = ">=1.9.3" }]
 lint = [
     { name = "mypy", specifier = ">=1.11.2" },
     { name = "ruff", specifier = ">=0.6.7" },

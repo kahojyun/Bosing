@@ -1,3 +1,6 @@
+import matplotlib as mpl
+
+mpl.use("Agg")
 from matplotlib.figure import Figure
 
 from bosing import Barrier, Play, ShiftPhase, Stack

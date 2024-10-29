@@ -19,7 +19,7 @@ classifiers = [
   "Topic :: Scientific/Engineering",
   "License :: OSI Approved :: MIT License",
 ]
-dependencies = ["matplotlib>=3.0.0", "numpy>=1.16.0"]
+dependencies = ["matplotlib>=3.5.0", "numpy>=1.19.3"]
 
 [project.urls]
 Documentation = "https://bosing.readthedocs.io"
@@ -34,7 +34,7 @@ features = ["pyo3/extension-module"]
 [dependency-groups]
 dev = [
   "ipython>=8.18.1",
-  "pyside6>=6.8.0.1",
+  "pyside6>=6.3",
   { include-group = "docs" },
   { include-group = "ci" },
 ]
@@ -52,7 +52,7 @@ docs = [
 task = ["taskipy>=1.13.0"]
 lint = ["mypy>=1.11.2", "ruff>=0.6.7"]
 test = ["rich>=13.9.2", "pytest>=8.3.3"]
-examples = ["scipy>=1.13.1"]
+examples = ["scipy>=1.9.3"]
 
 [tool.uv]
 cache-keys = [
