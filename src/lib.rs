@@ -4,6 +4,7 @@
 mod executor;
 mod plot;
 mod pulse;
+mod python;
 mod quant;
 mod schedule;
 mod shape;
@@ -19,13 +20,14 @@ use std::{
 use hashbrown::HashMap;
 use itertools::Itertools;
 use ndarray::ArrayViewMut2;
-use numpy::{prelude::*, AllowTypeChange, PyArray1, PyArray2, PyArrayLike1, PyArrayLike2};
+use numpy::{prelude::*, AllowTypeChange, PyArray2, PyArrayLike2};
 use pyo3::{
     exceptions::{PyRuntimeError, PyTypeError, PyValueError},
     intern,
     prelude::*,
-    types::{DerefToPyAny, PyDict, PyList, PyString},
+    types::{DerefToPyAny, PyList, PyString},
 };
+use python::{FirArray, IirArray};
 use rayon::prelude::*;
 use schedule::{ElementCommon, ElementVariant};
 
@@ -35,6 +37,7 @@ use crate::{
         apply_fir_inplace, apply_iir_inplace, apply_iq_inplace, apply_offset_inplace, PulseList,
         Sampler,
     },
+    python::{IqMatrix, OffsetArray},
     quant::{Amplitude, ChannelId, Frequency, Phase, ShapeId, Time},
     schedule::{ElementCommonBuilder, ElementRef, Measure},
 };
@@ -79,10 +82,10 @@ struct Channel {
     length: usize,
     delay: Time,
     align_level: i32,
-    iq_matrix: Option<Py<PyArray2<f64>>>,
-    offset: Option<Py<PyArray1<f64>>>,
-    iir: Option<Py<PyArray2<f64>>>,
-    fir: Option<Py<PyArray1<f64>>>,
+    iq_matrix: Option<IqMatrix>,
+    offset: Option<OffsetArray>,
+    iir: Option<IirArray>,
+    fir: Option<FirArray>,
     filter_offset: bool,
     is_real: bool,
 }
@@ -112,59 +115,27 @@ impl Channel {
         length: usize,
         delay: Time,
         align_level: i32,
-        iq_matrix: Option<PyArrayLike2<f64, AllowTypeChange>>,
-        offset: Option<PyArrayLike1<f64, AllowTypeChange>>,
-        iir: Option<PyArrayLike2<f64, AllowTypeChange>>,
-        fir: Option<PyArrayLike1<f64, AllowTypeChange>>,
+        iq_matrix: Option<IqMatrix>,
+        offset: Option<OffsetArray>,
+        iir: Option<IirArray>,
+        fir: Option<FirArray>,
         filter_offset: bool,
         is_real: bool,
     ) -> PyResult<Self> {
         if is_real && iq_matrix.is_some() {
-            return Err(PyValueError::new_err("iq_matrix conflicts with is_real"));
+            return Err(PyValueError::new_err(
+                "iq_matrix should be None when is_real==True.",
+            ));
         }
-        let iq_matrix = if let Some(iq_matrix) = iq_matrix {
-            if iq_matrix.shape() != [2, 2] {
-                return Err(PyValueError::new_err("iq_matrix should be a 2x2 matrix"));
+        if let Some(offset) = &offset {
+            let len = offset.as_array(py).dim();
+            if is_real && len != 1 {
+                return Err(PyValueError::new_err("is_real==True but len(shape)!=1."));
             }
-            let kwargs = PyDict::new_bound(py);
-            kwargs.set_item("write", false)?;
-            iq_matrix.getattr("setflags")?.call((), Some(&kwargs))?;
-            Some(Bound::clone(&iq_matrix).unbind())
-        } else {
-            None
-        };
-        let offset = if let Some(offset) = offset {
-            if !matches!((offset.len(), is_real), (1, true) | (2, false)) {
-                return Err(PyValueError::new_err(
-                    "offset length does not match is_real",
-                ));
+            if !is_real && len != 2 {
+                return Err(PyValueError::new_err("is_real==False but len(shape)!=2."));
             }
-            let kwargs = PyDict::new_bound(py);
-            kwargs.set_item("write", false)?;
-            offset.getattr("setflags")?.call((), Some(&kwargs))?;
-            Some(Bound::clone(&offset).unbind())
-        } else {
-            None
-        };
-        let iir = if let Some(iir) = iir {
-            if !matches!(iir.shape(), [_, 6]) {
-                return Err(PyValueError::new_err("iir should be a Nx6 matrix"));
-            }
-            let kwargs = PyDict::new_bound(py);
-            kwargs.set_item("write", false)?;
-            iir.getattr("setflags")?.call((), Some(&kwargs))?;
-            Some(Bound::clone(&iir).unbind())
-        } else {
-            None
-        };
-        let fir = if let Some(fir) = fir {
-            let kwargs = PyDict::new_bound(py);
-            kwargs.set_item("write", false)?;
-            fir.getattr("setflags")?.call((), Some(&kwargs))?;
-            Some(Bound::clone(&fir).unbind())
-        } else {
-            None
-        };
+        }
         Ok(Channel {
             base_freq,
             sample_rate,
@@ -2917,16 +2888,10 @@ fn sample_waveform(
 }
 
 fn post_process(py: Python, w: &mut ArrayViewMut2<f64>, c: &Channel) {
-    macro_rules! map_as_array {
-        ($n:ident) => {
-            let temp = c.$n.as_ref().map(|x| x.bind(py).readonly());
-            let $n = temp.as_ref().map(|x| x.as_array());
-        };
-    }
-    map_as_array!(iq_matrix);
-    map_as_array!(offset);
-    map_as_array!(iir);
-    map_as_array!(fir);
+    let iq_matrix = c.iq_matrix.as_ref().map(|x| x.as_array(py));
+    let offset = c.offset.as_ref().map(|x| x.as_array(py));
+    let iir = c.iir.as_ref().map(|x| x.as_array(py));
+    let fir = c.fir.as_ref().map(|x| x.as_array(py));
     py.allow_threads(|| {
         if let Some(iq_matrix) = iq_matrix {
             apply_iq_inplace(w, iq_matrix);
