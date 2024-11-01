@@ -3,7 +3,7 @@ use numpy::{prelude::*, Ix1, Ix2, PyArray};
 use pyo3::{exceptions::PyTypeError, intern, prelude::*, sync::GILOnceCell, types::PyDict};
 
 macro_rules! define_wrapper {
-    ($name:ident, $t:ty, $d:ty, $err_msg:expr, $check:expr) => {
+    ($name:ident, $t:ty, $d:ty, $err_msg:expr $(, $check:expr)*) => {
         /// Readonly wrapper around a numpy array.
         #[derive(Debug)]
         pub(crate) struct $name(Py<PyArray<$t, $d>>);
@@ -31,9 +31,11 @@ macro_rules! define_wrapper {
                 let arr = arr
                     .downcast_into::<PyArray<$t, $d>>()
                     .map_err(|_| PyTypeError::new_err(err_msg))?;
+                $(
                 if !$check(&arr) {
                     return Err(PyTypeError::new_err(err_msg));
                 }
+                )*
 
                 Ok(Self(arr.unbind()))
             }
@@ -59,8 +61,7 @@ define_wrapper!(
     OffsetArray,
     f64,
     Ix1,
-    "offset should be convertible to a 1d f64 numpy array.",
-    |_arr: &Bound<'_, PyArray<f64, Ix1>>| true
+    "offset should be convertible to a 1d f64 numpy array."
 );
 
 define_wrapper!(
@@ -75,8 +76,7 @@ define_wrapper!(
     FirArray,
     f64,
     Ix1,
-    "fir should be convertible to a 1d f64 numpy array.",
-    |_arr: &Bound<'_, PyArray<f64, Ix1>>| true
+    "fir should be convertible to a 1d f64 numpy array."
 );
 
 /// Convert a Python object to a read-only numpy array.
