@@ -11,7 +11,7 @@ name = "bosing"
 crate-type = ["cdylib"]
 
 [dependencies]
-anyhow = "1.0.89"
+anyhow = "1.0.92"
 bspline = "1.1.0"
 cached = "0.53.1"
 float-cmp = "0.10.0"
