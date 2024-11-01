@@ -1,25 +1,15 @@
-use ndarray::ArrayView;
+use ndarray::{prelude::*, ArrayView};
 use numpy::{prelude::*, Ix1, Ix2, PyArray};
-use pyo3::{exceptions::PyTypeError, intern, prelude::*, sync::GILOnceCell, types::PyDict};
+use pyo3::{exceptions::PyTypeError, prelude::*, sync::GILOnceCell};
 
 macro_rules! define_wrapper {
     ($name:ident, $t:ty, $d:ty, $err_msg:expr $(, $check:expr)*) => {
-        /// Readonly wrapper around a numpy array.
-        #[derive(Debug)]
-        pub(crate) struct $name(Py<PyArray<$t, $d>>);
+        #[derive(Debug, Clone)]
+        pub(crate) struct $name(ArcArray<$t, $d>);
 
         impl $name {
-            pub(crate) fn clone_ref(&self, py: Python<'_>) -> Self {
-                Self(self.0.clone_ref(py))
-            }
-
-            pub(crate) fn as_array<'a, 'py: 'a>(
-                &'a self,
-                py: Python<'py>,
-            ) -> ArrayView<'a, $t, $d> {
-                let arr = self.0.bind(py);
-                // SAFETY: self.0 is private and no methods provide mutable access to it.
-                unsafe { arr.as_array() }
+            pub(crate) fn view(&self) -> ArrayView<$t, $d> {
+                self.0.view()
             }
         }
 
@@ -27,7 +17,7 @@ macro_rules! define_wrapper {
             fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
                 let err_msg = $err_msg;
                 let arr =
-                    np_as_readonly_array(ob).map_err(|e| PyTypeError::new_err((err_msg, e)))?;
+                    np_as_array(ob).map_err(|e| PyTypeError::new_err((err_msg, e)))?;
                 let arr = arr
                     .downcast_into::<PyArray<$t, $d>>()
                     .map_err(|_| PyTypeError::new_err(err_msg))?;
@@ -37,13 +27,13 @@ macro_rules! define_wrapper {
                 }
                 )*
 
-                Ok(Self(arr.unbind()))
+                Ok(Self(arr.to_owned_array().into()))
             }
         }
 
         impl ToPyObject for $name {
             fn to_object(&self, py: Python<'_>) -> PyObject {
-                self.0.to_object(py)
+                PyArray::from_array_bound(py, &self.0).into()
             }
         }
     };
@@ -79,8 +69,7 @@ define_wrapper!(
     "fir should be convertible to a 1d f64 numpy array."
 );
 
-/// Convert a Python object to a read-only numpy array.
-fn np_as_readonly_array<'py>(ob: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyAny>> {
+fn np_as_array<'py>(ob: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyAny>> {
     static AS_ARRAY: GILOnceCell<PyObject> = GILOnceCell::new();
     let py = ob.py();
     let as_array = AS_ARRAY
@@ -88,10 +77,5 @@ fn np_as_readonly_array<'py>(ob: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyAn
             Ok(py.import_bound("numpy")?.getattr("asarray")?.into())
         })?
         .bind(py);
-    let arr = as_array.call1((ob, <f64 as numpy::Element>::get_dtype_bound(py)))?;
-    let kwargs = PyDict::new_bound(py);
-    kwargs.set_item(intern!(py, "write"), false)?;
-    arr.getattr(intern!(py, "setflags"))?
-        .call((), Some(&kwargs))?;
-    Ok(arr)
+    as_array.call1((ob, <f64 as numpy::Element>::get_dtype_bound(py)))
 }

@@ -27,9 +27,7 @@ use pyo3::{
     prelude::*,
     types::{DerefToPyAny, PyList, PyString},
 };
-use python::{FirArray, IirArray};
 use rayon::prelude::*;
-use schedule::{ElementCommon, ElementVariant};
 
 use crate::{
     executor::Executor,
@@ -37,9 +35,9 @@ use crate::{
         apply_fir_inplace, apply_iir_inplace, apply_iq_inplace, apply_offset_inplace, PulseList,
         Sampler,
     },
-    python::{IqMatrix, OffsetArray},
+    python::{FirArray, IirArray, IqMatrix, OffsetArray},
     quant::{Amplitude, ChannelId, Frequency, Phase, ShapeId, Time},
-    schedule::{ElementCommonBuilder, ElementRef, Measure},
+    schedule::{ElementCommon, ElementCommonBuilder, ElementRef, ElementVariant, Measure},
 };
 
 /// Channel configuration.
@@ -75,7 +73,7 @@ use crate::{
 ///         ``False``.
 ///     is_real (bool): Whether the channel is real. Defaults to ``False``.
 #[pyclass(module = "bosing", get_all, frozen)]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct Channel {
     base_freq: Frequency,
     sample_rate: Frequency,
@@ -109,7 +107,6 @@ impl Channel {
     ))]
     #[allow(clippy::too_many_arguments)]
     fn new(
-        py: Python,
         base_freq: Frequency,
         sample_rate: Frequency,
         length: usize,
@@ -128,7 +125,7 @@ impl Channel {
             ));
         }
         if let Some(offset) = &offset {
-            let len = offset.as_array(py).dim();
+            let len = offset.view().dim();
             if is_real && len != 1 {
                 return Err(PyValueError::new_err("is_real==True but len(shape)!=1."));
             }
@@ -299,38 +296,6 @@ impl Arg {
             Arg::Kw(n, v) => (n, v).into_py(py),
             Arg::KwDefault(n, v, d) => (n, v, d).into_py(py),
         }
-    }
-}
-
-impl<'py> FromPyObject<'py> for Channel {
-    fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
-        let py = ob.py();
-        let &Self {
-            base_freq,
-            sample_rate,
-            length,
-            delay,
-            align_level,
-            ref iq_matrix,
-            ref offset,
-            ref iir,
-            ref fir,
-            filter_offset,
-            is_real,
-        } = ob.downcast_exact::<Self>()?.get();
-        Ok(Self {
-            base_freq,
-            sample_rate,
-            length,
-            delay,
-            align_level,
-            iq_matrix: iq_matrix.as_ref().map(|x| x.clone_ref(py)),
-            offset: offset.as_ref().map(|x| x.clone_ref(py)),
-            iir: iir.as_ref().map(|x| x.clone_ref(py)),
-            fir: fir.as_ref().map(|x| x.clone_ref(py)),
-            filter_offset,
-            is_real,
-        })
     }
 }
 
@@ -2802,7 +2767,7 @@ fn generate_waveforms_with_states(
                         let mut w = w.readwrite();
                         let mut w = w.as_array_mut();
                         let c = &channels[&n];
-                        post_process(py, &mut w, c);
+                        py.allow_threads(|| post_process(&mut w, c));
                     });
                     (n, w)
                 })
@@ -2887,37 +2852,35 @@ fn sample_waveform(
     Ok(waveforms)
 }
 
-fn post_process(py: Python, w: &mut ArrayViewMut2<f64>, c: &Channel) {
-    let iq_matrix = c.iq_matrix.as_ref().map(|x| x.as_array(py));
-    let offset = c.offset.as_ref().map(|x| x.as_array(py));
-    let iir = c.iir.as_ref().map(|x| x.as_array(py));
-    let fir = c.fir.as_ref().map(|x| x.as_array(py));
-    py.allow_threads(|| {
-        if let Some(iq_matrix) = iq_matrix {
-            apply_iq_inplace(w, iq_matrix);
+fn post_process(w: &mut ArrayViewMut2<f64>, c: &Channel) {
+    let iq_matrix = c.iq_matrix.as_ref().map(|x| x.view());
+    let offset = c.offset.as_ref().map(|x| x.view());
+    let iir = c.iir.as_ref().map(|x| x.view());
+    let fir = c.fir.as_ref().map(|x| x.view());
+    if let Some(iq_matrix) = iq_matrix {
+        apply_iq_inplace(w, iq_matrix);
+    }
+    if c.filter_offset {
+        if let Some(offset) = offset {
+            apply_offset_inplace(w, offset);
         }
-        if c.filter_offset {
-            if let Some(offset) = offset {
-                apply_offset_inplace(w, offset);
-            }
-            if let Some(iir) = iir {
-                apply_iir_inplace(w, iir);
-            }
-            if let Some(fir) = fir {
-                apply_fir_inplace(w, fir);
-            }
-        } else {
-            if let Some(iir) = iir {
-                apply_iir_inplace(w, iir);
-            }
-            if let Some(fir) = fir {
-                apply_fir_inplace(w, fir);
-            }
-            if let Some(offset) = offset {
-                apply_offset_inplace(w, offset);
-            }
+        if let Some(iir) = iir {
+            apply_iir_inplace(w, iir);
         }
-    });
+        if let Some(fir) = fir {
+            apply_fir_inplace(w, fir);
+        }
+    } else {
+        if let Some(iir) = iir {
+            apply_iir_inplace(w, iir);
+        }
+        if let Some(fir) = fir {
+            apply_fir_inplace(w, fir);
+        }
+        if let Some(offset) = offset {
+            apply_offset_inplace(w, offset);
+        }
+    }
 }
 
 #[pymodule]
