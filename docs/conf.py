@@ -25,6 +25,7 @@ extensions = [
 ]
 
 autosummary_imported_members = True
+autoclass_content = "both"
 intersphinx_mapping = {
     "python": ("https://docs.python.org/3", None),
     "numpy": ("https://numpy.org/doc/stable/", None),
