@@ -25,7 +25,7 @@ use pyo3::{
     exceptions::{PyRuntimeError, PyTypeError, PyValueError},
     intern,
     prelude::*,
-    types::{DerefToPyAny, PyList, PyString},
+    types::{DerefToPyAny, PyList},
 };
 use rayon::prelude::*;
 
@@ -35,7 +35,7 @@ use crate::{
         apply_fir_inplace, apply_iir_inplace, apply_iq_inplace, apply_offset_inplace, PulseList,
         Sampler,
     },
-    python::{FirArray, IirArray, IqMatrix, OffsetArray},
+    python::{Arg, FirArray, IirArray, IqMatrix, OffsetArray},
     quant::{Amplitude, ChannelId, Frequency, Phase, ShapeId, Time},
     schedule::{ElementCommon, ElementCommonBuilder, ElementRef, ElementVariant, Measure},
 };
@@ -153,7 +153,7 @@ impl Channel {
         slf.get().to_repr(cls_name, slf.py())
     }
 
-    fn __rich_repr__(&self, py: Python) -> Vec<PyObject> {
+    fn __rich_repr__(&self, py: Python) -> Vec<Arg> {
         self.to_rich_repr(py)
     }
 }
@@ -161,13 +161,13 @@ impl Channel {
 macro_rules! repr_list {
     ($self:ident, $py:ident, $($pos:ident),* $(,)*; $($kw:ident),* $(,)*; $($kwn:ident=$kwd:expr),* $(,)*) => {
         [
-            $(Arg::pos(&$self.$pos, $py),)*
-            $(Arg::kw(
+            $(Arg::positional(&$self.$pos, $py),)*
+            $(Arg::keyword(
                 intern!($py, stringify!($kw)).clone().unbind(),
                 &$self.$kw,
                 $py,
             ),)*
-            $(Arg::kwd(
+            $(Arg::key_with_default(
                 intern!($py, stringify!($kwn)).clone().unbind(),
                 &$self.$kwn,
                 &$kwd,
@@ -180,11 +180,8 @@ macro_rules! repr_list {
 trait RichRepr {
     fn repr(&self, py: Python) -> impl IntoIterator<Item = Arg>;
 
-    fn to_rich_repr(&self, py: Python) -> Vec<PyObject> {
-        self.repr(py)
-            .into_iter()
-            .map(|x| x.into_rich_item(py))
-            .collect()
+    fn to_rich_repr(&self, py: Python) -> Vec<Arg> {
+        self.repr(py).into_iter().collect()
     }
 
     fn to_repr(&self, cls_name: impl Display, py: Python) -> PyResult<String> {
@@ -204,16 +201,16 @@ trait RichRepr {
 impl RichRepr for Channel {
     fn repr(&self, py: Python<'_>) -> impl IntoIterator<Item = Arg> {
         let mut result = Vec::from([
-            Arg::pos(self.base_freq, py),
-            Arg::pos(self.sample_rate, py),
-            Arg::pos(self.length, py),
-            Arg::kwd(
+            Arg::positional(self.base_freq, py),
+            Arg::positional(self.sample_rate, py),
+            Arg::positional(self.length, py),
+            Arg::key_with_default(
                 intern!(py, "delay").clone().unbind(),
                 self.delay,
                 Time::ZERO,
                 py,
             ),
-            Arg::kwd(
+            Arg::key_with_default(
                 intern!(py, "align_level").clone().unbind(),
                 self.align_level,
                 -10,
@@ -222,29 +219,33 @@ impl RichRepr for Channel {
         ]);
         // NOTE: workaround for rich issue #3531
         if let Some(iq_matrix) = &self.iq_matrix {
-            result.push(Arg::kw(
+            result.push(Arg::keyword(
                 intern!(py, "iq_matrix").clone().unbind(),
                 iq_matrix,
                 py,
             ));
         }
         if let Some(offset) = &self.offset {
-            result.push(Arg::kw(intern!(py, "offset").clone().unbind(), offset, py));
+            result.push(Arg::keyword(
+                intern!(py, "offset").clone().unbind(),
+                offset,
+                py,
+            ));
         }
         if let Some(iir) = &self.iir {
-            result.push(Arg::kw(intern!(py, "iir").clone().unbind(), iir, py));
+            result.push(Arg::keyword(intern!(py, "iir").clone().unbind(), iir, py));
         }
         if let Some(fir) = &self.fir {
-            result.push(Arg::kw(intern!(py, "fir").clone().unbind(), fir, py));
+            result.push(Arg::keyword(intern!(py, "fir").clone().unbind(), fir, py));
         }
         result.extend([
-            Arg::kwd(
+            Arg::key_with_default(
                 intern!(py, "filter_offset").clone().unbind(),
                 self.filter_offset,
                 false,
                 py,
             ),
-            Arg::kwd(
+            Arg::key_with_default(
                 intern!(py, "is_real").clone().unbind(),
                 self.is_real,
                 false,
@@ -253,49 +254,6 @@ impl RichRepr for Channel {
         ]);
 
         result
-    }
-}
-
-enum Arg {
-    Pos(PyObject),
-    Kw(Py<PyString>, PyObject),
-    KwDefault(Py<PyString>, PyObject, PyObject),
-}
-
-impl Arg {
-    fn pos<T: ToPyObject>(value: T, py: Python) -> Self {
-        Self::Pos(value.to_object(py))
-    }
-
-    fn kw<T: ToPyObject>(key: Py<PyString>, value: T, py: Python) -> Self {
-        Self::Kw(key, value.to_object(py))
-    }
-
-    fn kwd<T: ToPyObject>(key: Py<PyString>, value: T, default: T, py: Python) -> Self {
-        Self::KwDefault(key, value.to_object(py), default.to_object(py))
-    }
-
-    fn fmt(&self, py: Python) -> PyResult<Option<String>> {
-        let result = match self {
-            Arg::Pos(v) => Some(v.bind(py).repr()?.to_string()),
-            Arg::Kw(n, v) => Some(format!("{}={}", n, v.bind(py).repr()?)),
-            Arg::KwDefault(n, v, d) => {
-                if !matches!(v.bind(py).eq(d), Ok(true)) {
-                    Some(format!("{}={}", n, v.bind(py).repr()?))
-                } else {
-                    None
-                }
-            }
-        };
-        Ok(result)
-    }
-
-    fn into_rich_item(self, py: Python) -> PyObject {
-        match self {
-            Arg::Pos(v) => (v,).into_py(py),
-            Arg::Kw(n, v) => (n, v).into_py(py),
-            Arg::KwDefault(n, v, d) => (n, v, d).into_py(py),
-        }
     }
 }
 
@@ -357,7 +315,7 @@ impl OscState {
         slf.borrow().to_repr(cls_name, slf.py())
     }
 
-    fn __rich_repr__(&self, py: Python) -> Vec<PyObject> {
+    fn __rich_repr__(&self, py: Python) -> Vec<Arg> {
         self.to_rich_repr(py)
     }
 }
@@ -807,37 +765,37 @@ where
     fn common_repr(slf: &Bound<Self>) -> impl IntoIterator<Item = Arg> {
         let py = slf.py();
         [
-            Arg::kwd(
+            Arg::key_with_default(
                 intern!(py, "margin").clone().unbind(),
                 Self::common(slf).margin(),
                 (Time::ZERO, Time::ZERO),
                 py,
             ),
-            Arg::kwd(
+            Arg::key_with_default(
                 intern!(py, "alignment").clone().unbind(),
                 Self::common(slf).alignment().into_py(py),
                 Alignment::End.into_py(py),
                 py,
             ),
-            Arg::kwd(
+            Arg::key_with_default(
                 intern!(py, "phantom").clone().unbind(),
                 Self::common(slf).phantom(),
                 false,
                 py,
             ),
-            Arg::kwd(
+            Arg::key_with_default(
                 intern!(py, "duration").clone().unbind(),
                 Self::common(slf).duration(),
                 None,
                 py,
             ),
-            Arg::kwd(
+            Arg::key_with_default(
                 intern!(py, "max_duration").clone().unbind(),
                 Self::common(slf).max_duration(),
                 Time::INFINITY,
                 py,
             ),
-            Arg::kwd(
+            Arg::key_with_default(
                 intern!(py, "min_duration").clone().unbind(),
                 Self::common(slf).min_duration(),
                 Time::ZERO,
@@ -1005,7 +963,7 @@ impl Play {
         slf.to_repr(cls_name, slf.py())
     }
 
-    fn __rich_repr__(slf: &Bound<Self>) -> Vec<PyObject> {
+    fn __rich_repr__(slf: &Bound<Self>) -> Vec<Arg> {
         slf.to_rich_repr(slf.py())
     }
 }
@@ -1013,35 +971,35 @@ impl Play {
 impl<'py> RichRepr for Bound<'py, Play> {
     fn repr(&self, py: Python) -> impl IntoIterator<Item = Arg> {
         [
-            Arg::pos(Play::variant(self).channel_id(), py),
-            Arg::pos(Play::variant(self).shape_id(), py),
-            Arg::pos(Play::variant(self).amplitude(), py),
-            Arg::pos(Play::variant(self).width(), py),
-            Arg::kwd(
+            Arg::positional(Play::variant(self).channel_id(), py),
+            Arg::positional(Play::variant(self).shape_id(), py),
+            Arg::positional(Play::variant(self).amplitude(), py),
+            Arg::positional(Play::variant(self).width(), py),
+            Arg::key_with_default(
                 intern!(py, "plateau").clone().unbind(),
                 Play::variant(self).plateau(),
                 Time::ZERO,
                 py,
             ),
-            Arg::kwd(
+            Arg::key_with_default(
                 intern!(py, "drag_coef").clone().unbind(),
                 Play::variant(self).drag_coef(),
                 0.0,
                 py,
             ),
-            Arg::kwd(
+            Arg::key_with_default(
                 intern!(py, "frequency").clone().unbind(),
                 Play::variant(self).frequency(),
                 Frequency::ZERO,
                 py,
             ),
-            Arg::kwd(
+            Arg::key_with_default(
                 intern!(py, "phase").clone().unbind(),
                 Play::variant(self).phase(),
                 Phase::ZERO,
                 py,
             ),
-            Arg::kwd(
+            Arg::key_with_default(
                 intern!(py, "flexible").clone().unbind(),
                 Play::variant(self).flexible(),
                 false,
@@ -1129,7 +1087,7 @@ impl ShiftPhase {
         slf.to_repr(cls_name, slf.py())
     }
 
-    fn __rich_repr__(slf: &Bound<Self>) -> Vec<PyObject> {
+    fn __rich_repr__(slf: &Bound<Self>) -> Vec<Arg> {
         slf.to_rich_repr(slf.py())
     }
 }
@@ -1137,8 +1095,8 @@ impl ShiftPhase {
 impl<'py> RichRepr for Bound<'py, ShiftPhase> {
     fn repr(&self, py: Python) -> impl IntoIterator<Item = Arg> {
         [
-            Arg::pos(ShiftPhase::variant(self).channel_id(), py),
-            Arg::pos(ShiftPhase::variant(self).phase(), py),
+            Arg::positional(ShiftPhase::variant(self).channel_id(), py),
+            Arg::positional(ShiftPhase::variant(self).phase(), py),
         ]
         .into_iter()
         .chain(ShiftPhase::common_repr(self))
@@ -1229,7 +1187,7 @@ impl SetPhase {
         slf.to_repr(cls_name, slf.py())
     }
 
-    fn __rich_repr__(slf: &Bound<Self>) -> Vec<PyObject> {
+    fn __rich_repr__(slf: &Bound<Self>) -> Vec<Arg> {
         slf.to_rich_repr(slf.py())
     }
 }
@@ -1237,8 +1195,8 @@ impl SetPhase {
 impl<'py> RichRepr for Bound<'py, SetPhase> {
     fn repr(&self, py: Python) -> impl IntoIterator<Item = Arg> {
         [
-            Arg::pos(SetPhase::variant(self).channel_id(), py),
-            Arg::pos(SetPhase::variant(self).phase(), py),
+            Arg::positional(SetPhase::variant(self).channel_id(), py),
+            Arg::positional(SetPhase::variant(self).phase(), py),
         ]
         .into_iter()
         .chain(SetPhase::common_repr(self))
@@ -1317,7 +1275,7 @@ impl ShiftFreq {
         slf.to_repr(cls_name, slf.py())
     }
 
-    fn __rich_repr__(slf: &Bound<Self>) -> Vec<PyObject> {
+    fn __rich_repr__(slf: &Bound<Self>) -> Vec<Arg> {
         slf.to_rich_repr(slf.py())
     }
 }
@@ -1325,8 +1283,8 @@ impl ShiftFreq {
 impl<'py> RichRepr for Bound<'py, ShiftFreq> {
     fn repr(&self, py: Python) -> impl IntoIterator<Item = Arg> {
         [
-            Arg::pos(ShiftFreq::variant(self).channel_id(), py),
-            Arg::pos(ShiftFreq::variant(self).frequency(), py),
+            Arg::positional(ShiftFreq::variant(self).channel_id(), py),
+            Arg::positional(ShiftFreq::variant(self).frequency(), py),
         ]
         .into_iter()
         .chain(ShiftFreq::common_repr(self))
@@ -1406,7 +1364,7 @@ impl SetFreq {
         slf.to_repr(cls_name, slf.py())
     }
 
-    fn __rich_repr__(slf: &Bound<Self>) -> Vec<PyObject> {
+    fn __rich_repr__(slf: &Bound<Self>) -> Vec<Arg> {
         slf.to_rich_repr(slf.py())
     }
 }
@@ -1414,8 +1372,8 @@ impl SetFreq {
 impl<'py> RichRepr for Bound<'py, SetFreq> {
     fn repr(&self, py: Python) -> impl IntoIterator<Item = Arg> {
         [
-            Arg::pos(SetFreq::variant(self).channel_id(), py),
-            Arg::pos(SetFreq::variant(self).frequency(), py),
+            Arg::positional(SetFreq::variant(self).channel_id(), py),
+            Arg::positional(SetFreq::variant(self).frequency(), py),
         ]
         .into_iter()
         .chain(SetFreq::common_repr(self))
@@ -1497,7 +1455,7 @@ impl SwapPhase {
         slf.to_repr(cls_name, slf.py())
     }
 
-    fn __rich_repr__(slf: &Bound<Self>) -> Vec<PyObject> {
+    fn __rich_repr__(slf: &Bound<Self>) -> Vec<Arg> {
         slf.to_rich_repr(slf.py())
     }
 }
@@ -1505,8 +1463,8 @@ impl SwapPhase {
 impl<'py> RichRepr for Bound<'py, SwapPhase> {
     fn repr(&self, py: Python) -> impl IntoIterator<Item = Arg> {
         [
-            Arg::pos(SwapPhase::variant(self).channel_id1(), py),
-            Arg::pos(SwapPhase::variant(self).channel_id2(), py),
+            Arg::positional(SwapPhase::variant(self).channel_id1(), py),
+            Arg::positional(SwapPhase::variant(self).channel_id2(), py),
         ]
         .into_iter()
         .chain(SwapPhase::common_repr(self))
@@ -1578,7 +1536,7 @@ impl Barrier {
         slf.to_repr(cls_name, slf.py())
     }
 
-    fn __rich_repr__(slf: &Bound<Self>) -> Vec<PyObject> {
+    fn __rich_repr__(slf: &Bound<Self>) -> Vec<Arg> {
         slf.to_rich_repr(slf.py())
     }
 }
@@ -1588,7 +1546,7 @@ impl<'py> RichRepr for Bound<'py, Barrier> {
         Barrier::variant(self)
             .channel_ids()
             .iter()
-            .map(|x| Arg::pos(x, py))
+            .map(|x| Arg::positional(x, py))
             .chain(Barrier::common_repr(self))
             .collect_vec()
     }
@@ -1670,7 +1628,7 @@ impl Repeat {
         slf.to_repr(cls_name, slf.py())
     }
 
-    fn __rich_repr__(slf: &Bound<Self>) -> Vec<PyObject> {
+    fn __rich_repr__(slf: &Bound<Self>) -> Vec<Arg> {
         slf.to_rich_repr(slf.py())
     }
 }
@@ -1678,9 +1636,9 @@ impl Repeat {
 impl<'py> RichRepr for Bound<'py, Repeat> {
     fn repr(&self, py: Python) -> impl IntoIterator<Item = Arg> {
         [
-            Arg::pos(&self.get().child, py),
-            Arg::pos(Repeat::variant(self).count(), py),
-            Arg::kwd(
+            Arg::positional(&self.get().child, py),
+            Arg::positional(Repeat::variant(self).count(), py),
+            Arg::key_with_default(
                 intern!(py, "spacing").clone().unbind(),
                 Repeat::variant(self).spacing(),
                 Time::ZERO,
@@ -1860,7 +1818,7 @@ impl Stack {
         slf.to_repr(cls_name, slf.py())
     }
 
-    fn __rich_repr__(slf: &Bound<Self>) -> Vec<PyObject> {
+    fn __rich_repr__(slf: &Bound<Self>) -> Vec<Arg> {
         slf.to_rich_repr(slf.py())
     }
 }
@@ -1870,8 +1828,8 @@ impl<'py> RichRepr for Bound<'py, Stack> {
         self.get()
             .children
             .iter()
-            .map(|x| Arg::pos(x, py))
-            .chain([Arg::kwd(
+            .map(|x| Arg::positional(x, py))
+            .chain([Arg::key_with_default(
                 intern!(py, "direction").clone().unbind(),
                 Stack::variant(self).direction().into_py(py),
                 Direction::Backward.into_py(py),
@@ -1952,7 +1910,7 @@ impl AbsoluteEntry {
         slf.borrow().to_repr(cls_name, slf.py())
     }
 
-    fn __rich_repr__(&self, py: Python) -> Vec<PyObject> {
+    fn __rich_repr__(&self, py: Python) -> Vec<Arg> {
         self.to_rich_repr(py)
     }
 }
@@ -2110,7 +2068,7 @@ impl Absolute {
         slf.to_repr(cls_name, slf.py())
     }
 
-    fn __rich_repr__(slf: &Bound<Self>) -> Vec<PyObject> {
+    fn __rich_repr__(slf: &Bound<Self>) -> Vec<Arg> {
         slf.to_rich_repr(slf.py())
     }
 }
@@ -2120,7 +2078,7 @@ impl<'py> RichRepr for Bound<'py, Absolute> {
         self.get()
             .children
             .iter()
-            .map(|x| Arg::pos(x.clone_ref(py).into_py(py), py))
+            .map(|x| Arg::positional(x.clone_ref(py).into_py(py), py))
             .chain(Absolute::common_repr(self))
             .collect_vec()
     }
@@ -2248,7 +2206,7 @@ impl GridLength {
         slf.borrow().to_repr(cls_name, slf.py())
     }
 
-    fn __rich_repr__(&self, py: Python) -> Vec<PyObject> {
+    fn __rich_repr__(&self, py: Python) -> Vec<Arg> {
         self.to_rich_repr(py)
     }
 }
@@ -2382,7 +2340,7 @@ impl GridEntry {
         slf.borrow().to_repr(cls_name, slf.py())
     }
 
-    fn __rich_repr__(&self, py: Python) -> Vec<PyObject> {
+    fn __rich_repr__(&self, py: Python) -> Vec<Arg> {
         self.to_rich_repr(py)
     }
 }
@@ -2581,7 +2539,7 @@ impl Grid {
         slf.to_repr(cls_name, slf.py())
     }
 
-    fn __rich_repr__(slf: &Bound<Self>) -> Vec<PyObject> {
+    fn __rich_repr__(slf: &Bound<Self>) -> Vec<Arg> {
         slf.to_rich_repr(slf.py())
     }
 }
@@ -2591,8 +2549,8 @@ impl<'py> RichRepr for Bound<'py, Grid> {
         self.get()
             .children
             .iter()
-            .map(|x| Arg::pos(x.clone_ref(py).into_py(py), py))
-            .chain([Arg::kw(
+            .map(|x| Arg::positional(x.clone_ref(py).into_py(py), py))
+            .chain([Arg::keyword(
                 intern!(py, "columns").clone().unbind(),
                 Grid::variant(self).columns(),
                 py,
