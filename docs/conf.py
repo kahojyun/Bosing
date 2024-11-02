@@ -24,8 +24,7 @@ extensions = [
     "matplotlib.sphinxext.plot_directive",
 ]
 
-autosummary_imported_members = True
-autoclass_content = "both"
+autodoc_class_signature = "separated"
 intersphinx_mapping = {
     "python": ("https://docs.python.org/3", None),
     "numpy": ("https://numpy.org/doc/stable/", None),

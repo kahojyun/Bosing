@@ -40,40 +40,7 @@ use crate::{
     schedule::{ElementCommon, ElementCommonBuilder, ElementRef, ElementVariant, Measure},
 };
 
-/// Channel configuration.
-///
-/// `align_level` is the time axis alignment granularity. With sampling interval
-/// :math:`\Delta t` and `align_level` :math:`n`, start of pulse is aligned to
-/// the nearest multiple of :math:`2^n \Delta t`.
-///
-/// Each channel can be either real or complex. If the channel is complex, the
-/// filter will be applied to both I and Q components. If the channel is real,
-/// `iq_matrix` will be ignored.
-///
-/// .. caution::
-///
-///     Crosstalk matrix will not be applied to offset.
-///
-/// Args:
-///     base_freq (float): Base frequency of the channel.
-///     sample_rate (float): Sample rate of the channel.
-///     length (int): Length of the waveform.
-///     delay (float): Delay of the channel. Defaults to 0.0.
-///     align_level (int): Time axis alignment granularity. Defaults to -10.
-///     iq_matrix (array_like[2, 2] | None): IQ matrix of the channel. Defaults
-///         to ``None``.
-///     offset (Sequence[float] | None): Offsets of the channel. The length of the
-///         sequence should be 2 if the channel is complex, or 1 if the channel is
-///         real. Defaults to ``None``.
-///     iir (array_like[N, 6] | None): IIR filter of the channel. The format of
-///         the array is ``[[b0, b1, b2, a0, a1, a2], ...]``, which is the same
-///         as `sos` parameter of :func:`scipy.signal.sosfilt`. Defaults to ``None``.
-///     fir (array_like[M] | None): FIR filter of the channel. Defaults to None.
-///     filter_offset (bool): Whether to apply filter to the offset. Defaults to
-///         ``False``.
-///     is_real (bool): Whether the channel is real. Defaults to ``False``.
-#[pyclass(module = "bosing", get_all, frozen)]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, FromPyObject)]
 struct Channel {
     base_freq: Frequency,
     sample_rate: Frequency,
@@ -86,76 +53,6 @@ struct Channel {
     fir: Option<FirArray>,
     filter_offset: bool,
     is_real: bool,
-}
-
-#[pymethods]
-impl Channel {
-    #[new]
-    #[pyo3(signature = (
-        base_freq,
-        sample_rate,
-        length,
-        *,
-        delay=Time::ZERO,
-        align_level=-10,
-        iq_matrix=None,
-        offset=None,
-        iir=None,
-        fir=None,
-        filter_offset=false,
-        is_real=false,
-    ))]
-    #[allow(clippy::too_many_arguments)]
-    fn new(
-        base_freq: Frequency,
-        sample_rate: Frequency,
-        length: usize,
-        delay: Time,
-        align_level: i32,
-        iq_matrix: Option<IqMatrix>,
-        offset: Option<OffsetArray>,
-        iir: Option<IirArray>,
-        fir: Option<FirArray>,
-        filter_offset: bool,
-        is_real: bool,
-    ) -> PyResult<Self> {
-        if is_real && iq_matrix.is_some() {
-            return Err(PyValueError::new_err(
-                "iq_matrix should be None when is_real==True.",
-            ));
-        }
-        if let Some(offset) = &offset {
-            let len = offset.view().dim();
-            if is_real && len != 1 {
-                return Err(PyValueError::new_err("is_real==True but len(shape)!=1."));
-            }
-            if !is_real && len != 2 {
-                return Err(PyValueError::new_err("is_real==False but len(shape)!=2."));
-            }
-        }
-        Ok(Channel {
-            base_freq,
-            sample_rate,
-            length,
-            delay,
-            align_level,
-            iq_matrix,
-            offset,
-            iir,
-            fir,
-            filter_offset,
-            is_real,
-        })
-    }
-
-    fn __repr__(slf: &Bound<Self>) -> PyResult<String> {
-        let cls_name = slf.get_type().qualname()?;
-        slf.get().to_repr(cls_name, slf.py())
-    }
-
-    fn __rich_repr__(&self, py: Python) -> Vec<Arg> {
-        self.to_rich_repr(py)
-    }
 }
 
 macro_rules! repr_list {
@@ -195,65 +92,6 @@ trait RichRepr {
                 .collect::<PyResult<Vec<_>>>()?
                 .join(", ")
         ))
-    }
-}
-
-impl RichRepr for Channel {
-    fn repr(&self, py: Python<'_>) -> impl IntoIterator<Item = Arg> {
-        let mut result = Vec::from([
-            Arg::positional(self.base_freq, py),
-            Arg::positional(self.sample_rate, py),
-            Arg::positional(self.length, py),
-            Arg::key_with_default(
-                intern!(py, "delay").clone().unbind(),
-                self.delay,
-                Time::ZERO,
-                py,
-            ),
-            Arg::key_with_default(
-                intern!(py, "align_level").clone().unbind(),
-                self.align_level,
-                -10,
-                py,
-            ),
-        ]);
-        // NOTE: workaround for rich issue #3531
-        if let Some(iq_matrix) = &self.iq_matrix {
-            result.push(Arg::keyword(
-                intern!(py, "iq_matrix").clone().unbind(),
-                iq_matrix,
-                py,
-            ));
-        }
-        if let Some(offset) = &self.offset {
-            result.push(Arg::keyword(
-                intern!(py, "offset").clone().unbind(),
-                offset,
-                py,
-            ));
-        }
-        if let Some(iir) = &self.iir {
-            result.push(Arg::keyword(intern!(py, "iir").clone().unbind(), iir, py));
-        }
-        if let Some(fir) = &self.fir {
-            result.push(Arg::keyword(intern!(py, "fir").clone().unbind(), fir, py));
-        }
-        result.extend([
-            Arg::key_with_default(
-                intern!(py, "filter_offset").clone().unbind(),
-                self.filter_offset,
-                false,
-                py,
-            ),
-            Arg::key_with_default(
-                intern!(py, "is_real").clone().unbind(),
-                self.is_real,
-                false,
-                py,
-            ),
-        ]);
-
-        result
     }
 }
 
@@ -2564,59 +2402,16 @@ type ChannelWaveforms = HashMap<ChannelId, Py<PyArray2<f64>>>;
 type ChannelStates = HashMap<ChannelId, Py<OscState>>;
 type ChannelPulses = HashMap<ChannelId, PulseList>;
 
-/// Generate waveforms from a schedule.
-///
-/// .. caution::
-///
-///     Crosstalk matrix will not be applied to offset of the channels.
-///
-/// Args:
-///     channels (Mapping[str, Channel]): Information of the channels.
-///     shapes (Mapping[str, Shape]): Shapes used in the schedule.
-///     schedule (Element): Root element of the schedule.
-///     time_tolerance (float): Tolerance for time comparison. Default is 1e-12.
-///     amp_tolerance (float): Tolerance for amplitude comparison. Default is
-///         0.1 / 2^16.
-///     allow_oversize (bool): Allow elements to occupy a longer duration than
-///         available. Default is ``False``.
-///     crosstalk (tuple[array_like, Sequence[str]] | None): Crosstalk matrix
-///         with corresponding channel ids. Default is ``None``.
-/// Returns:
-///     Dict[str, numpy.ndarray]: Waveforms of the channels. The key is the
-///         channel name and the value is the waveform. The shape of the
-///         waveform is ``(n, length)``, where ``n`` is 2 for complex waveform
-///         and 1 for real waveform.
-/// Raises:
-///     ValueError: If some input is invalid.
-///     TypeError: If some input has an invalid type.
-///     RuntimeError: If waveform generation fails.
-/// Example:
-///     .. code-block:: python
-///
-///         from bosing import Barrier, Channel, Hann, Play, Stack, generate_waveforms
-///         channels = {"xy": Channel(30e6, 2e9, 1000)}
-///         shapes = {"hann": Hann()}
-///         schedule = Stack(duration=500e-9).with_children(
-///             Play(
-///                 channel_id="xy",
-///                 shape_id="hann",
-///                 amplitude=0.3,
-///                 width=100e-9,
-///                 plateau=200e-9,
-///             ),
-///             Barrier(duration=10e-9),
-///         )
-///         result = generate_waveforms(channels, shapes, schedule)
 #[pyfunction]
 #[pyo3(signature = (
+    *,
     channels,
     shapes,
     schedule,
-    *,
-    time_tolerance=Time::new(1e-12).unwrap(),
-    amp_tolerance=Amplitude::new(0.1 / 2f64.powi(16)).unwrap(),
-    allow_oversize=false,
-    crosstalk=None,
+    time_tolerance,
+    amp_tolerance,
+    allow_oversize,
+    crosstalk,
 ))]
 #[allow(clippy::too_many_arguments)]
 fn generate_waveforms(
@@ -2643,47 +2438,17 @@ fn generate_waveforms(
     Ok(waveforms)
 }
 
-/// Generate waveforms from a schedule with initial states.
-///
-/// .. caution::
-///
-///     Crosstalk matrix will not be applied to offset of the channels.
-///
-/// Args:
-///     channels (Mapping[str, Channel]): Information of the channels.
-///     shapes (Mapping[str, Shape]): Shapes used in the schedule.
-///     schedule (Element): Root element of the schedule.
-///     time_tolerance (float): Tolerance for time comparison. Default is 1e-12.
-///     amp_tolerance (float): Tolerance for amplitude comparison. Default is
-///         0.1 / 2^16.
-///     allow_oversize (bool): Allow elements to occupy a longer duration than
-///         available. Default is ``False``.
-///     crosstalk (tuple[array_like, Sequence[str]] | None): Crosstalk matrix
-///         with corresponding channel ids. Default is ``None``.
-///     states (Mapping[str, OscState] | None): Initial states of the channels.
-/// Returns:
-///     (tuple): Tuple containing:
-///
-///         waveforms (dict[str, numpy.ndarray]): Waveforms of the channels. The key is the
-///             channel name and the value is the waveform. The shape of the
-///             waveform is ``(n, length)``, where ``n`` is 2 for complex waveform
-///             and 1 for real waveform.
-///         states (dict[str, OscState]): Final states of the channels.
-/// Raises:
-///     ValueError: If some input is invalid.
-///     TypeError: If some input has an invalid type.
-///     RuntimeError: If waveform generation fails.
 #[pyfunction]
 #[pyo3(signature = (
+    *,
     channels,
     shapes,
     schedule,
-    *,
-    time_tolerance=Time::new(1e-12).unwrap(),
-    amp_tolerance=Amplitude::new(0.1 / 2f64.powi(16)).unwrap(),
-    allow_oversize=false,
-    crosstalk=None,
-    states=None,
+    time_tolerance,
+    amp_tolerance,
+    allow_oversize,
+    crosstalk,
+    states,
 ))]
 #[allow(clippy::too_many_arguments)]
 fn generate_waveforms_with_states(
@@ -2847,7 +2612,6 @@ fn _bosing(m: &Bound<PyModule>) -> PyResult<()> {
     m.add_class::<AbsoluteEntry>()?;
     m.add_class::<Alignment>()?;
     m.add_class::<Barrier>()?;
-    m.add_class::<Channel>()?;
     m.add_class::<Direction>()?;
     m.add_class::<Element>()?;
     m.add_class::<Grid>()?;

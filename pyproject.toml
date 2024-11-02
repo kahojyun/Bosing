@@ -19,7 +19,11 @@ classifiers = [
   "Topic :: Scientific/Engineering",
   "License :: OSI Approved :: MIT License",
 ]
-dependencies = ["matplotlib>=3.5.0", "numpy>=1.19.3"]
+dependencies = [
+  "matplotlib>=3.5.0",
+  "numpy>=1.19.3",
+  "typing-extensions>=4.5.0",
+]
 
 [project.urls]
 Documentation = "https://bosing.readthedocs.io"
@@ -75,7 +79,7 @@ test_py = "pytest"
 test_rs = "cargo test"
 stubtest = "stubtest bosing --allowlist stubtest-allowlist.txt"
 makedocs = "sphinx-build -M html docs docs/_build"
-cleandocs = "sphinx-build -M clean docs docs/_build"
+cleandocs = "sphinx-build -M clean docs docs/_build && rm -r docs/generated"
 
 [tool.ruff.lint]
 select = ["ALL"]

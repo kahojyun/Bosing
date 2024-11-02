@@ -7,12 +7,13 @@ import numpy.typing as npt
 from matplotlib.axes import Axes
 from typing_extensions import Self, TypeAlias
 
+from . import Channel
+
 __all__ = [
     "Absolute",
     "AbsoluteEntry",
     "Alignment",
     "Barrier",
-    "Channel",
     "Direction",
     "Element",
     "Grid",
@@ -37,47 +38,6 @@ __all__ = [
 ]
 
 _RichReprResult: TypeAlias = list[Any]
-
-@final
-class Channel:
-    def __new__(
-        cls,
-        base_freq: float,
-        sample_rate: float,
-        length: int,
-        *,
-        delay: float = ...,
-        align_level: int = ...,
-        iq_matrix: npt.ArrayLike | Sequence[Sequence[float]] | None = ...,
-        offset: npt.ArrayLike | None = ...,
-        iir: npt.ArrayLike | None = ...,
-        fir: npt.ArrayLike | None = ...,
-        filter_offset: bool = ...,
-        is_real: bool = ...,
-    ) -> Self: ...
-    @property
-    def base_freq(self) -> float: ...
-    @property
-    def sample_rate(self) -> float: ...
-    @property
-    def length(self) -> int: ...
-    @property
-    def delay(self) -> float: ...
-    @property
-    def align_level(self) -> int: ...
-    @property
-    def iq_matrix(self) -> npt.NDArray[np.float64] | None: ...
-    @property
-    def offset(self) -> npt.NDArray[np.float64] | None: ...
-    @property
-    def iir(self) -> npt.NDArray[np.float64] | None: ...
-    @property
-    def fir(self) -> npt.NDArray[np.float64] | None: ...
-    @property
-    def filter_offset(self) -> bool: ...
-    @property
-    def is_real(self) -> bool: ...
-    def __rich_repr__(self) -> _RichReprResult: ...  # undocumented
 
 @final
 class Alignment:
@@ -500,23 +460,23 @@ class ItemKind:
     Grid: ClassVar[ItemKind]
 
 def generate_waveforms(
+    *,
     channels: Mapping[str, Channel],
     shapes: Mapping[str, Shape],
     schedule: Element,
-    *,
-    time_tolerance: float = ...,
-    amp_tolerance: float = ...,
-    allow_oversize: bool = ...,
-    crosstalk: tuple[npt.ArrayLike, Sequence[str]] | None = ...,
+    time_tolerance: float,
+    amp_tolerance: float,
+    allow_oversize: bool,
+    crosstalk: tuple[npt.ArrayLike, Sequence[str]] | None,
 ) -> dict[str, npt.NDArray[np.float64]]: ...
 def generate_waveforms_with_states(
+    *,
     channels: Mapping[str, Channel],
     shapes: Mapping[str, Shape],
     schedule: Element,
-    *,
-    time_tolerance: float = ...,
-    amp_tolerance: float = ...,
-    allow_oversize: bool = ...,
-    crosstalk: tuple[npt.ArrayLike, Sequence[str]] | None = ...,
-    states: Mapping[str, OscState] | None = ...,
+    time_tolerance: float,
+    amp_tolerance: float,
+    allow_oversize: bool,
+    crosstalk: tuple[npt.ArrayLike, Sequence[str]] | None,
+    states: Mapping[str, OscState] | None,
 ) -> tuple[dict[str, npt.NDArray[np.float64]], dict[str, OscState]]: ...
