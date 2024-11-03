@@ -50,7 +50,7 @@ jobs:
       - name: Ruff lint
         run: uv run ruff check --output-format=github
       - name: Basedpyright
-        run: uv run basedpyright
+        run: uv run basedpyright python
       - name: Stubtest
         run: uv run task stubtest
       - name: Pytest with lowest direct dependencies
