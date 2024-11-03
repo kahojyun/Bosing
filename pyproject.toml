@@ -54,7 +54,7 @@ docs = [
   { include-group = "task" },
 ]
 task = ["taskipy>=1.13.0"]
-lint = ["mypy>=1.11.2", "ruff>=0.6.7"]
+lint = ["mypy>=1.11.2", "ruff>=0.6.7", "basedpyright>=1.20.0"]
 test = ["rich>=13.9.2", "pytest>=8.3.3"]
 examples = ["scipy>=1.9.3"]
 
@@ -77,7 +77,7 @@ lint_rs = "cargo clippy --all-targets"
 test = "task test_py && task test_rs"
 test_py = "pytest"
 test_rs = "cargo test"
-stubtest = "stubtest bosing --allowlist stubtest-allowlist.txt"
+stubtest = "stubtest bosing._bosing && basedpyright"
 makedocs = "sphinx-build -M html docs docs/_build"
 cleandocs = "sphinx-build -M clean docs docs/_build && rm -r docs/generated"
 

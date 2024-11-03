@@ -32,6 +32,18 @@ wheels = [
 ]
 
 [[package]]
+name = "basedpyright"
+version = "1.20.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "nodejs-wheel-binaries" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/c0/5a/f3384cdd09c9897f9c7107b0188e518624ff7e9e15aaaa6ea6de7cd398e5/basedpyright-1.20.0.tar.gz", hash = "sha256:0a9573b3947927dad915b13db520f48810676b9b0b894128743d5f442134b361", size = 20794860 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/2c/cc/ee453da3373fc0dc0590df8b36d34380c95494913f37c4ffbcf3019519e7/basedpyright-1.20.0-py3-none-any.whl", hash = "sha256:65de9f930ca327e74f2281da8e9b51d56a04efb25a1ba8ec5767c21751cdb2c3", size = 11147986 },
+]
+
+[[package]]
 name = "beautifulsoup4"
 version = "4.12.3"
 source = { registry = "https://pypi.org/simple" }
@@ -55,6 +67,7 @@ dependencies = [
 
 [package.dev-dependencies]
 ci = [
+    { name = "basedpyright" },
     { name = "mypy" },
     { name = "pytest" },
     { name = "rich" },
@@ -62,6 +75,7 @@ ci = [
     { name = "taskipy" },
 ]
 dev = [
+    { name = "basedpyright" },
     { name = "furo" },
     { name = "ipython" },
     { name = "mypy" },
@@ -83,6 +97,7 @@ examples = [
     { name = "scipy" },
 ]
 lint = [
+    { name = "basedpyright" },
     { name = "mypy" },
     { name = "ruff" },
 ]
@@ -103,6 +118,7 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 ci = [
+    { name = "basedpyright", specifier = ">=1.20.0" },
     { name = "mypy", specifier = ">=1.11.2" },
     { name = "pytest", specifier = ">=8.3.3" },
     { name = "rich", specifier = ">=13.9.2" },
@@ -110,6 +126,7 @@ ci = [
     { name = "taskipy", specifier = ">=1.13.0" },
 ]
 dev = [
+    { name = "basedpyright", specifier = ">=1.20.0" },
     { name = "furo", specifier = ">=2024.8.6" },
     { name = "ipython", specifier = ">=8.18.1" },
     { name = "mypy", specifier = ">=1.11.2" },
@@ -129,6 +146,7 @@ docs = [
 ]
 examples = [{ name = "scipy", specifier = ">=1.9.3" }]
 lint = [
+    { name = "basedpyright", specifier = ">=1.20.0" },
     { name = "mypy", specifier = ">=1.11.2" },
     { name = "ruff", specifier = ">=0.6.7" },
 ]
@@ -834,6 +852,20 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/98/a4/1ab47638b92648243faf97a5aeb6ea83059cc3624972ab6b8d2316078d3f/mypy_extensions-1.0.0.tar.gz", hash = "sha256:75dbf8955dc00442a438fc4d0666508a9a97b6bd41aa2f0ffe9d2f2725af0782", size = 4433 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/2a/e2/5d3f6ada4297caebe1a2add3b126fe800c96f56dbe5d1988a2cbe0b267aa/mypy_extensions-1.0.0-py3-none-any.whl", hash = "sha256:4392f6c0eb8a5668a69e23d168ffa70f0be9ccfd32b5cc2d26a34ae5b844552d", size = 4695 },
+]
+
+[[package]]
+name = "nodejs-wheel-binaries"
+version = "22.11.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/b7/29/1ae5b1d715cb0a3d72ca09cacc4f75d274010bddb2372c61b981a068e47d/nodejs_wheel_binaries-22.11.0.tar.gz", hash = "sha256:e67f4e4a646bba24baa2150460c9cfbde0f75169ba37e58a2341930a5c1456ee", size = 7004 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/a5/16/4cd2c0791567ee7b0203c3c6b59341854f0aeecb7315159d634c2b54b6d4/nodejs_wheel_binaries-22.11.0-py2.py3-none-macosx_11_0_arm64.whl", hash = "sha256:00afada277fd6e945a74f881831aaf1bb7f853a15e15e8c998238ab88d327f6a", size = 50288370 },
+    { url = "https://files.pythonhosted.org/packages/c9/94/0677ace2cdd1a7ce61d7b2fedafb76818aaee94c14e817fd990f45f4f125/nodejs_wheel_binaries-22.11.0-py2.py3-none-macosx_11_0_x86_64.whl", hash = "sha256:f29471263d65a66520a04a0e74ff641a775df1135283f0b4d1826048932b289d", size = 51107812 },
+    { url = "https://files.pythonhosted.org/packages/d4/69/a3d4c761044de8cedd962b20ed4ae4d8a574b4e3e015f8a111549b815b62/nodejs_wheel_binaries-22.11.0-py2.py3-none-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:bd2ff0e20389f22927e311ccab69c1ecb34c3431fa809d1548e7000dc8248680", size = 56384790 },
+    { url = "https://files.pythonhosted.org/packages/d8/16/e34cf573096e7b25c85829e99f7e47d6cda0a6cdc4bd078d6bcdcb4dc979/nodejs_wheel_binaries-22.11.0-py2.py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:a9545cc43f1ba2c9f467f3444e9cd7f8db059933be1a5215135610dee5b38bf3", size = 56713946 },
+    { url = "https://files.pythonhosted.org/packages/a6/8a/ec28fe41159f51d9147d141d446305ce0494cb79966b79cd308c6bea9911/nodejs_wheel_binaries-22.11.0-py2.py3-none-musllinux_1_2_x86_64.whl", hash = "sha256:43a277cbabf4b68e0a4798578a4f17e5f518ada1f79a174bfde06eb2bb47e730", size = 58814450 },
+    { url = "https://files.pythonhosted.org/packages/68/69/f0dbbf72c8bdd9149ee00427c282d392da7fad9c53bd96f4844c2ab9021c/nodejs_wheel_binaries-22.11.0-py2.py3-none-win_amd64.whl", hash = "sha256:8310ab182ee159141e08c85bc07f11e67ac3044922e6e4958f4a8f3ba6860185", size = 39331516 },
 ]
 
 [[package]]

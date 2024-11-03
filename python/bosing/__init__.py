@@ -40,13 +40,11 @@ from ._bosing import (
 )
 
 if TYPE_CHECKING:
-    import contextlib
     from collections.abc import Mapping, Sequence
 
     import numpy.typing as npt
 
-    with contextlib.suppress(ImportError):
-        from rich.repr import RichReprResult
+    from ._repr import TupleRichReprResult
 
 
 __all__ = [
@@ -252,11 +250,11 @@ class Channel:
         """
         return self._is_real
 
-    def __rich_repr__(self) -> RichReprResult:
+    def __rich_repr__(self) -> TupleRichReprResult:
         """Rich pretty-printing."""
-        yield self._base_freq
-        yield self._sample_rate
-        yield self._length
+        yield (self._base_freq,)
+        yield (self._sample_rate,)
+        yield (self._length,)
         yield "delay", self._delay, 0.0
         yield "align_level", self._align_level, -10
         if self._iq_matrix is not None:

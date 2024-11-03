@@ -1,37 +1,32 @@
-# pyright: reportAny=false
-# pyright: reportUnknownArgumentType=false
-# pyright: reportUnknownVariableType=false
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Protocol
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    import contextlib
+    from collections.abc import Iterable
+    from typing import Protocol
 
-    with contextlib.suppress(ImportError):
-        from rich.repr import RichReprResult
+    from typing_extensions import TypeAlias
 
-    class _IRichRepr(Protocol):
-        def __rich_repr__(self) -> RichReprResult: ...
+    TupleRichReprResult: TypeAlias = Iterable[
+        "tuple[object] | tuple[str, object] | tuple[str, object, object]"
+    ]
+
+    class IRichRepr(Protocol):
+        def __rich_repr__(self) -> TupleRichReprResult: ...
 
 
-def repr_from_rich(obj: _IRichRepr) -> str:
+def repr_from_rich(obj: IRichRepr) -> str:
     parts: list[str] = []
     for tpls in obj.__rich_repr__():
-        if isinstance(tpls, tuple):
-            if len(tpls) == 1:
-                value = tpls[0]
-                parts.append(repr(value))
-            elif len(tpls) == 2:  # noqa: PLR2004
-                key, value = tpls
-                parts.append(f"{key}={value!r}")
-            elif len(tpls) == 3:  # noqa: PLR2004
-                key, value, default = tpls
-                if value != default:
-                    parts.append(f"{key}={value!r}")
-            else:
-                msg = "Invalid tuple length"
-                raise ValueError(msg)
+        if len(tpls) == 1:
+            value = tpls[0]
+            parts.append(repr(value))
+        elif len(tpls) == 2:  # noqa: PLR2004
+            key, value = tpls
+            parts.append(f"{key}={value!r}")
         else:
-            parts.append(repr(tpls))
+            key, value, default = tpls
+            if value != default:
+                parts.append(f"{key}={value!r}")
     return f"{obj.__class__.__name__}({', '.join(parts)})"
