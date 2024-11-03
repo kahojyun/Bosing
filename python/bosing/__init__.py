@@ -375,11 +375,11 @@ def generate_waveforms_with_states(  # noqa: PLR0913
     Returns:
         A tuple of waveforms and final states.
 
-        Waveforms part: A dictionary mapping channel names to waveforms. The
-            shape of the waveform is ``(n, length)``, where ``n`` is 2 for complex
-            waveform and 1 for real waveform.
+        Waveforms part is a dictionary mapping channel names to waveforms. The
+        shape of the waveform is ``(n, length)``, where ``n`` is 2 for complex
+        waveform and 1 for real waveform.
 
-        States part: A dictionary mapping channel names to the final states.
+        States part is a dictionary mapping channel names to the final states.
 
     Raises:
         ValueError: If some input is invalid.
