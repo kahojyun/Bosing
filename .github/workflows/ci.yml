@@ -52,7 +52,7 @@ jobs:
       - name: Basedpyright
         run: uv run basedpyright python
       - name: Stubtest
-        run: uv run task stubtest
+        run: uv run stubtest bosing._bosing
       - name: Pytest with lowest direct dependencies
         run: |
           uv sync --no-dev --group test --resolution lowest-direct
