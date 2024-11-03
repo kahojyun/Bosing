@@ -127,14 +127,6 @@ class Channel:
                 ``False``.
             is_real: Whether the channel is real. Defaults to ``False``.
         """
-        base_freq = float(base_freq)
-        sample_rate = float(sample_rate)
-        length = int(length)
-        delay = float(delay)
-        align_level = int(align_level)
-        filter_offset = bool(filter_offset)
-        is_real = bool(is_real)
-
         if is_real and iq_matrix is not None:
             msg = "iq_matrix should be None for real channel"
             raise ValueError(msg)
@@ -150,7 +142,7 @@ class Channel:
             if is_real and offset.shape != (1,):
                 msg = "offset should have length 1 for real channel"
                 raise ValueError(msg)
-            if is_real and offset.shape != (2,):
+            if not is_real and offset.shape != (2,):
                 msg = "offset should have length 2 for complex channel"
                 raise ValueError(msg)
 
