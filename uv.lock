@@ -72,7 +72,6 @@ ci = [
     { name = "pytest" },
     { name = "rich" },
     { name = "ruff" },
-    { name = "taskipy" },
 ]
 dev = [
     { name = "basedpyright" },
@@ -91,7 +90,6 @@ docs = [
     { name = "furo" },
     { name = "scipy" },
     { name = "sphinx" },
-    { name = "taskipy" },
 ]
 examples = [
     { name = "scipy" },
@@ -123,7 +121,6 @@ ci = [
     { name = "pytest", specifier = ">=8.3.3" },
     { name = "rich", specifier = ">=13.9.2" },
     { name = "ruff", specifier = ">=0.6.7" },
-    { name = "taskipy", specifier = ">=1.13.0" },
 ]
 dev = [
     { name = "basedpyright", specifier = ">=1.20.0" },
@@ -142,7 +139,6 @@ docs = [
     { name = "furo", specifier = ">=2024.8.6" },
     { name = "scipy", specifier = ">=1.9.3" },
     { name = "sphinx", specifier = ">=7.4.7" },
-    { name = "taskipy", specifier = ">=1.13.0" },
 ]
 examples = [{ name = "scipy", specifier = ">=1.9.3" }]
 lint = [
