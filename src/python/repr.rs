@@ -1,4 +1,8 @@
-use pyo3::{prelude::*, types::PyString};
+use itertools::Itertools as _;
+use pyo3::{
+    prelude::*,
+    types::{DerefToPyAny, PyString},
+};
 
 #[derive(Debug)]
 pub(crate) enum Arg {
@@ -48,5 +52,27 @@ impl IntoPy<PyObject> for Arg {
             Arg::Keyword(n, v) => (n, v).into_py(py),
             Arg::KeyWithDefault(n, v, d) => (n, v, d).into_py(py),
         }
+    }
+}
+
+pub(crate) trait RichRepr: Sized + DerefToPyAny {
+    fn repr(slf: &Bound<'_, Self>) -> impl Iterator<Item = Arg>;
+
+    fn to_rich_repr(slf: &Bound<'_, Self>) -> Vec<Arg> {
+        Self::repr(slf).collect()
+    }
+
+    fn to_repr(slf: &Bound<'_, Self>) -> PyResult<String> {
+        let py = slf.py();
+        let cls_name = slf.get_type().qualname()?;
+        Ok(format!(
+            "{}({})",
+            cls_name,
+            Self::repr(slf)
+                .map(|x| x.fmt(py))
+                .flatten_ok()
+                .collect::<PyResult<Vec<_>>>()?
+                .join(", ")
+        ))
     }
 }
