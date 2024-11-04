@@ -24,6 +24,7 @@ extensions = [
     "matplotlib.sphinxext.plot_directive",
 ]
 
+autosummary_ignore_module_all = False
 autosummary_imported_members = True
 intersphinx_mapping = {
     "python": ("https://docs.python.org/3", None),
