@@ -174,31 +174,31 @@ impl Channel {
 
 impl RichRepr for Channel {
     fn repr(slf: &Bound<'_, Self>) -> impl Iterator<Item = Arg> {
-        let mut result = Vec::new();
+        let mut res = Vec::new();
         let py = slf.py();
         let slf = slf.get();
-        push_repr!(result, py, slf.base_freq);
-        push_repr!(result, py, slf.sample_rate);
-        push_repr!(result, py, slf.length);
-        push_repr!(result, py, "delay", slf.delay, Time::ZERO);
-        push_repr!(result, py, "align_level", slf.align_level, -10);
+        push_repr!(res, py, slf.base_freq);
+        push_repr!(res, py, slf.sample_rate);
+        push_repr!(res, py, slf.length);
+        push_repr!(res, py, "delay", slf.delay, Time::ZERO);
+        push_repr!(res, py, "align_level", slf.align_level, -10);
         // NOTE: workaround for rich issue #3531
         if let Some(iq_matrix) = &slf.iq_matrix {
-            push_repr!(result, py, "iq_matrix", iq_matrix);
+            push_repr!(res, py, "iq_matrix", iq_matrix);
         }
         if let Some(offset) = &slf.offset {
-            push_repr!(result, py, "offset", offset);
+            push_repr!(res, py, "offset", offset);
         }
         if let Some(iir) = &slf.iir {
-            push_repr!(result, py, "iir", iir);
+            push_repr!(res, py, "iir", iir);
         }
         if let Some(fir) = &slf.fir {
-            push_repr!(result, py, "fir", fir);
+            push_repr!(res, py, "fir", fir);
         }
-        push_repr!(result, py, "filter_offset", slf.filter_offset, false);
-        push_repr!(result, py, "is_real", slf.is_real, false);
+        push_repr!(res, py, "filter_offset", slf.filter_offset, false);
+        push_repr!(res, py, "is_real", slf.is_real, false);
 
-        result.into_iter()
+        res.into_iter()
     }
 }
 
@@ -268,13 +268,13 @@ impl OscState {
 
 impl RichRepr for OscState {
     fn repr(slf: &Bound<'_, Self>) -> impl Iterator<Item = Arg> {
-        let mut result = Vec::new();
+        let mut res = Vec::new();
         let py = slf.py();
         let slf = slf.borrow();
-        push_repr!(result, py, slf.base_freq);
-        push_repr!(result, py, slf.delta_freq);
-        push_repr!(result, py, slf.phase);
-        result.into_iter()
+        push_repr!(res, py, slf.base_freq);
+        push_repr!(res, py, slf.delta_freq);
+        push_repr!(res, py, slf.phase);
+        res.into_iter()
     }
 }
 
@@ -672,6 +672,8 @@ where
 {
     type Variant: Into<schedule::ElementVariant>;
 
+    fn repr(slf: &Bound<Self>) -> Vec<Arg>;
+
     fn inner<'a>(slf: &'a Bound<Self>) -> &'a ElementRef {
         slf.downcast::<Element>()
             .expect("Self should be a subclass of Element")
@@ -716,28 +718,31 @@ where
         let common = builder.build()?;
         Ok(Element(Arc::new(schedule::Element::new(common, variant))))
     }
+}
 
-    fn push_common_repr(slf: &Bound<Self>, target: &mut Vec<Arg>) {
+impl<T> RichRepr for T
+where
+    T: ElementSubclass,
+    for<'a> &'a T::Variant: TryFrom<&'a schedule::ElementVariant>,
+    for<'a> <&'a T::Variant as TryFrom<&'a schedule::ElementVariant>>::Error: Debug,
+{
+    fn repr(slf: &Bound<'_, Self>) -> impl Iterator<Item = Arg> {
+        let mut res = Self::repr(slf);
         let py = slf.py();
         let slf = Self::common(slf);
-        push_repr!(target, py, "margin", slf.margin(), (Time::ZERO, Time::ZERO));
+        push_repr!(res, py, "margin", slf.margin(), (Time::ZERO, Time::ZERO));
         push_repr!(
-            target,
+            res,
             py,
             "alignment",
             slf.alignment().into_py(py),
             Alignment::End.into_py(py)
         );
-        push_repr!(target, py, "phantom", slf.phantom(), false);
-        push_repr!(target, py, "duration", slf.duration(), None);
-        push_repr!(
-            target,
-            py,
-            "max_duration",
-            slf.max_duration(),
-            Time::INFINITY
-        );
-        push_repr!(target, py, "min_duration", slf.min_duration(), Time::ZERO);
+        push_repr!(res, py, "phantom", slf.phantom(), false);
+        push_repr!(res, py, "duration", slf.duration(), None);
+        push_repr!(res, py, "max_duration", slf.max_duration(), Time::INFINITY);
+        push_repr!(res, py, "min_duration", slf.min_duration(), Time::ZERO);
+        res.into_iter()
     }
 }
 
@@ -788,6 +793,21 @@ struct Play;
 
 impl ElementSubclass for Play {
     type Variant = schedule::Play;
+
+    fn repr(slf: &Bound<Self>) -> Vec<Arg> {
+        let mut res = Vec::new();
+        let py = slf.py();
+        push_repr!(res, py, Self::channel_id(slf));
+        push_repr!(res, py, Self::shape_id(slf));
+        push_repr!(res, py, Self::amplitude(slf));
+        push_repr!(res, py, Self::width(slf));
+        push_repr!(res, py, "plateau", Self::plateau(slf), Time::ZERO);
+        push_repr!(res, py, "drag_coef", Self::drag_coef(slf), 0.0);
+        push_repr!(res, py, "frequency", Self::frequency(slf), Frequency::ZERO);
+        push_repr!(res, py, "phase", Self::phase(slf), Phase::ZERO);
+        push_repr!(res, py, "flexible", Self::flexible(slf), false);
+        res
+    }
 }
 
 #[pymethods]
@@ -903,24 +923,6 @@ impl Play {
     }
 }
 
-impl RichRepr for Play {
-    fn repr(slf: &Bound<'_, Self>) -> impl Iterator<Item = Arg> {
-        let mut res = Vec::new();
-        let py = slf.py();
-        push_repr!(res, py, Self::channel_id(slf));
-        push_repr!(res, py, Self::shape_id(slf));
-        push_repr!(res, py, Self::amplitude(slf));
-        push_repr!(res, py, Self::width(slf));
-        push_repr!(res, py, "plateau", Self::plateau(slf), Time::ZERO);
-        push_repr!(res, py, "drag_coef", Self::drag_coef(slf), 0.0);
-        push_repr!(res, py, "frequency", Self::frequency(slf), Frequency::ZERO);
-        push_repr!(res, py, "phase", Self::phase(slf), Phase::ZERO);
-        push_repr!(res, py, "flexible", Self::flexible(slf), false);
-        Self::push_common_repr(slf, &mut res);
-        res.into_iter()
-    }
-}
-
 /// A phase shift element.
 ///
 /// Phase shift will be added to the channel phase offset :math:`\phi_c` and is
@@ -940,6 +942,14 @@ struct ShiftPhase;
 
 impl ElementSubclass for ShiftPhase {
     type Variant = schedule::ShiftPhase;
+
+    fn repr(slf: &Bound<Self>) -> Vec<Arg> {
+        let mut res = Vec::new();
+        let py = slf.py();
+        push_repr!(res, py, Self::channel_id(slf));
+        push_repr!(res, py, Self::phase(slf));
+        res
+    }
 }
 
 #[pymethods]
@@ -1001,17 +1011,6 @@ impl ShiftPhase {
     }
 }
 
-impl RichRepr for ShiftPhase {
-    fn repr(slf: &Bound<'_, Self>) -> impl Iterator<Item = Arg> {
-        let mut res = Vec::new();
-        let py = slf.py();
-        push_repr!(res, py, Self::channel_id(slf));
-        push_repr!(res, py, "phase", Self::phase(slf), Phase::ZERO);
-        Self::push_common_repr(slf, &mut res);
-        res.into_iter()
-    }
-}
-
 /// A phase set element.
 ///
 /// Waveform generator treats the base frequency :math:`f_0` and the channel
@@ -1039,6 +1038,14 @@ struct SetPhase;
 
 impl ElementSubclass for SetPhase {
     type Variant = schedule::SetPhase;
+
+    fn repr(slf: &Bound<Self>) -> Vec<Arg> {
+        let mut res = Vec::new();
+        let py = slf.py();
+        push_repr!(res, py, Self::channel_id(slf));
+        push_repr!(res, py, Self::phase(slf));
+        res
+    }
 }
 
 #[pymethods]
@@ -1100,17 +1107,6 @@ impl SetPhase {
     }
 }
 
-impl RichRepr for SetPhase {
-    fn repr(slf: &Bound<'_, Self>) -> impl Iterator<Item = Arg> {
-        let mut res = Vec::new();
-        let py = slf.py();
-        push_repr!(res, py, Self::channel_id(slf));
-        push_repr!(res, py, "phase", Self::phase(slf), Phase::ZERO);
-        Self::push_common_repr(slf, &mut res);
-        res.into_iter()
-    }
-}
-
 /// A frequency shift element.
 ///
 /// Frequency shift will be added to the channel frequency shift :math:`\Delta
@@ -1126,6 +1122,14 @@ struct ShiftFreq;
 
 impl ElementSubclass for ShiftFreq {
     type Variant = schedule::ShiftFreq;
+
+    fn repr(slf: &Bound<Self>) -> Vec<Arg> {
+        let mut res = Vec::new();
+        let py = slf.py();
+        push_repr!(res, py, Self::channel_id(slf));
+        push_repr!(res, py, Self::frequency(slf));
+        res
+    }
 }
 
 #[pymethods]
@@ -1187,17 +1191,6 @@ impl ShiftFreq {
     }
 }
 
-impl RichRepr for ShiftFreq {
-    fn repr(slf: &Bound<'_, Self>) -> impl Iterator<Item = Arg> {
-        let mut res = Vec::new();
-        let py = slf.py();
-        push_repr!(res, py, Self::channel_id(slf));
-        push_repr!(res, py, "phase", Self::frequency(slf), Frequency::ZERO);
-        Self::push_common_repr(slf, &mut res);
-        res.into_iter()
-    }
-}
-
 /// A frequency set element.
 ///
 /// The channel frequency shift :math:`\Delta f` will be set to the provided
@@ -1214,6 +1207,14 @@ struct SetFreq;
 
 impl ElementSubclass for SetFreq {
     type Variant = schedule::SetFreq;
+
+    fn repr(slf: &Bound<Self>) -> Vec<Arg> {
+        let mut res = Vec::new();
+        let py = slf.py();
+        push_repr!(res, py, Self::channel_id(slf));
+        push_repr!(res, py, Self::frequency(slf));
+        res
+    }
 }
 
 #[pymethods]
@@ -1275,17 +1276,6 @@ impl SetFreq {
     }
 }
 
-impl RichRepr for SetFreq {
-    fn repr(slf: &Bound<'_, Self>) -> impl Iterator<Item = Arg> {
-        let mut res = Vec::new();
-        let py = slf.py();
-        push_repr!(res, py, Self::channel_id(slf));
-        push_repr!(res, py, "phase", Self::frequency(slf), Frequency::ZERO);
-        Self::push_common_repr(slf, &mut res);
-        res.into_iter()
-    }
-}
-
 /// A phase swap element.
 ///
 /// Different from :class:`SetPhase` and :class:`SetFreq`, both the channel
@@ -1304,6 +1294,14 @@ struct SwapPhase;
 
 impl ElementSubclass for SwapPhase {
     type Variant = schedule::SwapPhase;
+
+    fn repr(slf: &Bound<Self>) -> Vec<Arg> {
+        let mut res = Vec::new();
+        let py = slf.py();
+        push_repr!(res, py, Self::channel_id1(slf));
+        push_repr!(res, py, Self::channel_id2(slf));
+        res
+    }
 }
 
 #[pymethods]
@@ -1365,17 +1363,6 @@ impl SwapPhase {
     }
 }
 
-impl RichRepr for SwapPhase {
-    fn repr(slf: &Bound<'_, Self>) -> impl Iterator<Item = Arg> {
-        let mut res = Vec::new();
-        let py = slf.py();
-        push_repr!(res, py, Self::channel_id1(slf));
-        push_repr!(res, py, Self::channel_id2(slf));
-        Self::push_common_repr(slf, &mut res);
-        res.into_iter()
-    }
-}
-
 /// A barrier element.
 ///
 /// A barrier element is a no-op element. Useful for aligning elements on
@@ -1393,6 +1380,15 @@ struct Barrier;
 
 impl ElementSubclass for Barrier {
     type Variant = schedule::Barrier;
+
+    fn repr(slf: &Bound<Self>) -> Vec<Arg> {
+        let py = slf.py();
+        Self::variant(slf)
+            .channel_ids()
+            .iter()
+            .map(|x| Arg::positional(x, py))
+            .collect()
+    }
 }
 
 #[pymethods]
@@ -1445,19 +1441,6 @@ impl Barrier {
     }
 }
 
-impl RichRepr for Barrier {
-    fn repr(slf: &Bound<'_, Self>) -> impl Iterator<Item = Arg> {
-        let py = slf.py();
-        let mut res = Self::variant(slf)
-            .channel_ids()
-            .iter()
-            .map(|x| Arg::positional(x, py))
-            .collect();
-        Self::push_common_repr(slf, &mut res);
-        res.into_iter()
-    }
-}
-
 /// A repeat element.
 ///
 /// Repeat the child element multiple times with a spacing between repetitions.
@@ -1474,6 +1457,15 @@ struct Repeat {
 
 impl ElementSubclass for Repeat {
     type Variant = schedule::Repeat;
+
+    fn repr(slf: &Bound<Self>) -> Vec<Arg> {
+        let mut res = Vec::new();
+        let py = slf.py();
+        push_repr!(res, py, &slf.get().child);
+        push_repr!(res, py, Self::count(slf));
+        push_repr!(res, py, "spacing", Self::spacing(slf), Time::ZERO);
+        res
+    }
 }
 
 #[pymethods]
@@ -1535,18 +1527,6 @@ impl Repeat {
 
     fn __rich_repr__(slf: &Bound<Self>) -> Vec<Arg> {
         Self::to_rich_repr(slf)
-    }
-}
-
-impl RichRepr for Repeat {
-    fn repr(slf: &Bound<'_, Self>) -> impl Iterator<Item = Arg> {
-        let mut res = Vec::new();
-        let py = slf.py();
-        push_repr!(res, py, &slf.get().child);
-        push_repr!(res, py, Self::count(slf));
-        push_repr!(res, py, "spacing", Self::spacing(slf), Time::ZERO);
-        Self::push_common_repr(slf, &mut res);
-        res.into_iter()
     }
 }
 
@@ -1631,6 +1611,24 @@ struct Stack {
 
 impl ElementSubclass for Stack {
     type Variant = schedule::Stack;
+
+    fn repr(slf: &Bound<Self>) -> Vec<Arg> {
+        let py = slf.py();
+        let mut res: Vec<_> = slf
+            .get()
+            .children
+            .iter()
+            .map(|x| Arg::positional(x, py))
+            .collect();
+        push_repr!(
+            res,
+            py,
+            "direction",
+            Self::direction(slf).into_py(py),
+            Direction::Backward.into_py(py)
+        );
+        res
+    }
 }
 
 #[pymethods]
@@ -1722,27 +1720,6 @@ impl Stack {
 
     fn __rich_repr__(slf: &Bound<Self>) -> Vec<Arg> {
         Self::to_rich_repr(slf)
-    }
-}
-
-impl RichRepr for Stack {
-    fn repr(slf: &Bound<'_, Self>) -> impl Iterator<Item = Arg> {
-        let py = slf.py();
-        let mut res: Vec<_> = slf
-            .get()
-            .children
-            .iter()
-            .map(|x| Arg::positional(x, py))
-            .collect();
-        push_repr!(
-            res,
-            py,
-            "direction",
-            Self::direction(slf).into_py(py),
-            Direction::Backward.into_py(py)
-        );
-        Self::push_common_repr(slf, &mut res);
-        res.into_iter()
     }
 }
 
@@ -1876,6 +1853,15 @@ struct Absolute {
 
 impl ElementSubclass for Absolute {
     type Variant = schedule::Absolute;
+
+    fn repr(slf: &Bound<Self>) -> Vec<Arg> {
+        let py = slf.py();
+        slf.get()
+            .children
+            .iter()
+            .map(|x| Arg::positional(x.clone_ref(py).into_py(py), py))
+            .collect()
+    }
 }
 
 #[pymethods]
@@ -1983,20 +1969,6 @@ impl Absolute {
 
     fn __rich_repr__(slf: &Bound<Self>) -> Vec<Arg> {
         Self::to_rich_repr(slf)
-    }
-}
-
-impl RichRepr for Absolute {
-    fn repr(slf: &Bound<'_, Self>) -> impl Iterator<Item = Arg> {
-        let py = slf.py();
-        let mut res: Vec<_> = slf
-            .get()
-            .children
-            .iter()
-            .map(|x| Arg::positional(x.clone_ref(py).into_py(py), py))
-            .collect();
-        Self::push_common_repr(slf, &mut res);
-        res.into_iter()
     }
 }
 
@@ -2347,6 +2319,18 @@ struct Grid {
 
 impl ElementSubclass for Grid {
     type Variant = schedule::Grid;
+
+    fn repr(slf: &Bound<Self>) -> Vec<Arg> {
+        let py = slf.py();
+        let mut res: Vec<_> = slf
+            .get()
+            .children
+            .iter()
+            .map(|x| Arg::positional(x.clone_ref(py).into_py(py), py))
+            .collect();
+        push_repr!(res, py, "columns", Self::columns(slf));
+        res
+    }
 }
 
 #[pymethods]
@@ -2473,21 +2457,6 @@ impl Grid {
 
     fn __rich_repr__(slf: &Bound<Self>) -> Vec<Arg> {
         Self::to_rich_repr(slf)
-    }
-}
-
-impl RichRepr for Grid {
-    fn repr(slf: &Bound<'_, Self>) -> impl Iterator<Item = Arg> {
-        let py = slf.py();
-        let mut res: Vec<_> = slf
-            .get()
-            .children
-            .iter()
-            .map(|x| Arg::positional(x.clone_ref(py).into_py(py), py))
-            .collect();
-        push_repr!(res, py, "columns", Self::columns(slf));
-        Self::push_common_repr(slf, &mut res);
-        res.into_iter()
     }
 }
 
