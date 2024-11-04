@@ -58,8 +58,8 @@ use crate::{
 ///     base_freq (float): Base frequency of the channel.
 ///     sample_rate (float): Sample rate of the channel.
 ///     length (int): Length of the waveform.
-///     delay (float): Delay of the channel. Defaults to 0.0.
-///     align_level (int): Time axis alignment granularity. Defaults to -10.
+///     delay (float): Delay of the channel. Defaults to ``0.0``.
+///     align_level (int): Time axis alignment granularity. Defaults to ``-10``.
 ///     iq_matrix (array_like[2, 2] | None): IQ matrix of the channel. Defaults
 ///         to ``None``.
 ///     offset (Sequence[float] | None): Offsets of the channel. The length of the
@@ -68,7 +68,7 @@ use crate::{
 ///     iir (array_like[N, 6] | None): IIR filter of the channel. The format of
 ///         the array is ``[[b0, b1, b2, a0, a1, a2], ...]``, which is the same
 ///         as `sos` parameter of :func:`scipy.signal.sosfilt`. Defaults to ``None``.
-///     fir (array_like[M] | None): FIR filter of the channel. Defaults to None.
+///     fir (array_like[M] | None): FIR filter of the channel. Defaults to ``None``.
 ///     filter_offset (bool): Whether to apply filter to the offset. Defaults to
 ///         ``False``.
 ///     is_real (bool): Whether the channel is real. Defaults to ``False``.
@@ -294,6 +294,7 @@ impl OscState {
     ///
     /// Args:
     ///     time (float): Time.
+    ///
     /// Returns:
     ///     float: Phase of the oscillator in **cycles**.
     fn phase_at(&self, time: Time) -> Phase {
@@ -304,6 +305,7 @@ impl OscState {
     ///
     /// Args:
     ///     time (float): Time shift.
+    ///
     /// Returns:
     ///     OscState: The new state.
     fn with_time_shift(&self, time: Time) -> Self {
@@ -358,8 +360,10 @@ impl Alignment {
     ///
     /// Args:
     ///     obj (str | Alignment): The value to convert.
+    ///
     /// Returns:
     ///     Alignment: The converted value.
+    ///
     /// Raises:
     ///     ValueError: If the value cannot be converted to Alignment.
     #[staticmethod]
@@ -450,6 +454,7 @@ impl Hann {
 ///     knots (Sequence[float]): Knots of the B-spline.
 ///     controls (Sequence[float]): Control points of the B-spline.
 ///     degree (int): Degree of the B-spline.
+///
 /// Example:
 ///     .. code-block:: python
 ///
@@ -562,7 +567,7 @@ fn extract_margin(obj: &Bound<PyAny>) -> PyResult<(Time, Time)> {
 ///
 /// Args:
 ///     margin (float | tuple[float, float]): Margin of the element. Defaults to
-///         0.
+///         ``0``.
 ///     alignment (str | Alignment): Alignment of the element. The value can
 ///         be :class:`Alignment` or one of 'end', 'start', 'center', 'stretch'.
 ///         Defaults to :attr:`Alignment.End`.
@@ -571,7 +576,7 @@ fn extract_margin(obj: &Bound<PyAny>) -> PyResult<(Time, Time)> {
 ///     duration (float): Duration of the element. Defaults to ``None``.
 ///     max_duration (float): Maximum duration of the element. Defaults to
 ///         ``inf``.
-///     min_duration (float): Minimum duration of the element. Defaults to 0.
+///     min_duration (float): Minimum duration of the element. Defaults to ``0``.
 #[pyclass(module = "bosing", subclass, frozen)]
 #[derive(Debug, Clone)]
 struct Element(ElementRef);
@@ -626,7 +631,7 @@ impl Element {
     ///         used.
     ///     channels (Sequence[str] | None): Channels to plot. If ``None``, all channels are
     ///         plotted.
-    ///     max_depth (int): Maximum depth to plot. Defaults to 5.
+    ///     max_depth (int): Maximum depth to plot. Defaults to ``5``.
     ///
     /// Returns:
     ///     matplotlib.axes.Axes: Axes with the plot.
@@ -837,13 +842,13 @@ where
 ///         a rectangular pulse.
 ///     amplitude (float): Amplitude of the pulse.
 ///     width (float): Width of the pulse.
-///     plateau (float): Plateau length of the pulse. Defaults to 0.
+///     plateau (float): Plateau length of the pulse. Defaults to ``0``.
 ///     drag_coef (float): Drag coefficient of the pulse. If the pulse is a
-///         rectangular pulse, the drag coefficient is ignored. Defaults to 0.
+///         rectangular pulse, the drag coefficient is ignored. Defaults to ``0``.
 ///     frequency (float): Additional frequency of the pulse on top of channel
-///         base frequency and frequency shift. Defaults to 0.
+///         base frequency and frequency shift. Defaults to ``0``.
 ///     phase (float): Additional phase of the pulse in **cycles**. Defaults to
-///         0.
+///         ``0``.
 ///     flexible (bool): Whether the pulse has flexible plateau length. Defaults
 ///         to ``False``.
 #[pyclass(module="bosing",extends=Element, frozen)]
@@ -1559,7 +1564,7 @@ impl<'py> RichRepr for Bound<'py, Barrier> {
 /// Args:
 ///     child (Element): Child element to repeat.
 ///     count (int): Number of repetitions.
-///     spacing (float): Spacing between repetitions. Defaults to 0.
+///     spacing (float): Spacing between repetitions. Defaults to ``0``.
 #[pyclass(module="bosing",extends=Element, get_all, frozen)]
 #[derive(Debug)]
 struct Repeat {
@@ -1679,8 +1684,10 @@ impl Direction {
     ///
     /// Args:
     ///     obj (str | Direction): Value to convert.
+    ///
     /// Returns:
     ///     Direction: Converted value.
+    ///
     /// Raises:
     ///     ValueError: If the value cannot be converted.
     #[staticmethod]
@@ -1720,7 +1727,7 @@ fn extract_direction(obj: &Bound<PyAny>) -> PyResult<Direction> {
 ///
 /// Args:
 ///     *children (Element): Child elements.
-///     direction (str | Direction): Layout order. Defaults to 'backward'.
+///     direction (str | Direction): Layout order. Defaults to ``'backward'``.
 #[pyclass(module="bosing",extends=Element, get_all, frozen)]
 #[derive(Debug)]
 struct Stack {
@@ -1790,6 +1797,7 @@ impl Stack {
     ///
     /// Args:
     ///     *children (Element): New child elements.
+    ///
     /// Returns:
     ///     Stack: New stack layout.
     #[pyo3(signature=(*children))]
@@ -1884,8 +1892,10 @@ impl AbsoluteEntry {
     ///
     /// Args:
     ///     obj (AbsoluteEntry | Element | tuple[float, Element]): Value to convert.
+    ///
     /// Returns:
     ///     AbsoluteEntry: Converted value.
+    ///
     /// Raises:
     ///     ValueError: If the value cannot be converted.
     #[staticmethod]
@@ -1947,6 +1957,7 @@ fn extract_absolute_entry(obj: &Bound<PyAny>) -> PyResult<AbsoluteEntry> {
 ///
 /// Args:
 ///     *children (AbsoluteEntry | Element | tuple[float, Element]): Child elements.
+///
 /// Example:
 ///     .. code-block:: python
 ///
@@ -2029,6 +2040,7 @@ impl Absolute {
     /// Args:
     ///     *children (AbsoluteEntry | Element | tuple[float, Element]): New
     ///         child elements.
+    ///
     /// Returns:
     ///     Absolute: New absolute schedule.
     #[pyo3(signature=(*children))]
@@ -2135,6 +2147,7 @@ impl GridLength {
     ///
     /// Args:
     ///     value (float): Ratio of the remaining duration.
+    ///
     /// Returns:
     ///     GridLength: Ratio based grid length.
     #[staticmethod]
@@ -2152,6 +2165,7 @@ impl GridLength {
     ///
     /// Args:
     ///     value (float): Fixed length in seconds.
+    ///
     /// Returns:
     ///     GridLength: Fixed grid length.
     #[staticmethod]
@@ -2180,8 +2194,10 @@ impl GridLength {
     ///
     /// Args:
     ///     obj (GridLength | float | str): Value to convert.
+    ///
     /// Returns:
     ///     GridLength: Converted value.
+    ///
     /// Raises:
     ///     ValueError: If the value cannot be converted.
     #[staticmethod]
@@ -2311,8 +2327,10 @@ impl GridEntry {
     ///
     /// Args:
     ///     obj (GridEntry | Element | tuple[Element, int] | tuple[Element, int, int]): Value to convert.
+    ///
     /// Returns:
     ///     GridEntry: Converted value.
+    ///
     /// Raises:
     ///     ValueError: If the value cannot be converted.
     #[staticmethod]
@@ -2397,6 +2415,7 @@ fn extract_grid_entry(obj: &Bound<PyAny>) -> PyResult<GridEntry> {
 /// Args:
 ///     *children (GridEntry | Element | tuple[Element, int] | tuple[Element, int, int]): Child elements.
 ///     columns (Iterable[GridLength | float | str]): Column lengths. Defaults to ['*'].
+///
 /// Example:
 ///     .. code-block:: python
 ///
@@ -2492,6 +2511,7 @@ impl Grid {
     ///
     /// Args:
     ///     *children (GridEntry | Element | tuple[Element, int] | tuple[Element, int, int]): New child elements.
+    ///
     /// Returns:
     ///     Grid: New grid schedule.
     #[pyo3(signature=(*children))]
@@ -2574,22 +2594,25 @@ type ChannelPulses = HashMap<ChannelId, PulseList>;
 ///     channels (Mapping[str, Channel]): Information of the channels.
 ///     shapes (Mapping[str, Shape]): Shapes used in the schedule.
 ///     schedule (Element): Root element of the schedule.
-///     time_tolerance (float): Tolerance for time comparison. Default is 1e-12.
+///     time_tolerance (float): Tolerance for time comparison. Default is ``1e-12``.
 ///     amp_tolerance (float): Tolerance for amplitude comparison. Default is
-///         0.1 / 2^16.
+///         ``0.1 / 2**16``.
 ///     allow_oversize (bool): Allow elements to occupy a longer duration than
 ///         available. Default is ``False``.
 ///     crosstalk (tuple[array_like, Sequence[str]] | None): Crosstalk matrix
 ///         with corresponding channel ids. Default is ``None``.
+///
 /// Returns:
-///     Dict[str, numpy.ndarray]: Waveforms of the channels. The key is the
+///     dict[str, numpy.ndarray]: Waveforms of the channels. The key is the
 ///         channel name and the value is the waveform. The shape of the
 ///         waveform is ``(n, length)``, where ``n`` is 2 for complex waveform
 ///         and 1 for real waveform.
+///
 /// Raises:
 ///     ValueError: If some input is invalid.
 ///     TypeError: If some input has an invalid type.
 ///     RuntimeError: If waveform generation fails.
+///
 /// Example:
 ///     .. code-block:: python
 ///
@@ -2650,25 +2673,26 @@ fn generate_waveforms(
 ///     Crosstalk matrix will not be applied to offset of the channels.
 ///
 /// Args:
-///     channels (Mapping[str, Channel]): Information of the channels.
+///     channels (collections.abc.Mapping[str, Channel]): Information of the channels.
 ///     shapes (Mapping[str, Shape]): Shapes used in the schedule.
 ///     schedule (Element): Root element of the schedule.
-///     time_tolerance (float): Tolerance for time comparison. Default is 1e-12.
+///     time_tolerance (float): Tolerance for time comparison. Default is ``1e-12``.
 ///     amp_tolerance (float): Tolerance for amplitude comparison. Default is
-///         0.1 / 2^16.
+///         ``0.1 / 2**16``.
 ///     allow_oversize (bool): Allow elements to occupy a longer duration than
 ///         available. Default is ``False``.
 ///     crosstalk (tuple[array_like, Sequence[str]] | None): Crosstalk matrix
 ///         with corresponding channel ids. Default is ``None``.
 ///     states (Mapping[str, OscState] | None): Initial states of the channels.
-/// Returns:
-///     (tuple): Tuple containing:
 ///
-///         waveforms (dict[str, numpy.ndarray]): Waveforms of the channels. The key is the
-///             channel name and the value is the waveform. The shape of the
-///             waveform is ``(n, length)``, where ``n`` is 2 for complex waveform
-///             and 1 for real waveform.
-///         states (dict[str, OscState]): Final states of the channels.
+/// Returns:
+///     tuple[dict[str, numpy.ndarray], dict[str, OscState]]: Waveforms and final states.
+///
+///     Waveforms part is a dictionary mapping channel names to waveforms. The shape of the
+///     waveform is ``(n, length)``, where ``n`` is 2 for complex waveform and 1 for real waveform.
+///
+///     States part is a dictionary mapping channel names to final states.
+///
 /// Raises:
 ///     ValueError: If some input is invalid.
 ///     TypeError: If some input has an invalid type.
