@@ -27,7 +27,6 @@ from ._bosing import (
     GridLengthUnit,
     Hann,
     Interp,
-    OscState,
     Play,
     Repeat,
     SetFreq,
@@ -265,6 +264,96 @@ class Channel:
         return _repr.repr_from_rich(self)
 
 
+@final
+class OscState:
+    """State of a channel oscillator."""
+
+    def __init__(self, base_freq: float, delta_freq: float, phase: float) -> None:
+        """Initializes the oscillator state.
+
+        Args:
+            base_freq: Base frequency of the oscillator.
+            delta_freq: Frequency shift of the oscillator.
+            phase: Phase of the oscillator in **cycles**.
+        """
+        self.inner = _bosing.OscState(
+            base_freq=base_freq, delta_freq=delta_freq, phase=phase
+        )
+
+    @property
+    def base_freq(self) -> float:
+        """Base frequency of the oscillator."""
+        return self.inner.base_freq
+
+    @base_freq.setter
+    def base_freq(self, value: float) -> None:
+        self.inner.base_freq = value
+
+    @property
+    def delta_freq(self) -> float:
+        """Frequency shift of the oscillator."""
+        return self.inner.delta_freq
+
+    @delta_freq.setter
+    def delta_freq(self, value: float) -> None:
+        self.inner.delta_freq = value
+
+    @property
+    def phase(self) -> float:
+        """Phase of the oscillator in **cycles**."""
+        return self.inner.phase
+
+    @phase.setter
+    def phase(self, value: float) -> None:
+        self.inner.phase = value
+
+    def total_freq(self) -> float:
+        """Calculate the total frequency of the oscillator.
+
+        Returns:
+            Total frequency of the oscillator.
+        """
+        return self.inner.total_freq()
+
+    def phase_at(self, time: float) -> float:
+        """Calculate the phase of the oscillator at a given time.
+
+        Args:
+            time: Time.
+
+        Returns:
+            Phase of the oscillator in **cycles**.
+        """
+        return self.inner.phase_at(time)
+
+    def with_time_shift(self, time: float) -> OscState:
+        """Get a new state with a time shift.
+
+        Args:
+            time: Time shift.
+
+        Returns:
+            The new state.
+        """
+        return _wrap_osc_state(self.inner.with_time_shift(time))
+
+    def __rich_repr__(self) -> TupleRichReprResult:
+        """Rich pretty-printing."""
+        yield "base_freq", self.base_freq
+        yield "delta_freq", self.delta_freq
+        yield "phase", self.phase
+
+    @override
+    def __repr__(self) -> str:
+        return _repr.repr_from_rich(self)
+
+
+def _wrap_osc_state(obj: _bosing.OscState) -> OscState:
+    ret = OscState.__new__(OscState)
+    ret.inner = obj
+    return ret
+
+
 def generate_waveforms(  # noqa: PLR0913
     channels: Mapping[str, Channel],
     shapes: Mapping[str, Shape],
@@ -376,7 +465,10 @@ def generate_waveforms_with_states(  # noqa: PLR0913
         TypeError: If some input has an invalid type.
         RuntimeError: If waveform generation fails.
     """
-    return _bosing.generate_waveforms_with_states(
+    inner_states = (
+        {k: v.inner for k, v in states.items()} if states is not None else None
+    )
+    waveforms, new_states = _bosing.generate_waveforms_with_states(
         channels=channels,
         shapes=shapes,
         schedule=schedule,
@@ -384,5 +476,7 @@ def generate_waveforms_with_states(  # noqa: PLR0913
         amp_tolerance=amp_tolerance,
         allow_oversize=allow_oversize,
         crosstalk=crosstalk,
-        states=states,
+        states=inner_states,
     )
+    new_states = {k: _wrap_osc_state(v) for k, v in new_states.items()}
+    return waveforms, new_states

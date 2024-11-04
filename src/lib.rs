@@ -95,12 +95,6 @@ trait RichRepr {
     }
 }
 
-/// State of a channel oscillator.
-///
-/// Args:
-///     base_freq (float): Base frequency of the oscillator.
-///     delta_freq (float): Frequency shift of the oscillator.
-///     phase (float): Phase of the oscillator in **cycles**.
 #[pyclass(module = "bosing", get_all, set_all)]
 #[derive(Debug, Clone, Copy)]
 struct OscState {
@@ -120,47 +114,16 @@ impl OscState {
         }
     }
 
-    /// Calculate the total frequency of the oscillator.
-    ///
-    /// Returns:
-    ///     float: Total frequency of the oscillator.
     fn total_freq(&self) -> Frequency {
         executor::OscState::from(*self).total_freq()
     }
 
-    /// Calculate the phase of the oscillator at a given time.
-    ///
-    /// Args:
-    ///     time (float): Time.
-    /// Returns:
-    ///     float: Phase of the oscillator in **cycles**.
     fn phase_at(&self, time: Time) -> Phase {
         executor::OscState::from(*self).phase_at(time)
     }
 
-    /// Get a new state with a time shift.
-    ///
-    /// Args:
-    ///     time (float): Time shift.
-    /// Returns:
-    ///     OscState: The new state.
     fn with_time_shift(&self, time: Time) -> Self {
         executor::OscState::from(*self).with_time_shift(time).into()
-    }
-
-    fn __repr__(slf: &Bound<Self>) -> PyResult<String> {
-        let cls_name = slf.get_type().qualname()?;
-        slf.borrow().to_repr(cls_name, slf.py())
-    }
-
-    fn __rich_repr__(&self, py: Python) -> Vec<Arg> {
-        self.to_rich_repr(py)
-    }
-}
-
-impl RichRepr for OscState {
-    fn repr(&self, py: Python) -> impl IntoIterator<Item = Arg> {
-        repr_list!(self, py, base_freq, delta_freq, phase;;)
     }
 }
 
