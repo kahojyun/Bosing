@@ -35,9 +35,9 @@ pub(crate) enum Error {
 
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct OscState {
-    base_freq: Frequency,
-    delta_freq: Frequency,
-    phase: Phase,
+    pub(crate) base_freq: Frequency,
+    pub(crate) delta_freq: Frequency,
+    pub(crate) phase: Phase,
 }
 
 type Result<T> = std::result::Result<T, Error>;
@@ -301,26 +301,6 @@ impl Channel {
             drag_coef,
             phase,
         })
-    }
-}
-
-impl From<crate::OscState> for OscState {
-    fn from(osc: crate::OscState) -> Self {
-        Self {
-            base_freq: osc.base_freq,
-            delta_freq: osc.delta_freq,
-            phase: osc.phase,
-        }
-    }
-}
-
-impl From<OscState> for crate::OscState {
-    fn from(osc: OscState) -> Self {
-        Self {
-            base_freq: osc.base_freq,
-            delta_freq: osc.delta_freq,
-            phase: osc.phase,
-        }
     }
 }
 

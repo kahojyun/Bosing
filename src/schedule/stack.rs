@@ -3,9 +3,9 @@ mod helper;
 use std::sync::OnceLock;
 
 use crate::{
+    python::Direction,
     quant::{ChannelId, Time},
     schedule::{merge_channel_ids, stack::helper::Helper, Arranged, ElementRef, Measure},
-    Direction,
 };
 
 use super::{Arrange, TimeRange};

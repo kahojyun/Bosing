@@ -1,4 +1,4 @@
-use crate::{quant::Time, GridLength};
+use crate::{python::GridLength, quant::Time};
 
 #[derive(Debug, Clone, Copy)]
 pub(super) struct NormalizedSpan {

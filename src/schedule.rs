@@ -13,8 +13,8 @@ use hashbrown::HashSet;
 use mockall::automock;
 
 use crate::{
+    python::Alignment,
     quant::{ChannelId, Time},
-    Alignment,
 };
 
 pub(crate) use absolute::{Absolute, AbsoluteEntry};

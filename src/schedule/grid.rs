@@ -5,9 +5,9 @@ use std::sync::OnceLock;
 use anyhow::{bail, Result};
 
 use crate::{
+    python::GridLength,
     quant::{ChannelId, Time},
     schedule::{grid::helper::Helper, merge_channel_ids, Alignment, Arranged, ElementRef, Measure},
-    GridLength,
 };
 
 use super::{Arrange, TimeRange};
