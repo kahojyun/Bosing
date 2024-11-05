@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 
 from bosing import Barrier, Play, ShiftPhase, Stack
 
-xy = [Play(f"xy{i}", "hann", 1.0, 100e-9) for i in range(2)]
+xy = [Play(f"xy{i}", "hann", 1.0, 100e-9, label=f"xy{i}") for i in range(2)]
 z = [
     Stack(Play(f"z{i}", "hann", 1.0, 100e-9), ShiftPhase(f"xy{i}", 1.0))
     for i in range(2)

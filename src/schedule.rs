@@ -14,7 +14,7 @@ use mockall::automock;
 
 use crate::{
     python::Alignment,
-    quant::{ChannelId, Time},
+    quant::{ChannelId, Label, Time},
 };
 
 pub(crate) use absolute::{Absolute, AbsoluteEntry};
@@ -40,6 +40,7 @@ pub(crate) struct ElementCommon {
     duration: Option<Time>,
     max_duration: Time,
     min_duration: Time,
+    label: Option<Label>,
 }
 
 #[derive(Debug, Clone)]
@@ -175,6 +176,10 @@ impl ElementCommon {
         self.min_duration
     }
 
+    pub(crate) fn label(&self) -> Option<&Label> {
+        self.label.as_ref()
+    }
+
     fn min_max_duration(&self) -> MinMax {
         let min_max = MinMax::new(self.min_duration, self.max_duration);
         let max = min_max.clamp(self.duration.unwrap_or(Time::INFINITY));
@@ -222,6 +227,11 @@ impl ElementCommonBuilder {
         self
     }
 
+    pub(crate) fn label(&mut self, label: Option<Label>) -> &mut Self {
+        self.0.label = label;
+        self
+    }
+
     pub(crate) fn validate(&self) -> Result<()> {
         let v = &self.0;
         if !(v.margin.0.value().is_finite() && v.margin.1.value().is_finite()) {
@@ -266,6 +276,7 @@ impl Default for ElementCommonBuilder {
             duration: None,
             max_duration: Time::INFINITY,
             min_duration: Default::default(),
+            label: None,
         })
     }
 }

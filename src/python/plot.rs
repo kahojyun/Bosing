@@ -2,7 +2,7 @@ use itertools::Itertools as _;
 use pyo3::{prelude::*, sync::GILOnceCell, types::PyList};
 
 use crate::{
-    quant::{ChannelId, Time},
+    quant::{ChannelId, Label, Time},
     schedule::{Arrange as _, Arranged, ElementRef, ElementVariant, Measure, TimeRange},
     util::{pre_order_iter, IterVariant},
 };
@@ -32,6 +32,7 @@ pub(super) fn plot_element(
     ax: Option<PyObject>,
     channels: Option<Vec<ChannelId>>,
     max_depth: usize,
+    show_label: bool,
 ) -> PyResult<PyObject> {
     let channels = match channels {
         Some(channels) => PyList::new_bound(py, channels),
@@ -39,7 +40,7 @@ pub(super) fn plot_element(
     };
     let plot_items = Box::new(arrange_to_plot(root));
     let blocks = PlotIter { inner: plot_items };
-    call_plot(py, ax, blocks, channels, max_depth)
+    call_plot(py, ax, blocks, channels, max_depth, show_label)
 }
 
 impl ItemKind {
@@ -84,6 +85,7 @@ struct PlotItem {
     span: Time,
     depth: usize,
     kind: ItemKind,
+    label: Option<Label>,
 }
 
 fn call_plot(
@@ -92,6 +94,7 @@ fn call_plot(
     blocks: PlotIter,
     channels: Bound<'_, PyList>,
     max_depth: usize,
+    show_label: bool,
 ) -> PyResult<PyObject> {
     static PLOT: GILOnceCell<PyObject> = GILOnceCell::new();
     let plot = PLOT.get_or_try_init(py, || {
@@ -99,7 +102,7 @@ fn call_plot(
             .getattr(BOSING_PLOT_PLOT)
             .map(Into::into)
     })?;
-    plot.call1(py, (ax, blocks, channels, max_depth))
+    plot.call1(py, (ax, blocks, channels, max_depth, show_label))
 }
 
 fn arrange_to_plot(root: ElementRef) -> impl Iterator<Item = PlotItem> {
@@ -115,12 +118,14 @@ fn arrange_to_plot(root: ElementRef) -> impl Iterator<Item = PlotItem> {
          }| {
             let kind = ItemKind::from_variant(&item.variant);
             let channels = item.channels().to_vec();
+            let label = item.common.label().cloned();
             PlotItem {
                 channels,
                 start,
                 span,
                 depth,
                 kind,
+                label,
             }
         },
     )

@@ -21,6 +21,7 @@ if TYPE_CHECKING:
 
     _RECTS: TypeAlias = defaultdict[ItemKind, list[tuple[float, float, float]]]
     _MARKERS: TypeAlias = defaultdict[ItemKind, tuple[list[float], list[float]]]
+    _TEXTS: TypeAlias = list[tuple[float, float, str]]
 
 
 COLORS = {
@@ -87,10 +88,11 @@ def process_blocks(
     channels: Sequence[str],
     max_depth: int,
     channels_ystart: dict[str, int],
-) -> tuple[_RECTS, _MARKERS]:
+) -> tuple[_RECTS, _MARKERS, _TEXTS]:
     ch_stack: list[list[str]] = []
     rects: _RECTS = defaultdict(list)
     markers: _MARKERS = defaultdict(lambda: ([], []))
+    texts: _TEXTS = []
 
     for x in blocks:
         manage_channel_stack(ch_stack, x)
@@ -105,17 +107,23 @@ def process_blocks(
                     my.append(y)
                 else:
                     rects[x.kind].append((x.start, y, x.span))
-    return rects, markers
+                if x.label is not None:
+                    texts.append((x.start, y, x.label))
+    return rects, markers, texts
 
 
 def plot(
-    ax: Axes | None, blocks: Iterator[PlotItem], channels: Sequence[str], max_depth: int
+    ax: Axes | None,
+    blocks: Iterator[PlotItem],
+    channels: Sequence[str],
+    max_depth: int,
+    show_label: bool,  # noqa: FBT001
 ) -> Axes:
     if ax is None:
         ax = plt.gca()
 
     channels_ystart = {c: i * (max_depth + 1) for i, c in enumerate(channels)}
-    rects, markers = process_blocks(blocks, channels, max_depth, channels_ystart)
+    rects, markers, texts = process_blocks(blocks, channels, max_depth, channels_ystart)
 
     for k, r in rects.items():
         # numrects x [x, y, width]
@@ -142,6 +150,10 @@ def plot(
             label=LABELS[k],
             markersize=12,
         )
+
+    if show_label:
+        for x, y, label in texts:
+            _ = ax.annotate(label, (x, y))  # pyright: ignore[reportUnknownMemberType]
 
     _ = ax.set_yticks(list(channels_ystart.values()), channels_ystart.keys())  # pyright: ignore[reportUnknownMemberType]
     ax.xaxis.set_major_formatter(EngFormatter(places=3))
