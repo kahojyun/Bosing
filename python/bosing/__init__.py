@@ -6,6 +6,8 @@ r"""Generates microwave pulses for superconducting quantum computing experiments
     of :math:`0.5` means a phase shift of :math:`\pi` radians.
 """
 
+from __future__ import annotations
+
 from ._bosing import (
     Absolute,
     AbsoluteEntry,

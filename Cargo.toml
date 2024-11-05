@@ -35,3 +35,6 @@ thiserror = "1.0.66"
 [dev-dependencies]
 mockall = "0.13.0"
 test-case = "3.3.1"
+
+[lints.clippy]
+todo = "deny"
