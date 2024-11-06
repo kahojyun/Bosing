@@ -4,7 +4,7 @@ use pyo3::{exceptions::PyValueError, prelude::*};
 
 use crate::{quant::Time, schedule};
 
-use super::{Arg, Element, ElementSubclass, RichRepr as _};
+use super::{Arg, Element, ElementSubclass, Label, RichRepr as _};
 
 /// A stack layout element.
 ///
@@ -57,6 +57,7 @@ impl Stack {
         duration=None,
         max_duration=Time::INFINITY,
         min_duration=Time::ZERO,
+        label=None,
     ))]
     #[allow(clippy::too_many_arguments)]
     fn new(
@@ -68,6 +69,7 @@ impl Stack {
         duration: Option<Time>,
         max_duration: Time,
         min_duration: Time,
+        label: Option<Label>,
     ) -> PyResult<(Self, Element)> {
         let rust_children = children.iter().map(|x| x.get().0.clone()).collect();
         let variant = schedule::Stack::new().with_children(rust_children);
@@ -86,6 +88,7 @@ impl Stack {
                 duration,
                 max_duration,
                 min_duration,
+                label,
             )?,
         ))
     }

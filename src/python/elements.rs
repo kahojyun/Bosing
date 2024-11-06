@@ -7,7 +7,7 @@ use std::{borrow::Borrow as _, fmt::Debug, sync::Arc};
 use pyo3::{exceptions::PyValueError, prelude::*, types::DerefToPyAny};
 
 use crate::{
-    quant::{Amplitude, ChannelId, Frequency, Phase, ShapeId, Time},
+    quant::{Amplitude, ChannelId, Frequency, Label, Phase, ShapeId, Time},
     schedule::{
         self, ElementCommon, ElementCommonBuilder, ElementRef, ElementVariant, Measure as _,
     },
@@ -87,24 +87,6 @@ impl Alignment {
     }
 }
 
-fn extract_alignment(obj: &Bound<PyAny>) -> PyResult<Alignment> {
-    Alignment::convert(obj).and_then(|x| x.extract(obj.py()))
-}
-
-fn extract_margin(obj: &Bound<PyAny>) -> PyResult<(Time, Time)> {
-    if let Ok(v) = obj.extract() {
-        let t = Time::new(v)?;
-        return Ok((t, t));
-    }
-    if let Ok((v1, v2)) = obj.extract() {
-        let t1 = Time::new(v1)?;
-        let t2 = Time::new(v2)?;
-        return Ok((t1, t2));
-    }
-    let msg = "Failed to convert the value to (float, float).";
-    Err(PyValueError::new_err(msg))
-}
-
 /// Base class for schedule elements.
 ///
 /// A schedule element is a node in the tree structure of a schedule similar to
@@ -179,6 +161,7 @@ fn extract_margin(obj: &Bound<PyAny>) -> PyResult<(Time, Time)> {
 ///     max_duration (float): Maximum duration of the element. Defaults to
 ///         ``inf``.
 ///     min_duration (float): Minimum duration of the element. Defaults to ``0``.
+///     label (str | None): Label of the element. Defaults to ``None``.
 #[pyclass(module = "bosing", subclass, frozen)]
 #[derive(Debug, Clone)]
 pub(crate) struct Element(pub(super) ElementRef);
@@ -215,6 +198,11 @@ impl Element {
         self.0.common.min_duration()
     }
 
+    #[getter]
+    fn label(&self) -> Option<&Label> {
+        self.0.common.label()
+    }
+
     /// Measure the minimum total duration required by the element.
     ///
     /// This value includes both inner `duration` and outer `margin` of the element.
@@ -234,18 +222,20 @@ impl Element {
     ///     channels (Sequence[str] | None): Channels to plot. If ``None``, all channels are
     ///         plotted.
     ///     max_depth (int): Maximum depth to plot. Defaults to ``5``.
+    ///     show_label (bool): Whether to show label of elements. Defaults to ``True``.
     ///
     /// Returns:
     ///     matplotlib.axes.Axes: Axes with the plot.
-    #[pyo3(signature = (ax=None, *, channels=None, max_depth=5))]
+    #[pyo3(signature = (ax=None, *, channels=None, max_depth=5, show_label=true))]
     fn plot(
         &self,
         py: Python,
         ax: Option<PyObject>,
         channels: Option<Vec<ChannelId>>,
         max_depth: usize,
+        show_label: bool,
     ) -> PyResult<PyObject> {
-        plot_element(py, self.0.clone(), ax, channels, max_depth)
+        plot_element(py, self.0.clone(), ax, channels, max_depth, show_label)
     }
 }
 
@@ -278,6 +268,7 @@ where
             .expect("Element should have a valid variant")
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn build_element(
         variant: Self::Variant,
         margin: Option<&Bound<PyAny>>,
@@ -286,6 +277,7 @@ where
         duration: Option<Time>,
         max_duration: Time,
         min_duration: Time,
+        label: Option<Label>,
     ) -> PyResult<Element> {
         let mut builder = ElementCommonBuilder::new();
         if let Some(obj) = margin {
@@ -298,9 +290,28 @@ where
             .phantom(phantom)
             .duration(duration)
             .max_duration(max_duration)
-            .min_duration(min_duration);
+            .min_duration(min_duration)
+            .label(label);
         let common = builder.build()?;
-        Ok(Element(Arc::new(schedule::Element::new(common, variant))))
+        return Ok(Element(Arc::new(schedule::Element::new(common, variant))));
+
+        fn extract_alignment(obj: &Bound<PyAny>) -> PyResult<Alignment> {
+            Alignment::convert(obj).and_then(|x| x.extract(obj.py()))
+        }
+
+        fn extract_margin(obj: &Bound<PyAny>) -> PyResult<(Time, Time)> {
+            if let Ok(v) = obj.extract() {
+                let t = Time::new(v)?;
+                return Ok((t, t));
+            }
+            if let Ok((v1, v2)) = obj.extract() {
+                let t1 = Time::new(v1)?;
+                let t2 = Time::new(v2)?;
+                return Ok((t1, t2));
+            }
+            let msg = "Failed to convert the value to (float, float).";
+            Err(PyValueError::new_err(msg))
+        }
     }
 }
 
@@ -326,6 +337,7 @@ where
         push_repr!(res, py, "duration", slf.duration(), None);
         push_repr!(res, py, "max_duration", slf.max_duration(), Time::INFINITY);
         push_repr!(res, py, "min_duration", slf.min_duration(), Time::ZERO);
+        push_repr!(res, py, "label", slf.label(), None);
         res.into_iter()
     }
 }
@@ -414,6 +426,7 @@ impl Play {
         duration=None,
         max_duration=Time::INFINITY,
         min_duration=Time::ZERO,
+        label=None,
     ))]
     #[allow(clippy::too_many_arguments)]
     fn new(
@@ -432,6 +445,7 @@ impl Play {
         duration: Option<Time>,
         max_duration: Time,
         min_duration: Time,
+        label: Option<Label>,
     ) -> PyResult<(Self, Element)> {
         let variant = schedule::Play::new(channel_id, shape_id, amplitude, width)?
             .with_plateau(plateau)?
@@ -449,6 +463,7 @@ impl Play {
                 duration,
                 max_duration,
                 min_duration,
+                label,
             )?,
         ))
     }
@@ -549,6 +564,7 @@ impl ShiftPhase {
         duration=None,
         max_duration=Time::INFINITY,
         min_duration=Time::ZERO,
+        label=None,
     ))]
     #[allow(clippy::too_many_arguments)]
     fn new(
@@ -560,6 +576,7 @@ impl ShiftPhase {
         duration: Option<Time>,
         max_duration: Time,
         min_duration: Time,
+        label: Option<Label>,
     ) -> PyResult<(Self, Element)> {
         let variant = schedule::ShiftPhase::new(channel_id, phase)?;
         Ok((
@@ -572,6 +589,7 @@ impl ShiftPhase {
                 duration,
                 max_duration,
                 min_duration,
+                label,
             )?,
         ))
     }
@@ -645,6 +663,7 @@ impl SetPhase {
         duration=None,
         max_duration=Time::INFINITY,
         min_duration=Time::ZERO,
+        label=None,
     ))]
     #[allow(clippy::too_many_arguments)]
     fn new(
@@ -656,6 +675,7 @@ impl SetPhase {
         duration: Option<Time>,
         max_duration: Time,
         min_duration: Time,
+        label: Option<Label>,
     ) -> PyResult<(Self, Element)> {
         let variant = schedule::SetPhase::new(channel_id, phase)?;
         Ok((
@@ -668,6 +688,7 @@ impl SetPhase {
                 duration,
                 max_duration,
                 min_duration,
+                label,
             )?,
         ))
     }
@@ -729,6 +750,7 @@ impl ShiftFreq {
         duration=None,
         max_duration=Time::INFINITY,
         min_duration=Time::ZERO,
+        label=None,
     ))]
     #[allow(clippy::too_many_arguments)]
     fn new(
@@ -740,6 +762,7 @@ impl ShiftFreq {
         duration: Option<Time>,
         max_duration: Time,
         min_duration: Time,
+        label: Option<Label>,
     ) -> PyResult<(Self, Element)> {
         let variant = schedule::ShiftFreq::new(channel_id, frequency)?;
         Ok((
@@ -752,6 +775,7 @@ impl ShiftFreq {
                 duration,
                 max_duration,
                 min_duration,
+                label,
             )?,
         ))
     }
@@ -814,6 +838,7 @@ impl SetFreq {
         duration=None,
         max_duration=Time::INFINITY,
         min_duration=Time::ZERO,
+        label=None,
     ))]
     #[allow(clippy::too_many_arguments)]
     fn new(
@@ -825,6 +850,7 @@ impl SetFreq {
         duration: Option<Time>,
         max_duration: Time,
         min_duration: Time,
+        label: Option<Label>,
     ) -> PyResult<(Self, Element)> {
         let variant = schedule::SetFreq::new(channel_id, frequency)?;
         Ok((
@@ -837,6 +863,7 @@ impl SetFreq {
                 duration,
                 max_duration,
                 min_duration,
+                label,
             )?,
         ))
     }
@@ -901,6 +928,7 @@ impl SwapPhase {
         duration=None,
         max_duration=Time::INFINITY,
         min_duration=Time::ZERO,
+        label=None,
     ))]
     #[allow(clippy::too_many_arguments)]
     fn new(
@@ -912,6 +940,7 @@ impl SwapPhase {
         duration: Option<Time>,
         max_duration: Time,
         min_duration: Time,
+        label: Option<Label>,
     ) -> PyResult<(Self, Element)> {
         let variant = schedule::SwapPhase::new(channel_id1, channel_id2);
         Ok((
@@ -924,6 +953,7 @@ impl SwapPhase {
                 duration,
                 max_duration,
                 min_duration,
+                label,
             )?,
         ))
     }
@@ -986,7 +1016,9 @@ impl Barrier {
         duration=None,
         max_duration=Time::INFINITY,
         min_duration=Time::ZERO,
+        label=None,
     ))]
+    #[allow(clippy::too_many_arguments)]
     fn new(
         channel_ids: Vec<ChannelId>,
         margin: Option<&Bound<PyAny>>,
@@ -995,6 +1027,7 @@ impl Barrier {
         duration: Option<Time>,
         max_duration: Time,
         min_duration: Time,
+        label: Option<Label>,
     ) -> PyResult<(Self, Element)> {
         let variant = schedule::Barrier::new(channel_ids);
         Ok((
@@ -1007,6 +1040,7 @@ impl Barrier {
                 duration,
                 max_duration,
                 min_duration,
+                label,
             )?,
         ))
     }
@@ -1066,6 +1100,7 @@ impl Repeat {
         duration=None,
         max_duration=Time::INFINITY,
         min_duration=Time::ZERO,
+        label=None,
     ))]
     #[allow(clippy::too_many_arguments)]
     fn new(
@@ -1078,6 +1113,7 @@ impl Repeat {
         duration: Option<Time>,
         max_duration: Time,
         min_duration: Time,
+        label: Option<Label>,
     ) -> PyResult<(Self, Element)> {
         let rust_child = child.get().0.clone();
         let variant = schedule::Repeat::new(rust_child, count).with_spacing(spacing)?;
@@ -1091,6 +1127,7 @@ impl Repeat {
                 duration,
                 max_duration,
                 min_duration,
+                label,
             )?,
         ))
     }

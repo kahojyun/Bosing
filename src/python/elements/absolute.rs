@@ -4,7 +4,7 @@ use pyo3::{exceptions::PyValueError, prelude::*};
 
 use crate::{quant::Time, schedule};
 
-use super::{Arg, Element, ElementSubclass, RichRepr};
+use super::{Arg, Element, ElementSubclass, Label, RichRepr};
 
 /// An absolute layout element.
 ///
@@ -59,6 +59,7 @@ impl Absolute {
         duration=None,
         max_duration=Time::INFINITY,
         min_duration=Time::ZERO,
+        label=None,
     ))]
     #[allow(clippy::too_many_arguments)]
     fn new(
@@ -70,6 +71,7 @@ impl Absolute {
         duration: Option<Time>,
         max_duration: Time,
         min_duration: Time,
+        label: Option<Label>,
     ) -> PyResult<(Self, Element)> {
         let children: Vec<AbsoluteEntry> = children
             .into_iter()
@@ -93,6 +95,7 @@ impl Absolute {
                 duration,
                 max_duration,
                 min_duration,
+                label,
             )?,
         ))
     }

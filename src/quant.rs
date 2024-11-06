@@ -43,6 +43,7 @@ macro_rules! def_id {
 
 def_id!(ChannelId);
 def_id!(ShapeId);
+def_id!(Label);
 
 type Result<T> = std::result::Result<T, Error>;
 
@@ -326,3 +327,4 @@ macro_rules! impl_id {
 
 impl_id!(ChannelId);
 impl_id!(ShapeId);
+impl_id!(Label);

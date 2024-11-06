@@ -1,6 +1,6 @@
 # ruff: noqa: PLR0913
-from collections.abc import Iterable, Mapping, Sequence
-from typing import Any, ClassVar, Literal, final, type_check_only
+from collections.abc import Iterable, Iterator, Mapping, Sequence
+from typing import Any, ClassVar, Literal, final
 
 import numpy as np
 import numpy.typing as npt
@@ -34,6 +34,8 @@ __all__ = [
     "generate_waveforms",
     "generate_waveforms_with_states",
     "ItemKind",
+    "PlotArgs",
+    "PlotItem",
 ]
 
 _RichReprResult: TypeAlias = list[Any]
@@ -124,6 +126,8 @@ class Element:
     def max_duration(self) -> float: ...
     @property
     def min_duration(self) -> float: ...
+    @property
+    def label(self) -> str: ...
     def measure(self) -> float: ...
     def plot(
         self,
@@ -131,6 +135,7 @@ class Element:
         *,
         channels: Sequence[str] | None = ...,
         max_depth: int = ...,
+        show_label: bool = ...,
     ) -> Axes: ...
 
 @final
@@ -155,6 +160,7 @@ class Play(Element):
         duration: float | None = ...,
         max_duration: float = ...,
         min_duration: float = ...,
+        label: str | None = ...,
     ) -> Self: ...
     @property
     def channel_id(self) -> str: ...
@@ -191,6 +197,7 @@ class ShiftPhase(Element):
         duration: float | None = ...,
         max_duration: float = ...,
         min_duration: float = ...,
+        label: str | None = ...,
     ) -> Self: ...
     @property
     def channel_id(self) -> str: ...
@@ -213,6 +220,7 @@ class SetPhase(Element):
         duration: float | None = ...,
         max_duration: float = ...,
         min_duration: float = ...,
+        label: str | None = ...,
     ) -> Self: ...
     @property
     def channel_id(self) -> str: ...
@@ -235,6 +243,7 @@ class ShiftFreq(Element):
         duration: float | None = ...,
         max_duration: float = ...,
         min_duration: float = ...,
+        label: str | None = ...,
     ) -> Self: ...
     @property
     def channel_id(self) -> str: ...
@@ -257,6 +266,7 @@ class SetFreq(Element):
         duration: float | None = ...,
         max_duration: float = ...,
         min_duration: float = ...,
+        label: str | None = ...,
     ) -> Self: ...
     @property
     def channel_id(self) -> str: ...
@@ -279,6 +289,7 @@ class SwapPhase(Element):
         duration: float | None = ...,
         max_duration: float = ...,
         min_duration: float = ...,
+        label: str | None = ...,
     ) -> Self: ...
     @property
     def channel_id1(self) -> str: ...
@@ -299,6 +310,7 @@ class Barrier(Element):
         duration: float | None = ...,
         max_duration: float = ...,
         min_duration: float = ...,
+        label: str | None = ...,
     ) -> Self: ...
     @property
     def channel_ids(self) -> Sequence[str]: ...
@@ -320,6 +332,7 @@ class Repeat(Element):
         duration: float | None = ...,
         max_duration: float = ...,
         min_duration: float = ...,
+        label: str | None = ...,
     ) -> Self: ...
     @property
     def child(self) -> Element: ...
@@ -350,6 +363,7 @@ class Stack(Element):
         duration: float | None = ...,
         max_duration: float = ...,
         min_duration: float = ...,
+        label: str | None = ...,
     ) -> Self: ...
     def with_children(self, *children: Element) -> Stack: ...
     @property
@@ -384,6 +398,7 @@ class Absolute(Element):
         duration: float | None = ...,
         max_duration: float = ...,
         min_duration: float = ...,
+        label: str | None = ...,
     ) -> Self: ...
     def with_children(self, *children: _AbsoluteEntryLike) -> Absolute: ...
     @property
@@ -444,6 +459,7 @@ class Grid(Element):
         duration: float | None = ...,
         max_duration: float = ...,
         min_duration: float = ...,
+        label: str | None = ...,
     ) -> Self: ...
     def with_children(
         self,
@@ -471,7 +487,19 @@ class OscState:
     def with_time_shift(self, time: float) -> Self: ...
     def __rich_repr__(self) -> _RichReprResult: ...  # undocumented
 
-@type_check_only
+@final
+class PlotArgs:
+    @property
+    def ax(self) -> Axes | None: ...
+    @property
+    def blocks(self) -> Iterator[PlotItem]: ...
+    @property
+    def channels(self) -> list[str]: ...
+    @property
+    def max_depth(self) -> int: ...
+    @property
+    def show_label(self) -> bool: ...
+
 @final
 class PlotItem:
     @property
@@ -484,6 +512,8 @@ class PlotItem:
     def depth(self) -> int: ...
     @property
     def kind(self) -> ItemKind: ...
+    @property
+    def label(self) -> str | None: ...
 
 @final
 class ItemKind:
