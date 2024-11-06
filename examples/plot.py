@@ -10,16 +10,7 @@ z = [
 m = Stack(*(Play(f"m{i}", "hann", 1.0, 100e-9, plateau=200e-9) for i in range(2)))
 b = Barrier()
 
-schedule = Stack(
-    xy[0],
-    xy[1],
-    b,
-    z[1],
-    b,
-    xy[1],
-    b,
-    m,
-)
+schedule = Stack(xy[0], xy[1], b, z[1], b, xy[1], b, m, label="root")
 
 schedule.plot()
 plt.show()

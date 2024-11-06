@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib import patheffects
 from matplotlib.patches import PathPatch
 from matplotlib.path import Path
 from matplotlib.ticker import EngFormatter
@@ -153,7 +154,14 @@ def plot(
 
     if show_label:
         for x, y, label in texts:
-            _ = ax.annotate(label, (x, y))  # pyright: ignore[reportUnknownMemberType]
+            txt = ax.annotate(label, (x, y))  # pyright: ignore[reportUnknownMemberType]
+            # Add white outline to text
+            txt.set_path_effects(
+                [
+                    patheffects.Stroke(linewidth=2, foreground="white"),
+                    patheffects.Normal(),
+                ]
+            )
 
     _ = ax.set_yticks(list(channels_ystart.values()), channels_ystart.keys())  # pyright: ignore[reportUnknownMemberType]
     ax.xaxis.set_major_formatter(EngFormatter(places=3))
