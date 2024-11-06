@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     from matplotlib.axes import Axes
     from typing_extensions import TypeAlias
 
-    from bosing._bosing import PlotItem
+    from bosing._bosing import PlotArgs, PlotItem
 
     _RECTS: TypeAlias = defaultdict[ItemKind, list[tuple[float, float, float]]]
     _MARKERS: TypeAlias = defaultdict[ItemKind, tuple[list[float], list[float]]]
@@ -113,13 +113,13 @@ def process_blocks(
     return rects, markers, texts
 
 
-def plot(
-    ax: Axes | None,
-    blocks: Iterator[PlotItem],
-    channels: Sequence[str],
-    max_depth: int,
-    show_label: bool,  # noqa: FBT001
-) -> Axes:
+def plot(args: PlotArgs) -> Axes:
+    ax = args.ax
+    blocks = args.blocks
+    channels = args.channels
+    max_depth = args.max_depth
+    show_label = args.show_label
+
     if ax is None:
         ax = plt.gca()
 

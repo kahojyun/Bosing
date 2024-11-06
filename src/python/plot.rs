@@ -61,6 +61,16 @@ impl ItemKind {
     }
 }
 
+#[pyclass(module = "bosing._bosing", frozen, get_all)]
+#[derive(Debug)]
+struct PlotArgs {
+    ax: Option<PyObject>,
+    blocks: Py<PlotIter>,
+    channels: Py<PyList>,
+    max_depth: usize,
+    show_label: bool,
+}
+
 #[pyclass(module = "bosing._bosing")]
 struct PlotIter {
     inner: Box<dyn Iterator<Item = PlotItem> + Send>,
@@ -102,7 +112,14 @@ fn call_plot(
             .getattr(BOSING_PLOT_PLOT)
             .map(Into::into)
     })?;
-    plot.call1(py, (ax, blocks, channels, max_depth, show_label))
+    let args = PlotArgs {
+        ax,
+        blocks: Py::new(py, blocks)?,
+        channels: channels.unbind(),
+        max_depth,
+        show_label,
+    };
+    plot.call1(py, (args,))
 }
 
 fn arrange_to_plot(root: ElementRef) -> impl Iterator<Item = PlotItem> {

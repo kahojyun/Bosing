@@ -1,5 +1,5 @@
 # ruff: noqa: PLR0913
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Iterable, Iterator, Mapping, Sequence
 from typing import Any, ClassVar, Literal, final, type_check_only
 
 import numpy as np
@@ -484,6 +484,20 @@ class OscState:
     def phase_at(self, time: float) -> float: ...
     def with_time_shift(self, time: float) -> Self: ...
     def __rich_repr__(self) -> _RichReprResult: ...  # undocumented
+
+@type_check_only
+@final
+class PlotArgs:
+    @property
+    def ax(self) -> Axes | None: ...
+    @property
+    def blocks(self) -> Iterator[PlotItem]: ...
+    @property
+    def channels(self) -> list[str]: ...
+    @property
+    def max_depth(self) -> int: ...
+    @property
+    def show_label(self) -> bool: ...
 
 @type_check_only
 @final
