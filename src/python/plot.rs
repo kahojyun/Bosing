@@ -63,7 +63,7 @@ impl ItemKind {
 
 #[pyclass(module = "bosing._bosing", frozen, get_all)]
 #[derive(Debug)]
-struct PlotArgs {
+pub(super) struct PlotArgs {
     ax: Option<PyObject>,
     blocks: Py<PlotIter>,
     channels: Py<PyList>,
@@ -89,7 +89,7 @@ impl PlotIter {
 
 #[pyclass(module = "bosing._bosing", frozen, get_all)]
 #[derive(Debug)]
-struct PlotItem {
+pub(super) struct PlotItem {
     channels: Vec<ChannelId>,
     start: Time,
     span: Time,

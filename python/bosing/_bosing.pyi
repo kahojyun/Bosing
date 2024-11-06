@@ -1,6 +1,6 @@
 # ruff: noqa: PLR0913
 from collections.abc import Iterable, Iterator, Mapping, Sequence
-from typing import Any, ClassVar, Literal, final, type_check_only
+from typing import Any, ClassVar, Literal, final
 
 import numpy as np
 import numpy.typing as npt
@@ -34,6 +34,8 @@ __all__ = [
     "generate_waveforms",
     "generate_waveforms_with_states",
     "ItemKind",
+    "PlotArgs",
+    "PlotItem",
 ]
 
 _RichReprResult: TypeAlias = list[Any]
@@ -485,7 +487,6 @@ class OscState:
     def with_time_shift(self, time: float) -> Self: ...
     def __rich_repr__(self) -> _RichReprResult: ...  # undocumented
 
-@type_check_only
 @final
 class PlotArgs:
     @property
@@ -499,7 +500,6 @@ class PlotArgs:
     @property
     def show_label(self) -> bool: ...
 
-@type_check_only
 @final
 class PlotItem:
     @property

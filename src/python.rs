@@ -17,7 +17,7 @@ mod export {
             GridLength, GridLengthUnit, Play, Repeat, SetFreq, SetPhase, ShiftFreq, ShiftPhase,
             Stack, SwapPhase,
         },
-        plot::ItemKind,
+        plot::{ItemKind, PlotArgs, PlotItem},
         shapes::{Hann, Interp, Shape},
         wavegen::{generate_waveforms, generate_waveforms_with_states, Channel, OscState},
     };
