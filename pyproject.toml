@@ -9,7 +9,7 @@ description = "Waveform generator for pulse sequences in quantum computing"
 readme = "README.md"
 requires-python = ">=3.9"
 keywords = []
-authors = [{ name = "kaho", email = "kaho0769@qq.com" }]
+authors = [{ name = "Jiahao Yuan", email = "kahojyun@icloud.com" }]
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Programming Language :: Rust",
