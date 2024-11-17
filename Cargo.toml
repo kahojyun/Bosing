@@ -30,7 +30,7 @@ pyo3 = { version = "0.22.6", features = [
   "abi3-py39",
 ] }
 rayon = "1.10.0"
-thiserror = "1.0.69"
+thiserror = "2.0.3"
 
 [dev-dependencies]
 mockall = "0.13.0"
