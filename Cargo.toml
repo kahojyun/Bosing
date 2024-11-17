@@ -11,7 +11,7 @@ name = "bosing"
 crate-type = ["cdylib"]
 
 [dependencies]
-anyhow = "1.0.92"
+anyhow = "1.0.93"
 bspline = "1.1.0"
 cached = "0.53.1"
 float-cmp = "0.10.0"
@@ -21,16 +21,16 @@ itertools = "0.13.0"
 ndarray = { version = "0.16.1", features = ["rayon"] }
 num = "0.4.3"
 numpy = "0.22.1"
-ordered-float = "4.4.0"
+ordered-float = "4.5.0"
 pulp = "0.18.22"
-pyo3 = { version = "0.22.5", features = [
+pyo3 = { version = "0.22.6", features = [
   "hashbrown",
   "anyhow",
   "generate-import-lib",
   "abi3-py39",
 ] }
 rayon = "1.10.0"
-thiserror = "1.0.66"
+thiserror = "1.0.69"
 
 [dev-dependencies]
 mockall = "0.13.0"
