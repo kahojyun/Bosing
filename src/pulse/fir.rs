@@ -30,15 +30,15 @@ impl<'a, 'b> WithSimd for ApplyFirInplace<'a, 'b> {
                 let w_buffer_index = i % buffer_len;
                 w_buffer[w_buffer_index] = *w;
                 let tap_buffer_index = buffer_len - w_buffer_index - 1;
-                let (taps_simd, _) = S::f64s_as_simd(&taps_buffer[tap_buffer_index..]);
-                let (w_simd, _) = S::f64s_as_simd(&w_buffer);
+                let (taps_simd, _) = S::as_simd_f64s(&taps_buffer[tap_buffer_index..]);
+                let (w_simd, _) = S::as_simd_f64s(&w_buffer);
                 let sum = taps_simd
                     .iter()
                     .zip(w_simd.iter())
-                    .fold(simd.f64s_splat(0.0), |acc, (taps, w)| {
-                        simd.f64s_mul_add_e(*taps, *w, acc)
+                    .fold(simd.splat_f64s(0.0), |acc, (taps, w)| {
+                        simd.mul_add_e_f64s(*taps, *w, acc)
                     });
-                let sum = simd.f64s_reduce_sum(sum);
+                let sum = simd.reduce_sum_f64s(sum);
                 *w = sum;
             }
         }
