@@ -83,11 +83,11 @@ impl<'a> Helper<'a> {
             return true;
         }
         if span == 1 {
-            return if !self.columns[start].is_fixed() {
+            return if self.columns[start].is_fixed() {
+                false
+            } else {
                 self.column_sizes[start] = required;
                 true
-            } else {
-                false
             };
         }
         let remaining = required - current;
@@ -120,6 +120,12 @@ impl<'a> Helper<'a> {
     }
 
     fn expand_span_by_star_ratio(&mut self, span: NormalizedSpan, mut remaining: Time) -> bool {
+        struct StarItem<'a> {
+            size_per_star: Time,
+            column_size: &'a mut Time,
+            star: f64,
+        }
+
         let NormalizedSpan { start, span } = span;
         let mut sorted = {
             let mut items: Vec<StarItem<'_>> = self
@@ -156,13 +162,7 @@ impl<'a> Helper<'a> {
                 break;
             }
         }
-        return true;
-
-        struct StarItem<'a> {
-            size_per_star: Time,
-            column_size: &'a mut Time,
-            star: f64,
-        }
+        true
     }
 }
 

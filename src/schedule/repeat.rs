@@ -2,12 +2,9 @@ use std::sync::OnceLock;
 
 use anyhow::{bail, Result};
 
-use crate::{
-    quant::{ChannelId, Time},
-    schedule::{ElementRef, Measure},
-};
+use crate::quant::{ChannelId, Time};
 
-use super::{Arrange, Arranged, TimeRange};
+use super::{Arrange, Arranged, ElementRef, Measure, TimeRange};
 
 #[derive(Debug, Clone)]
 pub(crate) struct Repeat {

@@ -84,14 +84,14 @@ pub(crate) struct Interp {
 #[pymethods]
 impl Interp {
     #[new]
-    fn new(knots: Vec<f64>, controls: Vec<f64>, degree: usize) -> PyResult<(Self, Shape)> {
-        Ok((
+    fn new(knots: Vec<f64>, controls: Vec<f64>, degree: usize) -> (Self, Shape) {
+        (
             Self {
                 knots,
                 controls,
                 degree,
             },
             Shape,
-        ))
+        )
     }
 }

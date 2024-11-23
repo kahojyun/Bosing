@@ -275,7 +275,7 @@ impl Default for ElementCommonBuilder {
             phantom: false,
             duration: None,
             max_duration: Time::INFINITY,
-            min_duration: Default::default(),
+            min_duration: Time::default(),
             label: None,
         })
     }

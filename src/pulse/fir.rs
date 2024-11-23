@@ -10,6 +10,7 @@ impl<'a, 'b> WithSimd for ApplyFirInplace<'a, 'b> {
     type Output = ();
 
     #[inline(always)]
+    #[expect(clippy::inline_always, reason = "Follow pulp's suggestion")]
     fn with_simd<S: Simd>(mut self, simd: S) -> Self::Output {
         let lanes = std::mem::size_of::<S::f64s>() / std::mem::size_of::<f64>();
         let buffer_len = align_ceil(self.taps.len(), lanes);

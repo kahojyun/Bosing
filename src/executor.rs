@@ -300,7 +300,7 @@ impl Channel {
             amplitude,
             drag_coef,
             phase,
-        })
+        });
     }
 }
 

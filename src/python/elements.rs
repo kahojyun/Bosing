@@ -279,22 +279,6 @@ where
         min_duration: Time,
         label: Option<Label>,
     ) -> PyResult<Element> {
-        let mut builder = ElementCommonBuilder::new();
-        if let Some(obj) = margin {
-            builder.margin(extract_margin(obj)?);
-        }
-        if let Some(obj) = alignment {
-            builder.alignment(extract_alignment(obj)?);
-        }
-        builder
-            .phantom(phantom)
-            .duration(duration)
-            .max_duration(max_duration)
-            .min_duration(min_duration)
-            .label(label);
-        let common = builder.build()?;
-        return Ok(Element(Arc::new(schedule::Element::new(common, variant))));
-
         fn extract_alignment(obj: &Bound<'_, PyAny>) -> PyResult<Alignment> {
             Alignment::convert(obj).and_then(|x| x.extract(obj.py()))
         }
@@ -312,6 +296,22 @@ where
             let msg = "Failed to convert the value to (float, float).";
             Err(PyValueError::new_err(msg))
         }
+
+        let mut builder = ElementCommonBuilder::new();
+        if let Some(obj) = margin {
+            builder.margin(extract_margin(obj)?);
+        }
+        if let Some(obj) = alignment {
+            builder.alignment(extract_alignment(obj)?);
+        }
+        builder
+            .phantom(phantom)
+            .duration(duration)
+            .max_duration(max_duration)
+            .min_duration(min_duration)
+            .label(label);
+        let common = builder.build()?;
+        Ok(Element(Arc::new(schedule::Element::new(common, variant))))
     }
 }
 

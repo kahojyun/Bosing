@@ -38,7 +38,7 @@ impl Envelope {
             width = Time::ZERO;
         }
         if width == Time::ZERO {
-            shape = None
+            shape = None;
         }
         Self {
             shape,
@@ -127,7 +127,7 @@ impl<'a> Sampler<'a> {
         align_level: i32,
     ) {
         self.channels.insert(
-            name.clone(),
+            name,
             Channel {
                 waveform,
                 sample_rate,
@@ -166,14 +166,14 @@ impl<'a> Sampler<'a> {
                         c.align_level,
                         time_tolerance,
                     )
-                    .with_context(|| format!("Failed to sample channel '{}'", n))
+                    .with_context(|| format!("Failed to sample channel '{n}'"))
                 } else {
                     let list = self.pulse_lists[&n]
                         .items
                         .iter()
                         .map(|(bin, items)| (bin.clone(), items.iter().copied()));
                     sample_pulse_list(list, c.waveform, c.sample_rate, c.delay, c.align_level)
-                        .with_context(|| format!("Failed to sample channel '{}'", n))
+                        .with_context(|| format!("Failed to sample channel '{n}'"))
                 }
             })
         } else {
@@ -183,7 +183,7 @@ impl<'a> Sampler<'a> {
                     .iter()
                     .map(|(bin, items)| (bin.clone(), items.iter().copied()));
                 sample_pulse_list(list, c.waveform, c.sample_rate, c.delay, c.align_level)
-                    .with_context(|| format!("Failed to sample channel '{}'", n))
+                    .with_context(|| format!("Failed to sample channel '{n}'"))
             })
         }
     }
@@ -375,7 +375,7 @@ fn merge_and_sample<'a>(
                 items
                     .iter()
                     .map(move |&(time, amp)| (time, amp * multiplier)),
-            )
+            );
         }
     }
     let merged = merged.into_iter().map(|(bin, items)| {
@@ -487,9 +487,9 @@ pub(crate) fn apply_offset_inplace(
 }
 
 pub(crate) fn apply_iir_inplace(waveform: &mut ArrayViewMut2<'_, f64>, sos: ArrayView2<'_, f64>) {
-    self::iir::iir_filter_inplace(waveform.view_mut(), sos).unwrap()
+    self::iir::iir_filter_inplace(waveform.view_mut(), sos).unwrap();
 }
 
 pub(crate) fn apply_fir_inplace(waveform: &mut ArrayViewMut2<'_, f64>, taps: ArrayView1<'_, f64>) {
-    self::fir::fir_filter_inplace(waveform.view_mut(), taps)
+    self::fir::fir_filter_inplace(waveform.view_mut(), taps);
 }

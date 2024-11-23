@@ -7,10 +7,11 @@ use anyhow::{bail, Result};
 use crate::{
     python::GridLength,
     quant::{ChannelId, Time},
-    schedule::{grid::helper::Helper, merge_channel_ids, Alignment, Arranged, ElementRef, Measure},
 };
 
-use super::{Arrange, TimeRange};
+use super::{merge_channel_ids, Alignment, Arrange, Arranged, ElementRef, Measure, TimeRange};
+
+use self::helper::Helper;
 
 #[derive(Debug, Clone)]
 pub(crate) struct GridEntry {
@@ -218,16 +219,16 @@ mod tests {
         v.iter().map(|&d| Time::new(d).unwrap()).collect()
     }
 
-    #[test_case(&[(40.0, 0, 1)], &["30"], (30.0, vec![30.0]); "not enough size")]
+    #[test_case(&[(40.0, 0, 1)], &["30"], (30.0, &[30.0]); "not enough size")]
     #[test_case(
         &[(40.0, 0, 1), (40.0, 2, 1), (100.0, 0, 3)],
         &["auto", "*", "auto"],
-        (100.0, vec![40.0, 20.0, 40.0]);
+        (100.0, &[40.0, 20.0, 40.0]);
         "sandwiched"
     )]
-    #[test_case(&[], &["*"], (0.0, vec![0.0]); "empty star")]
-    #[test_case(&[], &["10"], (10.0, vec![10.0]); "empty fixed")]
-    fn measure_grid(children: &[(f64, usize, usize)], columns: &[&str], expected: (f64, Vec<f64>)) {
+    #[test_case(&[], &["*"], (0.0, &[0.0]); "empty star")]
+    #[test_case(&[], &["10"], (10.0, &[10.0]); "empty fixed")]
+    fn measure_grid(children: &[(f64, usize, usize)], columns: &[&str], expected: (f64, &[f64])) {
         let children = children
             .iter()
             .map(|&(duration, column, span)| MeasureItem {
@@ -244,6 +245,6 @@ mod tests {
         } = super::measure_grid(children, &columns);
 
         assert_eq!(total_duration, Time::new(expected.0).unwrap());
-        assert_eq!(column_sizes, time_vec(&expected.1));
+        assert_eq!(column_sizes, time_vec(expected.1));
     }
 }

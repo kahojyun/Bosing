@@ -332,7 +332,7 @@ pub(super) fn generate_waveforms(
     py: Python<'_>,
     channels: HashMap<ChannelId, Channel>,
     shapes: HashMap<ShapeId, Py<Shape>>,
-    schedule: Bound<'_, Element>,
+    schedule: &Bound<'_, Element>,
     time_tolerance: Time,
     amp_tolerance: Amplitude,
     allow_oversize: bool,
@@ -400,7 +400,7 @@ pub(super) fn generate_waveforms_with_states(
     py: Python<'_>,
     channels: HashMap<ChannelId, Channel>,
     shapes: HashMap<ShapeId, Py<Shape>>,
-    schedule: Bound<'_, Element>,
+    schedule: &Bound<'_, Element>,
     time_tolerance: Time,
     amp_tolerance: Amplitude,
     allow_oversize: bool,
@@ -422,7 +422,7 @@ pub(super) fn generate_waveforms_with_states(
         time_tolerance,
         amp_tolerance,
         allow_oversize,
-        states,
+        states.as_ref(),
     )?;
     let waveforms = sample_waveform(py, &channels, pulse_lists, crosstalk, time_tolerance)?;
     Ok((
@@ -446,13 +446,13 @@ pub(super) fn generate_waveforms_with_states(
 }
 
 fn build_pulse_lists(
-    schedule: Bound<'_, Element>,
+    schedule: &Bound<'_, Element>,
     channels: &HashMap<ChannelId, Channel>,
     shapes: &HashMap<ShapeId, Py<Shape>>,
     time_tolerance: Time,
     amp_tolerance: Amplitude,
     allow_oversize: bool,
-    states: Option<ChannelStates>,
+    states: Option<&ChannelStates>,
 ) -> PyResult<(ChannelPulses, ChannelStates)> {
     let py = schedule.py();
     let mut executor = Executor::new(amp_tolerance, time_tolerance, allow_oversize);
@@ -461,7 +461,7 @@ fn build_pulse_lists(
             Some(states) => {
                 let state = states
                     .get(n)
-                    .ok_or_else(|| PyValueError::new_err(format!("No state for channel: {}", n)))?;
+                    .ok_or_else(|| PyValueError::new_err(format!("No state for channel: {n}")))?;
                 let state = state.bind(py);
                 state.extract::<OscState>()?.into()
             }
@@ -521,10 +521,10 @@ fn sample_waveform(
 }
 
 fn post_process(w: &mut ArrayViewMut2<'_, f64>, c: &Channel) {
-    let iq_matrix = c.iq_matrix.as_ref().map(|x| x.view());
-    let offset = c.offset.as_ref().map(|x| x.view());
-    let iir = c.iir.as_ref().map(|x| x.view());
-    let fir = c.fir.as_ref().map(|x| x.view());
+    let iq_matrix = c.iq_matrix.as_ref().map(IqMatrix::view);
+    let offset = c.offset.as_ref().map(OffsetArray::view);
+    let iir = c.iir.as_ref().map(IirArray::view);
+    let fir = c.fir.as_ref().map(FirArray::view);
     if let Some(iq_matrix) = iq_matrix {
         apply_iq_inplace(w, iq_matrix);
     }

@@ -52,17 +52,17 @@ impl Time {
 }
 
 impl Phase {
-    fn radians(&self) -> f64 {
+    fn radians(self) -> f64 {
         self.value() * std::f64::consts::TAU
     }
 
-    pub(crate) fn phaser(&self) -> Complex64 {
+    pub(crate) fn phaser(self) -> Complex64 {
         Complex64::from_polar(1.0, self.radians())
     }
 }
 
 impl Frequency {
-    pub(crate) fn dt(&self) -> Time {
+    pub(crate) fn dt(self) -> Time {
         Time::new(1.0 / self.value()).expect("Frequency should be non-zero")
     }
 }
@@ -70,7 +70,8 @@ impl Frequency {
 impl AlignedIndex {
     pub(crate) fn new(time: Time, sample_rate: Frequency, align_level: i32) -> Result<Self> {
         fn scaleb(x: f64, s: i32) -> f64 {
-            x * (s as f64).exp2()
+            let s: f64 = s.into();
+            x * s.exp2()
         }
         let scaled_sr = scaleb(sample_rate.value(), -align_level);
         let i = (time.value() * scaled_sr).ceil();
@@ -85,15 +86,15 @@ impl AlignedIndex {
         Ok(Self(NotNan::new(value)?))
     }
 
-    pub(crate) fn value(&self) -> f64 {
+    pub(crate) fn value(self) -> f64 {
         self.0.into_inner()
     }
 
-    pub(crate) fn ceil_to_usize(&self) -> Option<usize> {
+    pub(crate) fn ceil_to_usize(self) -> Option<usize> {
         <usize as NumCast>::from(self.0.ceil())
     }
 
-    pub(crate) fn index_offset(&self) -> Result<Self> {
+    pub(crate) fn index_offset(self) -> Result<Self> {
         Self::from_value(self.0.ceil() - self.0.into_inner())
     }
 }

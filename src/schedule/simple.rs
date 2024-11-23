@@ -1,9 +1,8 @@
 use anyhow::{bail, Result};
 
-use crate::{
-    quant::{ChannelId, Frequency, Phase, Time},
-    schedule::Measure,
-};
+use crate::quant::{ChannelId, Frequency, Phase, Time};
+
+use super::Measure;
 
 #[derive(Debug, Clone)]
 pub(crate) struct ShiftPhase {

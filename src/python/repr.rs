@@ -34,10 +34,10 @@ impl Arg {
             Arg::Positional(v) => Some(v.bind(py).repr()?.to_string()),
             Arg::Keyword(n, v) => Some(format!("{}={}", n, v.bind(py).repr()?)),
             Arg::KeyWithDefault(n, v, d) => {
-                if !matches!(v.bind(py).eq(d), Ok(true)) {
-                    Some(format!("{}={}", n, v.bind(py).repr()?))
-                } else {
+                if matches!(v.bind(py).eq(d), Ok(true)) {
                     None
+                } else {
+                    Some(format!("{}={}", n, v.bind(py).repr()?))
                 }
             }
         };

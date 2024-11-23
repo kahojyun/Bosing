@@ -2,12 +2,9 @@ use std::sync::OnceLock;
 
 use anyhow::{bail, Result};
 
-use crate::{
-    quant::{ChannelId, Time},
-    schedule::{merge_channel_ids, ElementRef, Measure},
-};
+use crate::quant::{ChannelId, Time};
 
-use super::{Arrange, Arranged, TimeRange};
+use super::{merge_channel_ids, Arrange, Arranged, ElementRef, Measure, TimeRange};
 
 #[derive(Debug, Clone)]
 pub(crate) struct AbsoluteEntry {

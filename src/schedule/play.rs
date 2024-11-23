@@ -1,9 +1,8 @@
 use anyhow::{bail, Result};
 
-use crate::{
-    quant::{Amplitude, ChannelId, Frequency, Phase, ShapeId, Time},
-    schedule::Measure,
-};
+use crate::quant::{Amplitude, ChannelId, Frequency, Phase, ShapeId, Time};
+
+use super::Measure;
 
 #[derive(Debug, Clone)]
 pub(crate) struct Play {
