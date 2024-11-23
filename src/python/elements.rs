@@ -268,7 +268,7 @@ where
             .expect("Element should have a valid variant")
     }
 
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments)]
     fn build_element(
         variant: Self::Variant,
         margin: Option<&Bound<'_, PyAny>>,
@@ -428,7 +428,7 @@ impl Play {
         min_duration=Time::ZERO,
         label=None,
     ))]
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments)]
     fn new(
         channel_id: ChannelId,
         shape_id: Option<ShapeId>,
@@ -566,7 +566,7 @@ impl ShiftPhase {
         min_duration=Time::ZERO,
         label=None,
     ))]
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments)]
     fn new(
         channel_id: ChannelId,
         phase: Phase,
@@ -665,7 +665,7 @@ impl SetPhase {
         min_duration=Time::ZERO,
         label=None,
     ))]
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments)]
     fn new(
         channel_id: ChannelId,
         phase: Phase,
@@ -752,7 +752,7 @@ impl ShiftFreq {
         min_duration=Time::ZERO,
         label=None,
     ))]
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments)]
     fn new(
         channel_id: ChannelId,
         frequency: Frequency,
@@ -840,7 +840,7 @@ impl SetFreq {
         min_duration=Time::ZERO,
         label=None,
     ))]
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments)]
     fn new(
         channel_id: ChannelId,
         frequency: Frequency,
@@ -930,7 +930,7 @@ impl SwapPhase {
         min_duration=Time::ZERO,
         label=None,
     ))]
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments)]
     fn new(
         channel_id1: ChannelId,
         channel_id2: ChannelId,
@@ -1018,7 +1018,7 @@ impl Barrier {
         min_duration=Time::ZERO,
         label=None,
     ))]
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments)]
     fn new(
         channel_ids: Vec<ChannelId>,
         margin: Option<&Bound<'_, PyAny>>,
@@ -1102,7 +1102,7 @@ impl Repeat {
         min_duration=Time::ZERO,
         label=None,
     ))]
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments)]
     fn new(
         child: Py<Element>,
         count: usize,

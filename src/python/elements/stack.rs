@@ -59,7 +59,7 @@ impl Stack {
         min_duration=Time::ZERO,
         label=None,
     ))]
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments)]
     fn new(
         children: Vec<Py<Element>>,
         direction: Option<&Bound<'_, PyAny>>,

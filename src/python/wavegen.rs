@@ -88,7 +88,7 @@ impl Channel {
         filter_offset=false,
         is_real=false,
     ))]
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments)]
     fn new(
         base_freq: Frequency,
         sample_rate: Frequency,
@@ -395,7 +395,7 @@ pub fn generate_waveforms(
     crosstalk=None,
     states=None,
 ))]
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments)]
 pub fn generate_waveforms_with_states(
     py: Python<'_>,
     channels: HashMap<ChannelId, Channel>,

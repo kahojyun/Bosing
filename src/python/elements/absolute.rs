@@ -61,7 +61,7 @@ impl Absolute {
         min_duration=Time::ZERO,
         label=None,
     ))]
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments)]
     fn new(
         py: Python<'_>,
         children: Vec<Py<PyAny>>,
