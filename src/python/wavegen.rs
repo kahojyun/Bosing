@@ -1,3 +1,7 @@
+#![expect(
+    clippy::redundant_pub_crate,
+    reason = "pyfunction proc-macro triggers this lint"
+)]
 use hashbrown::HashMap;
 use ndarray::ArrayViewMut2;
 use numpy::{prelude::*, AllowTypeChange, PyArray2, PyArrayLike2};
@@ -269,6 +273,7 @@ impl From<OscState> for executor::OscState {
 type ChannelWaveforms = HashMap<ChannelId, Py<PyArray2<f64>>>;
 type ChannelStates = HashMap<ChannelId, Py<OscState>>;
 type ChannelPulses = HashMap<ChannelId, PulseList>;
+type CrosstalkMatrix<'a> = (PyArrayLike2<'a, f64, AllowTypeChange>, Vec<ChannelId>);
 
 /// Generate waveforms from a schedule.
 ///
@@ -336,7 +341,7 @@ pub fn generate_waveforms(
     time_tolerance: Time,
     amp_tolerance: Amplitude,
     allow_oversize: bool,
-    crosstalk: Option<(PyArrayLike2<'_, f64, AllowTypeChange>, Vec<ChannelId>)>,
+    crosstalk: Option<CrosstalkMatrix<'_>>,
 ) -> PyResult<ChannelWaveforms> {
     let (waveforms, _) = generate_waveforms_with_states(
         py,
@@ -396,6 +401,7 @@ pub fn generate_waveforms(
     states=None,
 ))]
 #[expect(clippy::too_many_arguments)]
+#[expect(clippy::needless_pass_by_value, reason = "PyO3 extractor")]
 pub fn generate_waveforms_with_states(
     py: Python<'_>,
     channels: HashMap<ChannelId, Channel>,
@@ -404,7 +410,7 @@ pub fn generate_waveforms_with_states(
     time_tolerance: Time,
     amp_tolerance: Amplitude,
     allow_oversize: bool,
-    crosstalk: Option<(PyArrayLike2<'_, f64, AllowTypeChange>, Vec<ChannelId>)>,
+    crosstalk: Option<CrosstalkMatrix<'_>>,
     states: Option<ChannelStates>,
 ) -> PyResult<(ChannelWaveforms, ChannelStates)> {
     if let Some((crosstalk, names)) = &crosstalk {
@@ -458,13 +464,11 @@ fn build_pulse_lists(
     let mut executor = Executor::new(amp_tolerance, time_tolerance, allow_oversize);
     for (n, c) in channels {
         let osc = match &states {
-            Some(states) => {
-                let state = states
-                    .get(n)
-                    .ok_or_else(|| PyValueError::new_err(format!("No state for channel: {n}")))?;
-                let state = state.bind(py);
-                state.extract::<OscState>()?.into()
-            }
+            Some(states) => states
+                .get(n)
+                .ok_or_else(|| PyValueError::new_err(format!("No state for channel: {n}")))?
+                .extract::<OscState>(py)?
+                .into(),
             None => executor::OscState::new(c.base_freq),
         };
         executor.add_channel(n.clone(), osc);
@@ -494,7 +498,7 @@ fn sample_waveform(
     py: Python<'_>,
     channels: &HashMap<ChannelId, Channel>,
     pulse_lists: ChannelPulses,
-    crosstalk: Option<(PyArrayLike2<'_, f64, AllowTypeChange>, Vec<ChannelId>)>,
+    crosstalk: Option<CrosstalkMatrix<'_>>,
     time_tolerance: Time,
 ) -> PyResult<ChannelWaveforms> {
     let waveforms: HashMap<_, _> = channels
@@ -513,8 +517,8 @@ fn sample_waveform(
         let array = unsafe { waveforms[n].bind(py).as_array_mut() };
         sampler.add_channel(n.clone(), array, c.sample_rate, c.delay, c.align_level);
     }
-    if let Some((crosstalk, names)) = &crosstalk {
-        sampler.set_crosstalk(crosstalk.as_array(), names.clone());
+    if let Some((ref crosstalk, names)) = crosstalk {
+        sampler.set_crosstalk(crosstalk.as_array(), names);
     }
     py.allow_threads(|| sampler.sample(time_tolerance))?;
     Ok(waveforms)
