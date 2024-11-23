@@ -12,7 +12,7 @@ use super::{merge_channel_ids, Arrange, Arranged, ElementRef, Measure, TimeRange
 use self::helper::Helper;
 
 #[derive(Debug, Clone)]
-pub(crate) struct Stack {
+pub struct Stack {
     children: Vec<ElementRef>,
     direction: Direction,
     channel_ids: Vec<ChannelId>,
@@ -44,7 +44,7 @@ impl Stack {
         self
     }
 
-    pub(crate) fn direction(&self) -> Direction {
+    pub(crate) const fn direction(&self) -> Direction {
         self.direction
     }
 
@@ -152,7 +152,6 @@ mod tests {
 
     #[test_case(Direction::Forward; "forward")]
     #[test_case(Direction::Backward; "backward")]
-
     fn collect_by_direction(direction: Direction) {
         let v = [1, 2, 3];
 

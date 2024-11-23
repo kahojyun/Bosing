@@ -5,36 +5,36 @@ use crate::quant::{ChannelId, Frequency, Phase, Time};
 use super::Measure;
 
 #[derive(Debug, Clone)]
-pub(crate) struct ShiftPhase {
+pub struct ShiftPhase {
     channel_ids: [ChannelId; 1],
     phase: Phase,
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct SetPhase {
+pub struct SetPhase {
     channel_ids: [ChannelId; 1],
     phase: Phase,
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct ShiftFreq {
+pub struct ShiftFreq {
     channel_ids: [ChannelId; 1],
     frequency: Frequency,
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct SetFreq {
+pub struct SetFreq {
     channel_ids: [ChannelId; 1],
     frequency: Frequency,
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct SwapPhase {
+pub struct SwapPhase {
     channel_ids: [ChannelId; 2],
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct Barrier {
+pub struct Barrier {
     channel_ids: Vec<ChannelId>,
 }
 
@@ -49,11 +49,11 @@ impl ShiftPhase {
         })
     }
 
-    pub(crate) fn channel_id(&self) -> &ChannelId {
+    pub(crate) const fn channel_id(&self) -> &ChannelId {
         &self.channel_ids[0]
     }
 
-    pub(crate) fn phase(&self) -> Phase {
+    pub(crate) const fn phase(&self) -> Phase {
         self.phase
     }
 }
@@ -69,11 +69,11 @@ impl SetPhase {
         })
     }
 
-    pub(crate) fn channel_id(&self) -> &ChannelId {
+    pub(crate) const fn channel_id(&self) -> &ChannelId {
         &self.channel_ids[0]
     }
 
-    pub(crate) fn phase(&self) -> Phase {
+    pub(crate) const fn phase(&self) -> Phase {
         self.phase
     }
 }
@@ -89,11 +89,11 @@ impl ShiftFreq {
         })
     }
 
-    pub(crate) fn channel_id(&self) -> &ChannelId {
+    pub(crate) const fn channel_id(&self) -> &ChannelId {
         &self.channel_ids[0]
     }
 
-    pub(crate) fn frequency(&self) -> Frequency {
+    pub(crate) const fn frequency(&self) -> Frequency {
         self.frequency
     }
 }
@@ -109,33 +109,33 @@ impl SetFreq {
         })
     }
 
-    pub(crate) fn channel_id(&self) -> &ChannelId {
+    pub(crate) const fn channel_id(&self) -> &ChannelId {
         &self.channel_ids[0]
     }
 
-    pub(crate) fn frequency(&self) -> Frequency {
+    pub(crate) const fn frequency(&self) -> Frequency {
         self.frequency
     }
 }
 
 impl SwapPhase {
-    pub(crate) fn new(channel_id1: ChannelId, channel_id2: ChannelId) -> Self {
+    pub(crate) const fn new(channel_id1: ChannelId, channel_id2: ChannelId) -> Self {
         Self {
             channel_ids: [channel_id1, channel_id2],
         }
     }
 
-    pub(crate) fn channel_id1(&self) -> &ChannelId {
+    pub(crate) const fn channel_id1(&self) -> &ChannelId {
         &self.channel_ids[0]
     }
 
-    pub(crate) fn channel_id2(&self) -> &ChannelId {
+    pub(crate) const fn channel_id2(&self) -> &ChannelId {
         &self.channel_ids[1]
     }
 }
 
 impl Barrier {
-    pub(crate) fn new(channel_ids: Vec<ChannelId>) -> Self {
+    pub(crate) const fn new(channel_ids: Vec<ChannelId>) -> Self {
         Self { channel_ids }
     }
 

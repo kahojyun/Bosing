@@ -17,23 +17,25 @@ use crate::{
     quant::{ChannelId, Label, Time},
 };
 
-pub(crate) use absolute::{Absolute, AbsoluteEntry};
-pub(crate) use grid::{Grid, GridEntry};
-pub(crate) use play::Play;
-pub(crate) use repeat::Repeat;
-pub(crate) use simple::{Barrier, SetFreq, SetPhase, ShiftFreq, ShiftPhase, SwapPhase};
-pub(crate) use stack::Stack;
+pub use self::{
+    absolute::{Absolute, AbsoluteEntry},
+    grid::{Grid, GridEntry},
+    play::Play,
+    repeat::Repeat,
+    simple::{Barrier, SetFreq, SetPhase, ShiftFreq, ShiftPhase, SwapPhase},
+    stack::Stack,
+};
 
-pub(crate) type ElementRef = Arc<Element>;
+pub type ElementRef = Arc<Element>;
 
 #[derive(Debug, Clone)]
-pub(crate) struct Element {
+pub struct Element {
     pub(crate) common: ElementCommon,
     pub(crate) variant: ElementVariant,
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct ElementCommon {
+pub struct ElementCommon {
     margin: (Time, Time),
     alignment: Alignment,
     phantom: bool,
@@ -44,27 +46,27 @@ pub(crate) struct ElementCommon {
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct ElementCommonBuilder(ElementCommon);
+pub struct ElementCommonBuilder(ElementCommon);
 
 #[derive(Debug, Clone, Copy)]
-pub(crate) struct TimeRange {
+pub struct TimeRange {
     pub(crate) start: Time,
     pub(crate) span: Time,
 }
 
 #[derive(Debug, Clone, Copy)]
-pub(crate) struct Arranged<T> {
+pub struct Arranged<T> {
     pub(crate) item: T,
     pub(crate) time_range: TimeRange,
 }
 
 #[cfg_attr(test, automock)]
-pub(crate) trait Measure {
+pub trait Measure {
     fn measure(&self) -> Time;
     fn channels(&self) -> &[ChannelId];
 }
 
-pub(crate) trait Arrange {
+pub trait Arrange {
     fn arrange(&self, time_range: TimeRange) -> impl Iterator<Item = Arranged<&ElementRef>>;
 }
 
@@ -77,7 +79,7 @@ struct MinMax {
 macro_rules! impl_variant {
     ($($variant:ident),*$(,)?) => {
         #[derive(Debug, Clone)]
-        pub(crate) enum ElementVariant {
+        pub enum ElementVariant {
             $($variant($variant),)*
         }
 
@@ -152,31 +154,31 @@ impl Element {
 }
 
 impl ElementCommon {
-    pub(crate) fn margin(&self) -> (Time, Time) {
+    pub(crate) const fn margin(&self) -> (Time, Time) {
         self.margin
     }
 
-    pub(crate) fn alignment(&self) -> Alignment {
+    pub(crate) const fn alignment(&self) -> Alignment {
         self.alignment
     }
 
-    pub(crate) fn phantom(&self) -> bool {
+    pub(crate) const fn phantom(&self) -> bool {
         self.phantom
     }
 
-    pub(crate) fn duration(&self) -> Option<Time> {
+    pub(crate) const fn duration(&self) -> Option<Time> {
         self.duration
     }
 
-    pub(crate) fn max_duration(&self) -> Time {
+    pub(crate) const fn max_duration(&self) -> Time {
         self.max_duration
     }
 
-    pub(crate) fn min_duration(&self) -> Time {
+    pub(crate) const fn min_duration(&self) -> Time {
         self.min_duration
     }
 
-    pub(crate) fn label(&self) -> Option<&Label> {
+    pub(crate) const fn label(&self) -> Option<&Label> {
         self.label.as_ref()
     }
 
@@ -258,7 +260,7 @@ impl ElementCommonBuilder {
 }
 
 impl MinMax {
-    fn new(min: Time, max: Time) -> Self {
+    const fn new(min: Time, max: Time) -> Self {
         Self { min, max }
     }
 

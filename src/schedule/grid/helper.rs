@@ -13,11 +13,11 @@ pub(super) struct Helper<'a> {
 }
 
 impl NormalizedSpan {
-    pub(super) fn start(&self) -> usize {
+    pub(super) const fn start(&self) -> usize {
         self.start
     }
 
-    pub(super) fn span(&self) -> usize {
+    pub(super) const fn span(&self) -> usize {
         self.span
     }
 }

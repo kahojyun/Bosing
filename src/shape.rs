@@ -12,7 +12,7 @@ use ordered_float::NotNan;
 /// Internally, shape instances are cached such that we can compare and hash
 /// by instance address.
 #[derive(Debug, Clone)]
-pub(crate) struct Shape(Arc<ShapeVariant>);
+pub struct Shape(Arc<ShapeVariant>);
 
 impl Shape {
     pub(crate) fn new_hann() -> Self {
@@ -77,7 +77,7 @@ trait ShapeTrait {
     fn sample(&self, x: f64) -> f64;
     fn sample_array(&self, x0: f64, dx: f64, array: &mut [f64]) {
         for (i, y) in array.iter_mut().enumerate() {
-            *y = self.sample(x0 + i as f64 * dx);
+            *y = self.sample((i as f64).mul_add(dx, x0));
         }
     }
 }
@@ -287,7 +287,7 @@ mod tests {
             6.123233995736766e-17,
         ];
         let i1 = Shape::new_interp(knots.clone(), controls.clone(), 3).unwrap();
-        let i2 = Shape::new_interp(knots.clone(), controls.clone(), 3).unwrap();
+        let i2 = Shape::new_interp(knots, controls, 3).unwrap();
         assert_eq!(i1, i2);
         assert_ne!(h1, i1);
     }

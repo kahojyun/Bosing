@@ -14,14 +14,14 @@ use super::{merge_channel_ids, Alignment, Arrange, Arranged, ElementRef, Measure
 use self::helper::Helper;
 
 #[derive(Debug, Clone)]
-pub(crate) struct GridEntry {
+pub struct GridEntry {
     element: ElementRef,
     column: usize,
     span: usize,
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct Grid {
+pub struct Grid {
     children: Vec<GridEntry>,
     columns: Vec<GridLength>,
     channel_ids: Vec<ChannelId>,
@@ -42,7 +42,7 @@ struct MeasureItem {
 }
 
 impl GridEntry {
-    pub(crate) fn new(element: ElementRef) -> Self {
+    pub(crate) const fn new(element: ElementRef) -> Self {
         Self {
             element,
             column: 0,
@@ -50,7 +50,7 @@ impl GridEntry {
         }
     }
 
-    pub(crate) fn with_column(mut self, column: usize) -> Self {
+    pub(crate) const fn with_column(mut self, column: usize) -> Self {
         self.column = column;
         self
     }

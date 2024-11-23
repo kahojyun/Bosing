@@ -5,7 +5,7 @@ use pyo3::{exceptions::PyTypeError, prelude::*, sync::GILOnceCell};
 macro_rules! define_wrapper {
     ($name:ident, $t:ty, $d:ty, $err_msg:expr $(, $check:expr)*) => {
         #[derive(Debug, Clone)]
-        pub(crate) struct $name(ArcArray<$t, $d>);
+        pub struct $name(ArcArray<$t, $d>);
 
         impl $name {
             pub(crate) fn view(&self) -> ArrayView<'_, $t, $d> {

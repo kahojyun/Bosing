@@ -7,7 +7,7 @@ use ndarray::{ArrayView1, ArrayView2, ArrayViewMut2};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
-pub(crate) enum Error {
+pub enum Error {
     #[error("Invalid SOS format")]
     InvalidSosFormat,
 }
@@ -213,10 +213,7 @@ where
     }
 }
 
-pub(crate) fn iir_filter_inplace<T>(
-    signal: ArrayViewMut2<'_, T>,
-    sos: ArrayView2<'_, T>,
-) -> Result<()>
+pub fn iir_filter_inplace<T>(signal: ArrayViewMut2<'_, T>, sos: ArrayView2<'_, T>) -> Result<()>
 where
     T: Add<Output = T> + Mul<Output = T> + Sub<Output = T> + Copy + Default,
 {

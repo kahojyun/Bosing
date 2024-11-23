@@ -5,7 +5,7 @@ use pyo3::{
 };
 
 #[derive(Debug)]
-pub(crate) enum Arg {
+pub enum Arg {
     Positional(PyObject),
     Keyword(Py<PyString>, PyObject),
     KeyWithDefault(Py<PyString>, PyObject, PyObject),
@@ -31,9 +31,9 @@ impl Arg {
 
     pub(crate) fn fmt(&self, py: Python<'_>) -> PyResult<Option<String>> {
         let result = match self {
-            Arg::Positional(v) => Some(v.bind(py).repr()?.to_string()),
-            Arg::Keyword(n, v) => Some(format!("{}={}", n, v.bind(py).repr()?)),
-            Arg::KeyWithDefault(n, v, d) => {
+            Self::Positional(v) => Some(v.bind(py).repr()?.to_string()),
+            Self::Keyword(n, v) => Some(format!("{}={}", n, v.bind(py).repr()?)),
+            Self::KeyWithDefault(n, v, d) => {
                 if matches!(v.bind(py).eq(d), Ok(true)) {
                     None
                 } else {
@@ -48,14 +48,14 @@ impl Arg {
 impl IntoPy<PyObject> for Arg {
     fn into_py(self, py: Python<'_>) -> PyObject {
         match self {
-            Arg::Positional(v) => (v,).into_py(py),
-            Arg::Keyword(n, v) => (n, v).into_py(py),
-            Arg::KeyWithDefault(n, v, d) => (n, v, d).into_py(py),
+            Self::Positional(v) => (v,).into_py(py),
+            Self::Keyword(n, v) => (n, v).into_py(py),
+            Self::KeyWithDefault(n, v, d) => (n, v, d).into_py(py),
         }
     }
 }
 
-pub(crate) trait RichRepr: Sized + DerefToPyAny {
+pub trait RichRepr: Sized + DerefToPyAny {
     fn repr(slf: &Bound<'_, Self>) -> impl Iterator<Item = Arg>;
 
     fn to_rich_repr(slf: &Bound<'_, Self>) -> Vec<Arg> {

@@ -19,7 +19,7 @@ use super::{Arg, Element, ElementSubclass, Label, RichRepr as _};
 ///     direction (str | Direction): Layout order. Defaults to ``'backward'``.
 #[pyclass(module="bosing",extends=Element, get_all, frozen)]
 #[derive(Debug)]
-pub(crate) struct Stack {
+pub struct Stack {
     children: Vec<Py<Element>>,
 }
 
@@ -153,7 +153,7 @@ impl Stack {
 ///     possible.
 #[pyclass(module = "bosing", frozen, eq)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum Direction {
+pub enum Direction {
     Backward,
     Forward,
 }
@@ -182,8 +182,8 @@ impl Direction {
         }
         if let Ok(s) = obj.extract::<String>() {
             let direction = match s.as_str() {
-                "backward" => Some(Direction::Backward),
-                "forward" => Some(Direction::Forward),
+                "backward" => Some(Self::Backward),
+                "forward" => Some(Self::Forward),
                 _ => None,
             };
             if let Some(direction) = direction {

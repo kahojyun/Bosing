@@ -53,7 +53,7 @@ use super::{Arg, Element, ElementSubclass, Label, RichRepr};
 ///         )
 #[pyclass(module="bosing",extends=Element, frozen)]
 #[derive(Debug)]
-pub(crate) struct Grid {
+pub struct Grid {
     children: Vec<GridEntry>,
 }
 
@@ -212,7 +212,7 @@ impl Grid {
 /// - Star: Ratio of the remaining duration.
 #[pyclass(module = "bosing", frozen, eq)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum GridLengthUnit {
+pub enum GridLengthUnit {
     Seconds,
     Auto,
     Star,
@@ -231,7 +231,7 @@ impl ToPyObject for GridLengthUnit {
 /// or automatically.
 #[pyclass(module = "bosing", get_all, frozen)]
 #[derive(Debug, Clone)]
-pub(crate) struct GridLength {
+pub struct GridLength {
     pub(crate) value: f64,
     unit: GridLengthUnit,
 }
@@ -243,8 +243,8 @@ impl GridLength {
     /// Returns:
     ///     GridLength: Automatic grid length.
     #[staticmethod]
-    fn auto() -> Self {
-        GridLength {
+    const fn auto() -> Self {
+        Self {
             value: 0.0,
             unit: GridLengthUnit::Auto,
         }
@@ -262,7 +262,7 @@ impl GridLength {
         if !(value.is_finite() && value > 0.0) {
             return Err(PyValueError::new_err("The value must be greater than 0."));
         }
-        Ok(GridLength {
+        Ok(Self {
             value,
             unit: GridLengthUnit::Star,
         })
@@ -282,7 +282,7 @@ impl GridLength {
                 "The value must be greater than or equal to 0.",
             ));
         }
-        Ok(GridLength {
+        Ok(Self {
             value,
             unit: GridLengthUnit::Seconds,
         })
@@ -314,10 +314,10 @@ impl GridLength {
             return Ok(slf);
         }
         if let Ok(v) = obj.extract() {
-            return Py::new(py, GridLength::fixed(v)?);
+            return Py::new(py, Self::fixed(v)?);
         }
         if let Ok(s) = obj.extract::<String>() {
-            return Py::new(py, GridLength::from_str(&s)?);
+            return Py::new(py, Self::from_str(&s)?);
         }
         Err(PyValueError::new_err(
             "Failed to convert the value to GridLength.",
@@ -363,16 +363,16 @@ impl FromStr for GridLength {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         if s == "auto" {
-            return Ok(GridLength::auto());
+            return Ok(Self::auto());
         }
         if s == "*" {
-            return Ok(GridLength::star(1.0)?);
+            return Ok(Self::star(1.0)?);
         }
         if let Some(v) = s.strip_suffix('*').and_then(|x| x.parse().ok()) {
-            return Ok(GridLength::star(v)?);
+            return Ok(Self::star(v)?);
         }
         if let Ok(v) = s.parse() {
-            return Ok(GridLength::fixed(v)?);
+            return Ok(Self::fixed(v)?);
         }
         Err(anyhow::anyhow!("Invalid GridLength string: {}", s))
     }
@@ -396,7 +396,7 @@ fn extract_grid_length(obj: &Bound<'_, PyAny>) -> PyResult<GridLength> {
 ///     span (int): Column span.
 #[pyclass(module = "bosing", get_all, frozen)]
 #[derive(Debug)]
-pub(crate) struct GridEntry {
+pub struct GridEntry {
     element: Py<Element>,
     column: usize,
     span: usize,
@@ -420,7 +420,7 @@ impl GridEntry {
         if span == 0 {
             return Err(PyValueError::new_err("The span must be greater than 0."));
         }
-        Ok(GridEntry {
+        Ok(Self {
             element,
             column,
             span,
@@ -451,13 +451,13 @@ impl GridEntry {
             return Ok(slf);
         }
         if let Ok(element) = obj.extract() {
-            return Py::new(py, GridEntry::new(element, 0, 1)?);
+            return Py::new(py, Self::new(element, 0, 1)?);
         }
         if let Ok((element, column)) = obj.extract() {
-            return Py::new(py, GridEntry::new(element, column, 1)?);
+            return Py::new(py, Self::new(element, column, 1)?);
         }
         if let Ok((element, column, span)) = obj.extract() {
-            return Py::new(py, GridEntry::new(element, column, span)?);
+            return Py::new(py, Self::new(element, column, span)?);
         }
         Err(PyValueError::new_err(
             "Failed to convert the value to GridEntry.",

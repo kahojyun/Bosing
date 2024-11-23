@@ -31,7 +31,7 @@ use super::{Arg, Element, ElementSubclass, Label, RichRepr};
 ///         )
 #[pyclass(module="bosing",extends=Element, frozen)]
 #[derive(Debug)]
-pub(crate) struct Absolute {
+pub struct Absolute {
     children: Vec<AbsoluteEntry>,
 }
 
@@ -169,7 +169,7 @@ impl Absolute {
 ///     element (Element): Child element.
 #[pyclass(module = "bosing", get_all, frozen)]
 #[derive(Debug)]
-pub(crate) struct AbsoluteEntry {
+pub struct AbsoluteEntry {
     time: Time,
     element: Py<Element>,
 }
@@ -190,7 +190,7 @@ impl AbsoluteEntry {
         if !time.value().is_finite() {
             return Err(PyValueError::new_err("Time must be finite"));
         }
-        Ok(AbsoluteEntry { time, element })
+        Ok(Self { time, element })
     }
 
     /// Convert the value to AbsoluteEntry.
@@ -216,10 +216,10 @@ impl AbsoluteEntry {
             return Ok(slf);
         }
         if let Ok(element) = obj.extract() {
-            return Py::new(py, AbsoluteEntry::new(Time::ZERO, element)?);
+            return Py::new(py, Self::new(Time::ZERO, element)?);
         }
         if let Ok((time, element)) = obj.extract() {
-            return Py::new(py, AbsoluteEntry::new(time, element)?);
+            return Py::new(py, Self::new(time, element)?);
         }
         Err(PyValueError::new_err(
             "Failed to convert the value to AbsoluteEntry",

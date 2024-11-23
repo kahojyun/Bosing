@@ -12,7 +12,7 @@ use pyo3::{exceptions::PyValueError, prelude::*, types::PyFloat, IntoPy};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
-pub(crate) enum Error {
+pub enum Error {
     #[error("NaN value is not allowed")]
     NanValue(#[from] ordered_float::FloatIsNan),
     #[error("Infinite value is not allowed")]
@@ -22,7 +22,7 @@ pub(crate) enum Error {
 macro_rules! def_quant {
     ($t:ident) => {
         #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Default)]
-        pub(crate) struct $t(NotNan<f64>);
+        pub struct $t(NotNan<f64>);
     };
 }
 
@@ -32,12 +32,12 @@ def_quant!(Phase);
 def_quant!(Amplitude);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub(crate) struct AlignedIndex(NotNan<f64>);
+pub struct AlignedIndex(NotNan<f64>);
 
 macro_rules! def_id {
     ($t:ident) => {
         #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-        pub(crate) struct $t(Arc<str>);
+        pub struct $t(Arc<str>);
     };
 }
 

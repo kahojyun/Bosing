@@ -15,10 +15,10 @@ use crate::shape;
 /// - :class:`Interp`: Interpolated shape.
 #[pyclass(module = "bosing", subclass, frozen)]
 #[derive(Debug, Clone)]
-pub(crate) struct Shape;
+pub struct Shape;
 
 impl Shape {
-    pub(super) fn get_rust_shape(slf: &Bound<'_, Shape>) -> PyResult<shape::Shape> {
+    pub(super) fn get_rust_shape(slf: &Bound<'_, Self>) -> PyResult<shape::Shape> {
         if slf.downcast::<Hann>().is_ok() {
             return Ok(shape::Shape::new_hann());
         }
@@ -37,12 +37,12 @@ impl Shape {
 /// A Hann shape.
 #[pyclass(module="bosing",extends=Shape, frozen)]
 #[derive(Debug, Clone)]
-pub(crate) struct Hann;
+pub struct Hann;
 
 #[pymethods]
 impl Hann {
     #[new]
-    fn new() -> (Self, Shape) {
+    const fn new() -> (Self, Shape) {
         (Self, Shape)
     }
 }
@@ -75,7 +75,7 @@ impl Hann {
 ///         interp = Interp(spline.t, spline.c, spline.k)
 #[pyclass(module="bosing",extends=Shape, get_all, frozen)]
 #[derive(Debug, Clone)]
-pub(crate) struct Interp {
+pub struct Interp {
     knots: Vec<f64>,
     controls: Vec<f64>,
     degree: usize,
@@ -84,7 +84,7 @@ pub(crate) struct Interp {
 #[pymethods]
 impl Interp {
     #[new]
-    fn new(knots: Vec<f64>, controls: Vec<f64>, degree: usize) -> (Self, Shape) {
+    const fn new(knots: Vec<f64>, controls: Vec<f64>, degree: usize) -> (Self, Shape) {
         (
             Self {
                 knots,

@@ -18,7 +18,7 @@ use super::{
     repr::{Arg, RichRepr},
 };
 
-pub(crate) use self::{
+pub use self::{
     absolute::{Absolute, AbsoluteEntry},
     grid::{Grid, GridEntry, GridLength, GridLengthUnit},
     stack::{Direction, Stack},
@@ -35,7 +35,7 @@ pub(crate) use self::{
 /// - :attr:`Alignment.Stretch`: Stretch the element to fill the parent.
 #[pyclass(module = "bosing", frozen, eq)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum Alignment {
+pub enum Alignment {
     End,
     Start,
     Center,
@@ -69,10 +69,10 @@ impl Alignment {
         }
         if let Ok(s) = obj.extract::<String>() {
             let alignment = match s.as_str() {
-                "end" => Some(Alignment::End),
-                "start" => Some(Alignment::Start),
-                "center" => Some(Alignment::Center),
-                "stretch" => Some(Alignment::Stretch),
+                "end" => Some(Self::End),
+                "start" => Some(Self::Start),
+                "center" => Some(Self::Center),
+                "stretch" => Some(Self::Stretch),
                 _ => None,
             };
             if let Some(alignment) = alignment {
@@ -164,7 +164,7 @@ impl Alignment {
 ///     label (str | None): Label of the element. Defaults to ``None``.
 #[pyclass(module = "bosing", subclass, frozen)]
 #[derive(Debug, Clone)]
-pub(crate) struct Element(pub(super) ElementRef);
+pub struct Element(pub(super) ElementRef);
 
 #[pymethods]
 impl Element {
@@ -385,7 +385,7 @@ where
 ///         to ``False``.
 #[pyclass(module="bosing",extends=Element, frozen)]
 #[derive(Debug, Clone)]
-pub(crate) struct Play;
+pub struct Play;
 
 impl ElementSubclass for Play {
     type Variant = schedule::Play;
@@ -537,7 +537,7 @@ impl Play {
 ///     phase (float): Phase shift in **cycles**.
 #[pyclass(module="bosing",extends=Element, frozen)]
 #[derive(Debug, Clone)]
-pub(crate) struct ShiftPhase;
+pub struct ShiftPhase;
 
 impl ElementSubclass for ShiftPhase {
     type Variant = schedule::ShiftPhase;
@@ -636,7 +636,7 @@ impl ShiftPhase {
 ///     phase (float): Target phase value in **cycles**.
 #[pyclass(module="bosing",extends=Element, frozen)]
 #[derive(Debug, Clone)]
-pub(crate) struct SetPhase;
+pub struct SetPhase;
 
 impl ElementSubclass for SetPhase {
     type Variant = schedule::SetPhase;
@@ -723,7 +723,7 @@ impl SetPhase {
 ///     frequency (float): Delta frequency.
 #[pyclass(module="bosing",extends=Element, frozen)]
 #[derive(Debug, Clone)]
-pub(crate) struct ShiftFreq;
+pub struct ShiftFreq;
 
 impl ElementSubclass for ShiftFreq {
     type Variant = schedule::ShiftFreq;
@@ -811,7 +811,7 @@ impl ShiftFreq {
 ///     frequency (float): Target frequency.
 #[pyclass(module="bosing",extends=Element, frozen)]
 #[derive(Debug, Clone)]
-pub(crate) struct SetFreq;
+pub struct SetFreq;
 
 impl ElementSubclass for SetFreq {
     type Variant = schedule::SetFreq;
@@ -901,7 +901,7 @@ impl SetFreq {
 ///     channel_id2 (str): Target channel ID 2.
 #[pyclass(module="bosing",extends=Element, frozen)]
 #[derive(Debug, Clone)]
-pub(crate) struct SwapPhase;
+pub struct SwapPhase;
 
 impl ElementSubclass for SwapPhase {
     type Variant = schedule::SwapPhase;
@@ -990,7 +990,7 @@ impl SwapPhase {
 ///     *channel_ids (str): Channel IDs. Defaults to empty.
 #[pyclass(module="bosing",extends=Element, frozen)]
 #[derive(Debug, Clone)]
-pub(crate) struct Barrier;
+pub struct Barrier;
 
 impl ElementSubclass for Barrier {
     type Variant = schedule::Barrier;
@@ -1069,7 +1069,7 @@ impl Barrier {
 ///     spacing (float): Spacing between repetitions. Defaults to ``0``.
 #[pyclass(module="bosing",extends=Element, get_all, frozen)]
 #[derive(Debug)]
-pub(crate) struct Repeat {
+pub struct Repeat {
     child: Py<Element>,
 }
 

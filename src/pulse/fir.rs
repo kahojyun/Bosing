@@ -46,13 +46,13 @@ impl<'a, 'b> WithSimd for ApplyFirInplace<'a, 'b> {
     }
 }
 
-pub(crate) fn fir_filter_inplace(waveform: ArrayViewMut2<'_, f64>, taps: ArrayView1<'_, f64>) {
+pub fn fir_filter_inplace(waveform: ArrayViewMut2<'_, f64>, taps: ArrayView1<'_, f64>) {
     let arch = Arch::new();
     arch.dispatch(ApplyFirInplace { waveform, taps });
 }
 
 #[inline]
-fn align_ceil(x: usize, n: usize) -> usize {
+const fn align_ceil(x: usize, n: usize) -> usize {
     let r = x % n;
     if r == 0 {
         x

@@ -1,7 +1,7 @@
 use std::iter;
 
 #[derive(Debug)]
-pub(crate) enum IterVariant<S, A, G, R> {
+pub enum IterVariant<S, A, G, R> {
     Stack(S),
     Absolute(A),
     Grid(G),
@@ -19,15 +19,15 @@ where
 
     fn next(&mut self) -> Option<Self::Item> {
         match self {
-            IterVariant::Stack(s) => s.next(),
-            IterVariant::Absolute(a) => a.next(),
-            IterVariant::Grid(g) => g.next(),
-            IterVariant::Repeat(r) => r.next(),
+            Self::Stack(s) => s.next(),
+            Self::Absolute(a) => a.next(),
+            Self::Grid(g) => g.next(),
+            Self::Repeat(r) => r.next(),
         }
     }
 }
 
-pub(crate) fn pre_order_iter<T, F, I>(root: T, mut children: F) -> impl Iterator<Item = T>
+pub fn pre_order_iter<T, F, I>(root: T, mut children: F) -> impl Iterator<Item = T>
 where
     F: FnMut(T) -> Option<I>,
     I: Iterator<Item = T>,

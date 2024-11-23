@@ -7,7 +7,7 @@ use crate::quant::{ChannelId, Time};
 use super::{Arrange, Arranged, ElementRef, Measure, TimeRange};
 
 #[derive(Debug, Clone)]
-pub(crate) struct Repeat {
+pub struct Repeat {
     child: ElementRef,
     count: usize,
     spacing: Time,
@@ -15,7 +15,7 @@ pub(crate) struct Repeat {
 }
 
 impl Repeat {
-    pub(crate) fn new(child: ElementRef, count: usize) -> Self {
+    pub(crate) const fn new(child: ElementRef, count: usize) -> Self {
         Self {
             child,
             count,
@@ -33,11 +33,11 @@ impl Repeat {
         Ok(self)
     }
 
-    pub(crate) fn count(&self) -> usize {
+    pub(crate) const fn count(&self) -> usize {
         self.count
     }
 
-    pub(crate) fn spacing(&self) -> Time {
+    pub(crate) const fn spacing(&self) -> Time {
         self.spacing
     }
 }

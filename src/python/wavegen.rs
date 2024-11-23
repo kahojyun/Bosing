@@ -116,7 +116,7 @@ impl Channel {
                 return Err(PyValueError::new_err("is_real==False but len(shape)!=2."));
             }
         }
-        Ok(Channel {
+        Ok(Self {
             base_freq,
             sample_rate,
             length,
@@ -187,8 +187,8 @@ pub(super) struct OscState {
 #[pymethods]
 impl OscState {
     #[new]
-    fn new(base_freq: Frequency, delta_freq: Frequency, phase: Phase) -> Self {
-        OscState {
+    const fn new(base_freq: Frequency, delta_freq: Frequency, phase: Phase) -> Self {
+        Self {
             base_freq,
             delta_freq,
             phase,
@@ -327,8 +327,8 @@ type ChannelPulses = HashMap<ChannelId, PulseList>;
     allow_oversize=false,
     crosstalk=None,
 ))]
-#[allow(clippy::too_many_arguments)]
-pub(super) fn generate_waveforms(
+#[expect(clippy::too_many_arguments)]
+pub fn generate_waveforms(
     py: Python<'_>,
     channels: HashMap<ChannelId, Channel>,
     shapes: HashMap<ShapeId, Py<Shape>>,
@@ -396,7 +396,7 @@ pub(super) fn generate_waveforms(
     states=None,
 ))]
 #[allow(clippy::too_many_arguments)]
-pub(super) fn generate_waveforms_with_states(
+pub fn generate_waveforms_with_states(
     py: Python<'_>,
     channels: HashMap<ChannelId, Channel>,
     shapes: HashMap<ShapeId, Py<Shape>>,
