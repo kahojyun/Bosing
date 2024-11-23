@@ -8,7 +8,7 @@ macro_rules! define_wrapper {
         pub(crate) struct $name(ArcArray<$t, $d>);
 
         impl $name {
-            pub(crate) fn view(&self) -> ArrayView<$t, $d> {
+            pub(crate) fn view(&self) -> ArrayView<'_, $t, $d> {
                 self.0.view()
             }
         }

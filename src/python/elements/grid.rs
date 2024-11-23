@@ -60,7 +60,7 @@ pub(crate) struct Grid {
 impl ElementSubclass for Grid {
     type Variant = schedule::Grid;
 
-    fn repr(slf: &Bound<Self>) -> Vec<Arg> {
+    fn repr(slf: &Bound<'_, Self>) -> Vec<Arg> {
         let py = slf.py();
         let mut res: Vec<_> = slf
             .get()
@@ -89,11 +89,11 @@ impl Grid {
     ))]
     #[allow(clippy::too_many_arguments)]
     fn new(
-        py: Python,
+        py: Python<'_>,
         children: Vec<Py<PyAny>>,
         columns: Vec<Py<PyAny>>,
-        margin: Option<&Bound<PyAny>>,
-        alignment: Option<&Bound<PyAny>>,
+        margin: Option<&Bound<'_, PyAny>>,
+        alignment: Option<&Bound<'_, PyAny>>,
         phantom: bool,
         duration: Option<Time>,
         max_duration: Time,
@@ -155,7 +155,7 @@ impl Grid {
     /// Returns:
     ///     Grid: New grid schedule.
     #[pyo3(signature=(*children))]
-    fn with_children(slf: &Bound<Self>, children: Vec<Py<PyAny>>) -> PyResult<Py<Self>> {
+    fn with_children(slf: &Bound<'_, Self>, children: Vec<Py<PyAny>>) -> PyResult<Py<Self>> {
         let py = slf.py();
         let children: Vec<_> = children
             .into_iter()
@@ -184,21 +184,21 @@ impl Grid {
     }
 
     #[getter]
-    fn columns(slf: &Bound<Self>) -> Vec<GridLength> {
+    fn columns(slf: &Bound<'_, Self>) -> Vec<GridLength> {
         Self::variant(slf).columns().to_vec()
     }
 
     #[getter]
-    fn children(slf: &Bound<Self>) -> Vec<GridEntry> {
+    fn children(slf: &Bound<'_, Self>) -> Vec<GridEntry> {
         let py = slf.py();
         slf.get().children.iter().map(|x| x.clone_ref(py)).collect()
     }
 
-    fn __repr__(slf: &Bound<Self>) -> PyResult<String> {
+    fn __repr__(slf: &Bound<'_, Self>) -> PyResult<String> {
         Self::to_repr(slf)
     }
 
-    fn __rich_repr__(slf: &Bound<Self>) -> Vec<Arg> {
+    fn __rich_repr__(slf: &Bound<'_, Self>) -> Vec<Arg> {
         Self::to_rich_repr(slf)
     }
 }
@@ -308,7 +308,7 @@ impl GridLength {
     /// Raises:
     ///     ValueError: If the value cannot be converted.
     #[staticmethod]
-    fn convert(obj: &Bound<PyAny>) -> PyResult<Py<Self>> {
+    fn convert(obj: &Bound<'_, PyAny>) -> PyResult<Py<Self>> {
         let py = obj.py();
         if let Ok(slf) = obj.extract() {
             return Ok(slf);
@@ -324,11 +324,11 @@ impl GridLength {
         ))
     }
 
-    fn __repr__(slf: &Bound<Self>) -> PyResult<String> {
+    fn __repr__(slf: &Bound<'_, Self>) -> PyResult<String> {
         Self::to_repr(slf)
     }
 
-    fn __rich_repr__(slf: &Bound<Self>) -> Vec<Arg> {
+    fn __rich_repr__(slf: &Bound<'_, Self>) -> Vec<Arg> {
         Self::to_rich_repr(slf)
     }
 }
@@ -384,7 +384,7 @@ impl ToPyObject for GridLength {
     }
 }
 
-fn extract_grid_length(obj: &Bound<PyAny>) -> PyResult<GridLength> {
+fn extract_grid_length(obj: &Bound<'_, PyAny>) -> PyResult<GridLength> {
     GridLength::convert(obj).and_then(|x| x.extract(obj.py()))
 }
 
@@ -403,7 +403,7 @@ pub(crate) struct GridEntry {
 }
 
 impl GridEntry {
-    fn clone_ref(&self, py: Python) -> Self {
+    fn clone_ref(&self, py: Python<'_>) -> Self {
         Self {
             element: self.element.clone_ref(py),
             column: self.column,
@@ -445,7 +445,7 @@ impl GridEntry {
     /// Raises:
     ///     ValueError: If the value cannot be converted.
     #[staticmethod]
-    fn convert(obj: &Bound<PyAny>) -> PyResult<Py<Self>> {
+    fn convert(obj: &Bound<'_, PyAny>) -> PyResult<Py<Self>> {
         let py = obj.py();
         if let Ok(slf) = obj.extract() {
             return Ok(slf);
@@ -464,11 +464,11 @@ impl GridEntry {
         ))
     }
 
-    fn __repr__(slf: &Bound<Self>) -> PyResult<String> {
+    fn __repr__(slf: &Bound<'_, Self>) -> PyResult<String> {
         Self::to_repr(slf)
     }
 
-    fn __rich_repr__(slf: &Bound<Self>) -> Vec<Arg> {
+    fn __rich_repr__(slf: &Bound<'_, Self>) -> Vec<Arg> {
         Self::to_rich_repr(slf)
     }
 }
@@ -493,6 +493,6 @@ impl<'py> FromPyObject<'py> for GridEntry {
     }
 }
 
-fn extract_grid_entry(obj: &Bound<PyAny>) -> PyResult<GridEntry> {
+fn extract_grid_entry(obj: &Bound<'_, PyAny>) -> PyResult<GridEntry> {
     GridEntry::convert(obj).and_then(|x| x.extract(obj.py()))
 }

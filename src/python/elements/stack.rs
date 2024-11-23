@@ -26,7 +26,7 @@ pub(crate) struct Stack {
 impl ElementSubclass for Stack {
     type Variant = schedule::Stack;
 
-    fn repr(slf: &Bound<Self>) -> Vec<Arg> {
+    fn repr(slf: &Bound<'_, Self>) -> Vec<Arg> {
         let py = slf.py();
         let mut res: Vec<_> = slf
             .get()
@@ -62,9 +62,9 @@ impl Stack {
     #[allow(clippy::too_many_arguments)]
     fn new(
         children: Vec<Py<Element>>,
-        direction: Option<&Bound<PyAny>>,
-        margin: Option<&Bound<PyAny>>,
-        alignment: Option<&Bound<PyAny>>,
+        direction: Option<&Bound<'_, PyAny>>,
+        margin: Option<&Bound<'_, PyAny>>,
+        alignment: Option<&Bound<'_, PyAny>>,
         phantom: bool,
         duration: Option<Time>,
         max_duration: Time,
@@ -111,7 +111,7 @@ impl Stack {
     /// Returns:
     ///     Stack: New stack layout.
     #[pyo3(signature=(*children))]
-    fn with_children(slf: &Bound<Self>, children: Vec<Py<Element>>) -> PyResult<Py<Self>> {
+    fn with_children(slf: &Bound<'_, Self>, children: Vec<Py<Element>>) -> PyResult<Py<Self>> {
         let py = slf.py();
         let rust_children = children.iter().map(|x| x.get().0.clone()).collect();
         let rust_base = &slf.downcast::<Element>()?.get().0;
@@ -127,15 +127,15 @@ impl Stack {
     }
 
     #[getter]
-    fn direction(slf: &Bound<Self>) -> Direction {
+    fn direction(slf: &Bound<'_, Self>) -> Direction {
         Self::variant(slf).direction()
     }
 
-    fn __repr__(slf: &Bound<Self>) -> PyResult<String> {
+    fn __repr__(slf: &Bound<'_, Self>) -> PyResult<String> {
         Self::to_repr(slf)
     }
 
-    fn __rich_repr__(slf: &Bound<Self>) -> Vec<Arg> {
+    fn __rich_repr__(slf: &Bound<'_, Self>) -> Vec<Arg> {
         Self::to_rich_repr(slf)
     }
 }
@@ -176,7 +176,7 @@ impl Direction {
     /// Raises:
     ///     ValueError: If the value cannot be converted.
     #[staticmethod]
-    fn convert(obj: &Bound<PyAny>) -> PyResult<Py<Self>> {
+    fn convert(obj: &Bound<'_, PyAny>) -> PyResult<Py<Self>> {
         if let Ok(slf) = obj.extract() {
             return Ok(slf);
         }
@@ -198,6 +198,6 @@ impl Direction {
     }
 }
 
-fn extract_direction(obj: &Bound<PyAny>) -> PyResult<Direction> {
+fn extract_direction(obj: &Bound<'_, PyAny>) -> PyResult<Direction> {
     Direction::convert(obj).and_then(|x| x.extract(obj.py()))
 }

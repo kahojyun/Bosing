@@ -278,7 +278,7 @@ impl PulseListBuilder {
 }
 
 fn mix_add_envelope(
-    mut waveform: ArrayViewMut2<f64>,
+    mut waveform: ArrayViewMut2<'_, f64>,
     envelope: &[f64],
     amplitude: Complex64,
     drag_amp: Complex64,
@@ -307,7 +307,7 @@ fn mix_add_envelope(
 }
 
 fn mix_add_plateau(
-    mut waveform: ArrayViewMut2<f64>,
+    mut waveform: ArrayViewMut2<'_, f64>,
     amplitude: Complex64,
     phase: Phase,
     dphase: Phase,
@@ -359,7 +359,7 @@ fn get_envelope(
 
 fn merge_and_sample<'a>(
     lists: impl IntoIterator<Item = (f64, &'a PulseList)>,
-    waveform: ArrayViewMut2<f64>,
+    waveform: ArrayViewMut2<'_, f64>,
     sample_rate: Frequency,
     delay: Time,
     align_level: i32,
@@ -403,7 +403,7 @@ fn merge_and_sample<'a>(
 
 fn sample_pulse_list<PL, L>(
     list: PL,
-    mut waveform: ArrayViewMut2<f64>,
+    mut waveform: ArrayViewMut2<'_, f64>,
     sample_rate: Frequency,
     delay: Time,
     align_level: i32,
@@ -462,7 +462,10 @@ where
     Ok(())
 }
 
-pub(crate) fn apply_iq_inplace(waveform: &mut ArrayViewMut2<f64>, iq_matrix: ArrayView2<f64>) {
+pub(crate) fn apply_iq_inplace(
+    waveform: &mut ArrayViewMut2<'_, f64>,
+    iq_matrix: ArrayView2<'_, f64>,
+) {
     assert!(matches!(waveform.shape(), [2, _]));
     assert!(matches!(iq_matrix.shape(), [2, 2]));
     for mut col in waveform.columns_mut() {
@@ -475,15 +478,18 @@ pub(crate) fn apply_iq_inplace(waveform: &mut ArrayViewMut2<f64>, iq_matrix: Arr
     }
 }
 
-pub(crate) fn apply_offset_inplace(waveform: &mut ArrayViewMut2<f64>, offset: ArrayView1<f64>) {
+pub(crate) fn apply_offset_inplace(
+    waveform: &mut ArrayViewMut2<'_, f64>,
+    offset: ArrayView1<'_, f64>,
+) {
     assert!(waveform.shape()[0] == offset.len());
     azip!((mut row in waveform.axis_iter_mut(Axis(0)), &offset in &offset) row += offset);
 }
 
-pub(crate) fn apply_iir_inplace(waveform: &mut ArrayViewMut2<f64>, sos: ArrayView2<f64>) {
+pub(crate) fn apply_iir_inplace(waveform: &mut ArrayViewMut2<'_, f64>, sos: ArrayView2<'_, f64>) {
     self::iir::iir_filter_inplace(waveform.view_mut(), sos).unwrap()
 }
 
-pub(crate) fn apply_fir_inplace(waveform: &mut ArrayViewMut2<f64>, taps: ArrayView1<f64>) {
+pub(crate) fn apply_fir_inplace(waveform: &mut ArrayViewMut2<'_, f64>, taps: ArrayView1<'_, f64>) {
     self::fir::fir_filter_inplace(waveform.view_mut(), taps)
 }

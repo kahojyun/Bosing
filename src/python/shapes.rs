@@ -18,7 +18,7 @@ use crate::shape;
 pub(crate) struct Shape;
 
 impl Shape {
-    pub(super) fn get_rust_shape(slf: &Bound<Shape>) -> PyResult<shape::Shape> {
+    pub(super) fn get_rust_shape(slf: &Bound<'_, Shape>) -> PyResult<shape::Shape> {
         if slf.downcast::<Hann>().is_ok() {
             return Ok(shape::Shape::new_hann());
         }

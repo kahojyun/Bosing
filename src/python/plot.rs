@@ -78,11 +78,11 @@ struct PlotIter {
 
 #[pymethods]
 impl PlotIter {
-    fn __iter__(slf: Bound<Self>) -> Bound<Self> {
+    fn __iter__(slf: Bound<'_, Self>) -> Bound<'_, Self> {
         slf
     }
 
-    fn __next__(mut slf: PyRefMut<Self>) -> Option<PyObject> {
+    fn __next__(mut slf: PyRefMut<'_, Self>) -> Option<PyObject> {
         slf.inner.next().map(|x| x.into_py(slf.py()))
     }
 }

@@ -122,7 +122,7 @@ impl<'a> Helper<'a> {
     fn expand_span_by_star_ratio(&mut self, span: NormalizedSpan, mut remaining: Time) -> bool {
         let NormalizedSpan { start, span } = span;
         let mut sorted = {
-            let mut items: Vec<StarItem> = self
+            let mut items: Vec<StarItem<'_>> = self
                 .column_sizes
                 .iter_mut()
                 .zip(self.columns)

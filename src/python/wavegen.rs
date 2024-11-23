@@ -131,11 +131,11 @@ impl Channel {
         })
     }
 
-    fn __repr__(slf: &Bound<Self>) -> PyResult<String> {
+    fn __repr__(slf: &Bound<'_, Self>) -> PyResult<String> {
         Self::to_repr(slf)
     }
 
-    fn __rich_repr__(slf: &Bound<Self>) -> Vec<Arg> {
+    fn __rich_repr__(slf: &Bound<'_, Self>) -> Vec<Arg> {
         Self::to_rich_repr(slf)
     }
 }
@@ -225,11 +225,11 @@ impl OscState {
         executor::OscState::from(*self).with_time_shift(time).into()
     }
 
-    fn __repr__(slf: &Bound<Self>) -> PyResult<String> {
+    fn __repr__(slf: &Bound<'_, Self>) -> PyResult<String> {
         Self::to_repr(slf)
     }
 
-    fn __rich_repr__(slf: &Bound<Self>) -> Vec<Arg> {
+    fn __rich_repr__(slf: &Bound<'_, Self>) -> Vec<Arg> {
         Self::to_rich_repr(slf)
     }
 }
@@ -329,14 +329,14 @@ type ChannelPulses = HashMap<ChannelId, PulseList>;
 ))]
 #[allow(clippy::too_many_arguments)]
 pub(super) fn generate_waveforms(
-    py: Python,
+    py: Python<'_>,
     channels: HashMap<ChannelId, Channel>,
     shapes: HashMap<ShapeId, Py<Shape>>,
-    schedule: Bound<Element>,
+    schedule: Bound<'_, Element>,
     time_tolerance: Time,
     amp_tolerance: Amplitude,
     allow_oversize: bool,
-    crosstalk: Option<(PyArrayLike2<f64, AllowTypeChange>, Vec<ChannelId>)>,
+    crosstalk: Option<(PyArrayLike2<'_, f64, AllowTypeChange>, Vec<ChannelId>)>,
 ) -> PyResult<ChannelWaveforms> {
     let (waveforms, _) = generate_waveforms_with_states(
         py,
@@ -397,14 +397,14 @@ pub(super) fn generate_waveforms(
 ))]
 #[allow(clippy::too_many_arguments)]
 pub(super) fn generate_waveforms_with_states(
-    py: Python,
+    py: Python<'_>,
     channels: HashMap<ChannelId, Channel>,
     shapes: HashMap<ShapeId, Py<Shape>>,
-    schedule: Bound<Element>,
+    schedule: Bound<'_, Element>,
     time_tolerance: Time,
     amp_tolerance: Amplitude,
     allow_oversize: bool,
-    crosstalk: Option<(PyArrayLike2<f64, AllowTypeChange>, Vec<ChannelId>)>,
+    crosstalk: Option<(PyArrayLike2<'_, f64, AllowTypeChange>, Vec<ChannelId>)>,
     states: Option<ChannelStates>,
 ) -> PyResult<(ChannelWaveforms, ChannelStates)> {
     if let Some((crosstalk, names)) = &crosstalk {
@@ -446,7 +446,7 @@ pub(super) fn generate_waveforms_with_states(
 }
 
 fn build_pulse_lists(
-    schedule: Bound<Element>,
+    schedule: Bound<'_, Element>,
     channels: &HashMap<ChannelId, Channel>,
     shapes: &HashMap<ShapeId, Py<Shape>>,
     time_tolerance: Time,
@@ -491,10 +491,10 @@ fn build_pulse_lists(
 }
 
 fn sample_waveform(
-    py: Python,
+    py: Python<'_>,
     channels: &HashMap<ChannelId, Channel>,
     pulse_lists: ChannelPulses,
-    crosstalk: Option<(PyArrayLike2<f64, AllowTypeChange>, Vec<ChannelId>)>,
+    crosstalk: Option<(PyArrayLike2<'_, f64, AllowTypeChange>, Vec<ChannelId>)>,
     time_tolerance: Time,
 ) -> PyResult<ChannelWaveforms> {
     let waveforms: HashMap<_, _> = channels
@@ -520,7 +520,7 @@ fn sample_waveform(
     Ok(waveforms)
 }
 
-fn post_process(w: &mut ArrayViewMut2<f64>, c: &Channel) {
+fn post_process(w: &mut ArrayViewMut2<'_, f64>, c: &Channel) {
     let iq_matrix = c.iq_matrix.as_ref().map(|x| x.view());
     let offset = c.offset.as_ref().map(|x| x.view());
     let iir = c.iir.as_ref().map(|x| x.view());

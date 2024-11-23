@@ -212,7 +212,10 @@ where
     }
 }
 
-pub(crate) fn iir_filter_inplace<T>(signal: ArrayViewMut2<T>, sos: ArrayView2<T>) -> Result<()>
+pub(crate) fn iir_filter_inplace<T>(
+    signal: ArrayViewMut2<'_, T>,
+    sos: ArrayView2<'_, T>,
+) -> Result<()>
 where
     T: Add<Output = T> + Mul<Output = T> + Sub<Output = T> + Copy + Default,
 {
@@ -227,8 +230,8 @@ where
 }
 
 fn specialized_filter<T, const N: usize>(
-    mut signal: ArrayViewMut2<T>,
-    sos: ArrayView2<T>,
+    mut signal: ArrayViewMut2<'_, T>,
+    sos: ArrayView2<'_, T>,
 ) -> Result<()>
 where
     T: Add<Output = T> + Mul<Output = T> + Sub<Output = T> + Copy + Default,
@@ -243,7 +246,7 @@ where
     Ok(())
 }
 
-fn fallback_filter<T>(mut signal: ArrayViewMut2<T>, sos: ArrayView2<T>) -> Result<()>
+fn fallback_filter<T>(mut signal: ArrayViewMut2<'_, T>, sos: ArrayView2<'_, T>) -> Result<()>
 where
     T: Add<Output = T> + Mul<Output = T> + Sub<Output = T> + Copy + Default,
 {

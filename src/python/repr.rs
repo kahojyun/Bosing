@@ -12,11 +12,11 @@ pub(crate) enum Arg {
 }
 
 impl Arg {
-    pub(crate) fn positional<T: ToPyObject>(value: T, py: Python) -> Self {
+    pub(crate) fn positional<T: ToPyObject>(value: T, py: Python<'_>) -> Self {
         Self::Positional(value.to_object(py))
     }
 
-    pub(crate) fn keyword<T: ToPyObject>(key: Py<PyString>, value: T, py: Python) -> Self {
+    pub(crate) fn keyword<T: ToPyObject>(key: Py<PyString>, value: T, py: Python<'_>) -> Self {
         Self::Keyword(key, value.to_object(py))
     }
 
@@ -24,12 +24,12 @@ impl Arg {
         key: Py<PyString>,
         value: T,
         default: T,
-        py: Python,
+        py: Python<'_>,
     ) -> Self {
         Self::KeyWithDefault(key, value.to_object(py), default.to_object(py))
     }
 
-    pub(crate) fn fmt(&self, py: Python) -> PyResult<Option<String>> {
+    pub(crate) fn fmt(&self, py: Python<'_>) -> PyResult<Option<String>> {
         let result = match self {
             Arg::Positional(v) => Some(v.bind(py).repr()?.to_string()),
             Arg::Keyword(n, v) => Some(format!("{}={}", n, v.bind(py).repr()?)),

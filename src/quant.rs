@@ -246,7 +246,7 @@ macro_rules! impl_quant {
         }
 
         impl IntoPy<PyObject> for $t {
-            fn into_py(self, py: Python) -> PyObject {
+            fn into_py(self, py: Python<'_>) -> PyObject {
                 PyFloat::new_bound(py, self.value()).into()
             }
         }
@@ -306,13 +306,13 @@ macro_rules! impl_id {
         }
 
         impl IntoPy<PyObject> for $t {
-            fn into_py(self, py: Python) -> PyObject {
+            fn into_py(self, py: Python<'_>) -> PyObject {
                 self.0.into_py(py)
             }
         }
 
         impl<'a> IntoPy<PyObject> for &'a $t {
-            fn into_py(self, py: Python) -> PyObject {
+            fn into_py(self, py: Python<'_>) -> PyObject {
                 self.0.to_object(py)
             }
         }
