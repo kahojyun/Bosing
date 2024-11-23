@@ -46,7 +46,7 @@ impl<'a, 'b> WithSimd for ApplyFirInplace<'a, 'b> {
     }
 }
 
-pub fn fir_filter_inplace(waveform: ArrayViewMut2<'_, f64>, taps: ArrayView1<'_, f64>) {
+pub fn filter_inplace(waveform: ArrayViewMut2<'_, f64>, taps: ArrayView1<'_, f64>) {
     let arch = Arch::new();
     arch.dispatch(ApplyFirInplace { waveform, taps });
 }
@@ -76,7 +76,7 @@ mod tests {
             stack![Axis(0), arr1, arr1]
         };
 
-        fir_filter_inplace(signal.view_mut(), taps.view());
+        filter_inplace(signal.view_mut(), taps.view());
 
         assert_eq!(signal, expected);
     }

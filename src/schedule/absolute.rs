@@ -7,19 +7,19 @@ use crate::quant::{ChannelId, Time};
 use super::{merge_channel_ids, Arrange, Arranged, ElementRef, Measure, TimeRange};
 
 #[derive(Debug, Clone)]
-pub struct AbsoluteEntry {
+pub struct Entry {
     time: Time,
     element: ElementRef,
 }
 
 #[derive(Debug, Clone, Default)]
 pub struct Absolute {
-    children: Vec<AbsoluteEntry>,
+    children: Vec<Entry>,
     channel_ids: Vec<ChannelId>,
     measure_result: OnceLock<Time>,
 }
 
-impl AbsoluteEntry {
+impl Entry {
     pub(crate) const fn new(element: ElementRef) -> Self {
         Self {
             time: Time::ZERO,
@@ -41,7 +41,7 @@ impl Absolute {
         Self::default()
     }
 
-    pub(crate) fn with_children(mut self, children: Vec<AbsoluteEntry>) -> Self {
+    pub(crate) fn with_children(mut self, children: Vec<Entry>) -> Self {
         let channel_ids = merge_channel_ids(children.iter().map(|e| e.element.variant.channels()));
         self.children = children;
         self.channel_ids = channel_ids;
@@ -67,7 +67,7 @@ impl Measure for Absolute {
 impl Arrange for Absolute {
     fn arrange(&self, time_range: TimeRange) -> impl Iterator<Item = Arranged<&ElementRef>> {
         self.children.iter().map(
-            move |AbsoluteEntry {
+            move |Entry {
                       time: offset,
                       element,
                   }| {

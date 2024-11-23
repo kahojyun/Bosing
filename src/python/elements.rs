@@ -15,12 +15,12 @@ use crate::{
 
 use super::{
     plot::plot_element,
-    repr::{Arg, RichRepr},
+    repr::{Arg, Rich},
 };
 
 pub use self::{
-    absolute::{Absolute, AbsoluteEntry},
-    grid::{Grid, GridEntry, GridLength, GridLengthUnit},
+    absolute::{Absolute, Entry as AbsoluteEntry},
+    grid::{Entry as GridEntry, Grid, Length as GridLength, LengthUnit as GridLengthUnit},
     stack::{Direction, Stack},
 };
 
@@ -315,7 +315,7 @@ where
     }
 }
 
-impl<T> RichRepr for T
+impl<T> Rich for T
 where
     T: ElementSubclass,
     for<'a> &'a T::Variant: TryFrom<&'a ElementVariant>,

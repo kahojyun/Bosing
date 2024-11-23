@@ -2,7 +2,7 @@ use hashbrown::HashMap;
 use thiserror::Error;
 
 use crate::{
-    pulse::{Envelope, PulseList, PulseListBuilder, PushArgs},
+    pulse::{Envelope, List, ListBuilder, PushArgs},
     quant::{Amplitude, ChannelId, Frequency, Phase, ShapeId, Time},
     schedule::{
         Arrange as _, Arranged, ElementRef, ElementVariant, Measure, Play, SetFreq, SetPhase,
@@ -45,7 +45,7 @@ type Result<T> = std::result::Result<T, Error>;
 #[derive(Debug, Clone)]
 struct Channel {
     osc: OscState,
-    pulses: PulseListBuilder,
+    pulses: ListBuilder,
 }
 
 struct AddPulseArgs {
@@ -79,7 +79,7 @@ impl Executor {
             name,
             Channel {
                 osc,
-                pulses: PulseListBuilder::new(self.amp_tolerance, self.time_tolerance),
+                pulses: ListBuilder::new(self.amp_tolerance, self.time_tolerance),
             },
         );
     }
@@ -95,7 +95,7 @@ impl Executor {
             .collect()
     }
 
-    pub(crate) fn into_result(self) -> HashMap<ChannelId, PulseList> {
+    pub(crate) fn into_result(self) -> HashMap<ChannelId, List> {
         self.channels
             .into_iter()
             .map(|(n, b)| (n, b.pulses.build()))

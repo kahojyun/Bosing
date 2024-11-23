@@ -14,8 +14,7 @@ use rayon::prelude::*;
 use crate::{
     executor::{self, Executor},
     pulse::{
-        apply_fir_inplace, apply_iir_inplace, apply_iq_inplace, apply_offset_inplace, PulseList,
-        Sampler,
+        apply_fir_inplace, apply_iir_inplace, apply_iq_inplace, apply_offset_inplace, List, Sampler,
     },
     quant::{Amplitude, ChannelId, Frequency, Phase, ShapeId, Time},
 };
@@ -23,7 +22,7 @@ use crate::{
 use super::{
     elements::Element,
     extract::{FirArray, IirArray, IqMatrix, OffsetArray},
-    repr::{Arg, RichRepr},
+    repr::{Arg, Rich},
     shapes::Shape,
 };
 
@@ -144,7 +143,7 @@ impl Channel {
     }
 }
 
-impl RichRepr for Channel {
+impl Rich for Channel {
     fn repr(slf: &Bound<'_, Self>) -> impl Iterator<Item = Arg> {
         let mut res = Vec::new();
         let py = slf.py();
@@ -238,7 +237,7 @@ impl OscState {
     }
 }
 
-impl RichRepr for OscState {
+impl Rich for OscState {
     fn repr(slf: &Bound<'_, Self>) -> impl Iterator<Item = Arg> {
         let mut res = Vec::new();
         let py = slf.py();
@@ -272,7 +271,7 @@ impl From<OscState> for executor::OscState {
 
 type ChannelWaveforms = HashMap<ChannelId, Py<PyArray2<f64>>>;
 type ChannelStates = HashMap<ChannelId, Py<OscState>>;
-type ChannelPulses = HashMap<ChannelId, PulseList>;
+type ChannelPulses = HashMap<ChannelId, List>;
 type CrosstalkMatrix<'a> = (PyArrayLike2<'a, f64, AllowTypeChange>, Vec<ChannelId>);
 
 /// Generate waveforms from a schedule.

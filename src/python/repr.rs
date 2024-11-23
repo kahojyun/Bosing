@@ -55,7 +55,7 @@ impl IntoPy<PyObject> for Arg {
     }
 }
 
-pub trait RichRepr: Sized + DerefToPyAny {
+pub trait Rich: Sized + DerefToPyAny {
     fn repr(slf: &Bound<'_, Self>) -> impl Iterator<Item = Arg>;
 
     fn to_rich_repr(slf: &Bound<'_, Self>) -> Vec<Arg> {

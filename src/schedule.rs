@@ -18,8 +18,8 @@ use crate::{
 };
 
 pub use self::{
-    absolute::{Absolute, AbsoluteEntry},
-    grid::{Grid, GridEntry},
+    absolute::{Absolute, Entry as AbsoluteEntry},
+    grid::{Entry as GridEntry, Grid},
     play::Play,
     repeat::Repeat,
     simple::{Barrier, SetFreq, SetPhase, ShiftFreq, ShiftPhase, SwapPhase},

@@ -4,7 +4,7 @@ use pyo3::{exceptions::PyValueError, prelude::*};
 
 use crate::{quant::Time, schedule};
 
-use super::{Arg, Element, ElementSubclass, Label, RichRepr as _};
+use super::{Arg, Element, ElementSubclass, Label, Rich as _};
 
 /// A stack layout element.
 ///

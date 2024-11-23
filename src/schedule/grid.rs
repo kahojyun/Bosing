@@ -14,7 +14,7 @@ use super::{merge_channel_ids, Alignment, Arrange, Arranged, ElementRef, Measure
 use self::helper::Helper;
 
 #[derive(Debug, Clone)]
-pub struct GridEntry {
+pub struct Entry {
     element: ElementRef,
     column: usize,
     span: usize,
@@ -22,7 +22,7 @@ pub struct GridEntry {
 
 #[derive(Debug, Clone)]
 pub struct Grid {
-    children: Vec<GridEntry>,
+    children: Vec<Entry>,
     columns: Vec<GridLength>,
     channel_ids: Vec<ChannelId>,
     measure_result: OnceLock<MeasureResult>,
@@ -41,7 +41,7 @@ struct MeasureItem {
     duration: Time,
 }
 
-impl GridEntry {
+impl Entry {
     pub(crate) const fn new(element: ElementRef) -> Self {
         Self {
             element,
@@ -79,7 +79,7 @@ impl Grid {
         self
     }
 
-    pub(crate) fn with_children(mut self, children: Vec<GridEntry>) -> Self {
+    pub(crate) fn with_children(mut self, children: Vec<Entry>) -> Self {
         let channel_ids = merge_channel_ids(children.iter().map(|e| e.element.variant.channels()));
         self.children = children;
         self.channel_ids = channel_ids;
@@ -139,7 +139,7 @@ impl Arrange for Grid {
         let column_starts = helper.column_starts();
         self.children.iter().zip(child_durations).map(
             move |(
-                GridEntry {
+                Entry {
                     element,
                     column,
                     span,

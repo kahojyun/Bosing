@@ -86,7 +86,7 @@ impl Mul<f64> for PulseAmplitude {
 }
 
 #[derive(Debug, Clone)]
-pub struct PulseList {
+pub struct List {
     items: HashMap<ListBin, Vec<(Time, PulseAmplitude)>>,
 }
 
@@ -105,12 +105,12 @@ impl<'a> Crosstalk<'a> {
 #[derive(Debug)]
 pub struct Sampler<'a> {
     channels: HashMap<ChannelId, Channel<'a>>,
-    pulse_lists: HashMap<ChannelId, PulseList>,
+    pulse_lists: HashMap<ChannelId, List>,
     crosstalk: Option<Crosstalk<'a>>,
 }
 
 impl<'a> Sampler<'a> {
-    pub(crate) fn new(pulse_lists: HashMap<ChannelId, PulseList>) -> Self {
+    pub(crate) fn new(pulse_lists: HashMap<ChannelId, List>) -> Self {
         Self {
             channels: HashMap::new(),
             pulse_lists,
@@ -198,7 +198,7 @@ struct Channel<'a> {
 }
 
 #[derive(Debug, Clone)]
-pub struct PulseListBuilder {
+pub struct ListBuilder {
     items: HashMap<ListBin, Vec<(Time, PulseAmplitude)>>,
     amp_tolerance: Amplitude,
     time_tolerance: Time,
@@ -214,7 +214,7 @@ pub struct PushArgs {
     pub(crate) phase: Phase,
 }
 
-impl PulseListBuilder {
+impl ListBuilder {
     pub(crate) fn new(amp_tolerance: Amplitude, time_tolerance: Time) -> Self {
         Self {
             items: HashMap::new(),
@@ -254,7 +254,7 @@ impl PulseListBuilder {
         self.items.entry(bin).or_default().push((time, amplitude));
     }
 
-    pub(crate) fn build(mut self) -> PulseList {
+    pub(crate) fn build(mut self) -> List {
         for pulses in self.items.values_mut() {
             pulses.sort_unstable_by_key(|(time, _)| *time);
             let mut i = 0;
@@ -273,7 +273,7 @@ impl PulseListBuilder {
             }
             pulses.truncate(i + 1);
         }
-        PulseList { items: self.items }
+        List { items: self.items }
     }
 }
 
@@ -358,7 +358,7 @@ fn get_envelope(
 }
 
 fn merge_and_sample<'a>(
-    lists: impl IntoIterator<Item = (f64, &'a PulseList)>,
+    lists: impl IntoIterator<Item = (f64, &'a List)>,
     waveform: ArrayViewMut2<'_, f64>,
     sample_rate: Frequency,
     delay: Time,
@@ -481,9 +481,9 @@ pub fn apply_offset_inplace(waveform: &mut ArrayViewMut2<'_, f64>, offset: Array
 }
 
 pub fn apply_iir_inplace(waveform: &mut ArrayViewMut2<'_, f64>, sos: ArrayView2<'_, f64>) {
-    self::iir::iir_filter_inplace(waveform.view_mut(), sos).unwrap();
+    self::iir::filter_inplace(waveform.view_mut(), sos).unwrap();
 }
 
 pub fn apply_fir_inplace(waveform: &mut ArrayViewMut2<'_, f64>, taps: ArrayView1<'_, f64>) {
-    self::fir::fir_filter_inplace(waveform.view_mut(), taps);
+    self::fir::filter_inplace(waveform.view_mut(), taps);
 }

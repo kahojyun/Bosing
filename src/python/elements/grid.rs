@@ -4,7 +4,7 @@ use pyo3::{exceptions::PyValueError, prelude::*};
 
 use crate::{quant::Time, schedule};
 
-use super::{Arg, Element, ElementSubclass, Label, RichRepr};
+use super::{Arg, Element, ElementSubclass, Label, Rich};
 
 /// A grid layout element.
 ///
@@ -51,10 +51,10 @@ use super::{Arg, Element, ElementSubclass, Label, RichRepr};
 ///             element4,
 ///             columns=['auto', '1*', '2'],
 ///         )
-#[pyclass(module="bosing",extends=Element, frozen)]
+#[pyclass(module="bosing", extends=Element, frozen)]
 #[derive(Debug)]
 pub struct Grid {
-    children: Vec<GridEntry>,
+    children: Vec<Entry>,
 }
 
 impl ElementSubclass for Grid {
@@ -184,12 +184,12 @@ impl Grid {
     }
 
     #[getter]
-    fn columns(slf: &Bound<'_, Self>) -> Vec<GridLength> {
+    fn columns(slf: &Bound<'_, Self>) -> Vec<Length> {
         Self::variant(slf).columns().to_vec()
     }
 
     #[getter]
-    fn children(slf: &Bound<'_, Self>) -> Vec<GridEntry> {
+    fn children(slf: &Bound<'_, Self>) -> Vec<Entry> {
         let py = slf.py();
         slf.get().children.iter().map(|x| x.clone_ref(py)).collect()
     }
@@ -210,15 +210,15 @@ impl Grid {
 /// - Seconds: Fixed length in seconds.
 /// - Auto: Auto length.
 /// - Star: Ratio of the remaining duration.
-#[pyclass(module = "bosing", frozen, eq)]
+#[pyclass(module = "bosing", name = "GridLengthUnit", frozen, eq)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum GridLengthUnit {
+pub enum LengthUnit {
     Seconds,
     Auto,
     Star,
 }
 
-impl ToPyObject for GridLengthUnit {
+impl ToPyObject for LengthUnit {
     fn to_object(&self, py: Python<'_>) -> PyObject {
         (*self).into_py(py)
     }
@@ -229,15 +229,15 @@ impl ToPyObject for GridLengthUnit {
 /// :class:`GridLength` is used to specify the length of a grid column. The
 /// length can be specified in seconds, as a fraction of the remaining duration,
 /// or automatically.
-#[pyclass(module = "bosing", get_all, frozen)]
+#[pyclass(module = "bosing", name = "GridLength", get_all, frozen)]
 #[derive(Debug, Clone)]
-pub struct GridLength {
+pub struct Length {
     pub(crate) value: f64,
-    unit: GridLengthUnit,
+    unit: LengthUnit,
 }
 
 #[pymethods]
-impl GridLength {
+impl Length {
     /// Create an automatic grid length.
     ///
     /// Returns:
@@ -246,7 +246,7 @@ impl GridLength {
     const fn auto() -> Self {
         Self {
             value: 0.0,
-            unit: GridLengthUnit::Auto,
+            unit: LengthUnit::Auto,
         }
     }
 
@@ -264,7 +264,7 @@ impl GridLength {
         }
         Ok(Self {
             value,
-            unit: GridLengthUnit::Star,
+            unit: LengthUnit::Star,
         })
     }
 
@@ -284,7 +284,7 @@ impl GridLength {
         }
         Ok(Self {
             value,
-            unit: GridLengthUnit::Seconds,
+            unit: LengthUnit::Seconds,
         })
     }
 
@@ -333,7 +333,7 @@ impl GridLength {
     }
 }
 
-impl RichRepr for GridLength {
+impl Rich for Length {
     fn repr(slf: &Bound<'_, Self>) -> impl Iterator<Item = Arg> {
         let mut res = Vec::new();
         let py = slf.py();
@@ -344,21 +344,21 @@ impl RichRepr for GridLength {
     }
 }
 
-impl GridLength {
+impl Length {
     pub(crate) fn is_auto(&self) -> bool {
-        self.unit == GridLengthUnit::Auto
+        self.unit == LengthUnit::Auto
     }
 
     pub(crate) fn is_star(&self) -> bool {
-        self.unit == GridLengthUnit::Star
+        self.unit == LengthUnit::Star
     }
 
     pub(crate) fn is_fixed(&self) -> bool {
-        self.unit == GridLengthUnit::Seconds
+        self.unit == LengthUnit::Seconds
     }
 }
 
-impl FromStr for GridLength {
+impl FromStr for Length {
     type Err = anyhow::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -378,14 +378,14 @@ impl FromStr for GridLength {
     }
 }
 
-impl ToPyObject for GridLength {
+impl ToPyObject for Length {
     fn to_object(&self, py: Python<'_>) -> PyObject {
         self.clone().into_py(py)
     }
 }
 
-fn extract_grid_length(obj: &Bound<'_, PyAny>) -> PyResult<GridLength> {
-    GridLength::convert(obj).and_then(|x| x.extract(obj.py()))
+fn extract_grid_length(obj: &Bound<'_, PyAny>) -> PyResult<Length> {
+    Length::convert(obj).and_then(|x| x.extract(obj.py()))
 }
 
 /// A child element in a grid layout.
@@ -394,15 +394,15 @@ fn extract_grid_length(obj: &Bound<'_, PyAny>) -> PyResult<GridLength> {
 ///     element (Element): Child element.
 ///     column (int): Column index.
 ///     span (int): Column span.
-#[pyclass(module = "bosing", get_all, frozen)]
+#[pyclass(module = "bosing", name = "GridEntry", get_all, frozen)]
 #[derive(Debug)]
-pub struct GridEntry {
+pub struct Entry {
     element: Py<Element>,
     column: usize,
     span: usize,
 }
 
-impl GridEntry {
+impl Entry {
     fn clone_ref(&self, py: Python<'_>) -> Self {
         Self {
             element: self.element.clone_ref(py),
@@ -413,7 +413,7 @@ impl GridEntry {
 }
 
 #[pymethods]
-impl GridEntry {
+impl Entry {
     #[new]
     #[pyo3(signature = (element, column=0, span=1))]
     fn new(element: Py<Element>, column: usize, span: usize) -> PyResult<Self> {
@@ -473,7 +473,7 @@ impl GridEntry {
     }
 }
 
-impl RichRepr for GridEntry {
+impl Rich for Entry {
     fn repr(slf: &Bound<'_, Self>) -> impl Iterator<Item = Arg> {
         let mut res = Vec::new();
         let py = slf.py();
@@ -485,7 +485,7 @@ impl RichRepr for GridEntry {
     }
 }
 
-impl<'py> FromPyObject<'py> for GridEntry {
+impl<'py> FromPyObject<'py> for Entry {
     fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
         let py = ob.py();
         let ob = ob.downcast_exact::<Self>()?.get();
@@ -493,6 +493,6 @@ impl<'py> FromPyObject<'py> for GridEntry {
     }
 }
 
-fn extract_grid_entry(obj: &Bound<'_, PyAny>) -> PyResult<GridEntry> {
-    GridEntry::convert(obj).and_then(|x| x.extract(obj.py()))
+fn extract_grid_entry(obj: &Bound<'_, PyAny>) -> PyResult<Entry> {
+    Entry::convert(obj).and_then(|x| x.extract(obj.py()))
 }
