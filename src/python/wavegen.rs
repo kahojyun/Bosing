@@ -1,3 +1,7 @@
+#![expect(
+    clippy::redundant_pub_crate,
+    reason = "pyfunction proc-macro triggers this lint"
+)]
 use hashbrown::HashMap;
 use ndarray::ArrayViewMut2;
 use numpy::{prelude::*, AllowTypeChange, PyArray2, PyArrayLike2};
@@ -10,8 +14,7 @@ use rayon::prelude::*;
 use crate::{
     executor::{self, Executor},
     pulse::{
-        apply_fir_inplace, apply_iir_inplace, apply_iq_inplace, apply_offset_inplace, PulseList,
-        Sampler,
+        apply_fir_inplace, apply_iir_inplace, apply_iq_inplace, apply_offset_inplace, List, Sampler,
     },
     quant::{Amplitude, ChannelId, Frequency, Phase, ShapeId, Time},
 };
@@ -19,7 +22,7 @@ use crate::{
 use super::{
     elements::Element,
     extract::{FirArray, IirArray, IqMatrix, OffsetArray},
-    repr::{Arg, RichRepr},
+    repr::{Arg, Rich},
     shapes::Shape,
 };
 
@@ -88,7 +91,7 @@ impl Channel {
         filter_offset=false,
         is_real=false,
     ))]
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments)]
     fn new(
         base_freq: Frequency,
         sample_rate: Frequency,
@@ -116,7 +119,7 @@ impl Channel {
                 return Err(PyValueError::new_err("is_real==False but len(shape)!=2."));
             }
         }
-        Ok(Channel {
+        Ok(Self {
             base_freq,
             sample_rate,
             length,
@@ -131,16 +134,16 @@ impl Channel {
         })
     }
 
-    fn __repr__(slf: &Bound<Self>) -> PyResult<String> {
+    fn __repr__(slf: &Bound<'_, Self>) -> PyResult<String> {
         Self::to_repr(slf)
     }
 
-    fn __rich_repr__(slf: &Bound<Self>) -> Vec<Arg> {
+    fn __rich_repr__(slf: &Bound<'_, Self>) -> Vec<Arg> {
         Self::to_rich_repr(slf)
     }
 }
 
-impl RichRepr for Channel {
+impl Rich for Channel {
     fn repr(slf: &Bound<'_, Self>) -> impl Iterator<Item = Arg> {
         let mut res = Vec::new();
         let py = slf.py();
@@ -187,8 +190,8 @@ pub(super) struct OscState {
 #[pymethods]
 impl OscState {
     #[new]
-    fn new(base_freq: Frequency, delta_freq: Frequency, phase: Phase) -> Self {
-        OscState {
+    const fn new(base_freq: Frequency, delta_freq: Frequency, phase: Phase) -> Self {
+        Self {
             base_freq,
             delta_freq,
             phase,
@@ -225,16 +228,16 @@ impl OscState {
         executor::OscState::from(*self).with_time_shift(time).into()
     }
 
-    fn __repr__(slf: &Bound<Self>) -> PyResult<String> {
+    fn __repr__(slf: &Bound<'_, Self>) -> PyResult<String> {
         Self::to_repr(slf)
     }
 
-    fn __rich_repr__(slf: &Bound<Self>) -> Vec<Arg> {
+    fn __rich_repr__(slf: &Bound<'_, Self>) -> Vec<Arg> {
         Self::to_rich_repr(slf)
     }
 }
 
-impl RichRepr for OscState {
+impl Rich for OscState {
     fn repr(slf: &Bound<'_, Self>) -> impl Iterator<Item = Arg> {
         let mut res = Vec::new();
         let py = slf.py();
@@ -268,7 +271,8 @@ impl From<OscState> for executor::OscState {
 
 type ChannelWaveforms = HashMap<ChannelId, Py<PyArray2<f64>>>;
 type ChannelStates = HashMap<ChannelId, Py<OscState>>;
-type ChannelPulses = HashMap<ChannelId, PulseList>;
+type ChannelPulses = HashMap<ChannelId, List>;
+type CrosstalkMatrix<'a> = (PyArrayLike2<'a, f64, AllowTypeChange>, Vec<ChannelId>);
 
 /// Generate waveforms from a schedule.
 ///
@@ -327,16 +331,16 @@ type ChannelPulses = HashMap<ChannelId, PulseList>;
     allow_oversize=false,
     crosstalk=None,
 ))]
-#[allow(clippy::too_many_arguments)]
-pub(super) fn generate_waveforms(
-    py: Python,
+#[expect(clippy::too_many_arguments)]
+pub fn generate_waveforms(
+    py: Python<'_>,
     channels: HashMap<ChannelId, Channel>,
     shapes: HashMap<ShapeId, Py<Shape>>,
-    schedule: Bound<Element>,
+    schedule: &Bound<'_, Element>,
     time_tolerance: Time,
     amp_tolerance: Amplitude,
     allow_oversize: bool,
-    crosstalk: Option<(PyArrayLike2<f64, AllowTypeChange>, Vec<ChannelId>)>,
+    crosstalk: Option<CrosstalkMatrix<'_>>,
 ) -> PyResult<ChannelWaveforms> {
     let (waveforms, _) = generate_waveforms_with_states(
         py,
@@ -395,16 +399,17 @@ pub(super) fn generate_waveforms(
     crosstalk=None,
     states=None,
 ))]
-#[allow(clippy::too_many_arguments)]
-pub(super) fn generate_waveforms_with_states(
-    py: Python,
+#[expect(clippy::too_many_arguments)]
+#[expect(clippy::needless_pass_by_value, reason = "PyO3 extractor")]
+pub fn generate_waveforms_with_states(
+    py: Python<'_>,
     channels: HashMap<ChannelId, Channel>,
     shapes: HashMap<ShapeId, Py<Shape>>,
-    schedule: Bound<Element>,
+    schedule: &Bound<'_, Element>,
     time_tolerance: Time,
     amp_tolerance: Amplitude,
     allow_oversize: bool,
-    crosstalk: Option<(PyArrayLike2<f64, AllowTypeChange>, Vec<ChannelId>)>,
+    crosstalk: Option<CrosstalkMatrix<'_>>,
     states: Option<ChannelStates>,
 ) -> PyResult<(ChannelWaveforms, ChannelStates)> {
     if let Some((crosstalk, names)) = &crosstalk {
@@ -422,7 +427,7 @@ pub(super) fn generate_waveforms_with_states(
         time_tolerance,
         amp_tolerance,
         allow_oversize,
-        states,
+        states.as_ref(),
     )?;
     let waveforms = sample_waveform(py, &channels, pulse_lists, crosstalk, time_tolerance)?;
     Ok((
@@ -446,25 +451,23 @@ pub(super) fn generate_waveforms_with_states(
 }
 
 fn build_pulse_lists(
-    schedule: Bound<Element>,
+    schedule: &Bound<'_, Element>,
     channels: &HashMap<ChannelId, Channel>,
     shapes: &HashMap<ShapeId, Py<Shape>>,
     time_tolerance: Time,
     amp_tolerance: Amplitude,
     allow_oversize: bool,
-    states: Option<ChannelStates>,
+    states: Option<&ChannelStates>,
 ) -> PyResult<(ChannelPulses, ChannelStates)> {
     let py = schedule.py();
     let mut executor = Executor::new(amp_tolerance, time_tolerance, allow_oversize);
     for (n, c) in channels {
         let osc = match &states {
-            Some(states) => {
-                let state = states
-                    .get(n)
-                    .ok_or_else(|| PyValueError::new_err(format!("No state for channel: {}", n)))?;
-                let state = state.bind(py);
-                state.extract::<OscState>()?.into()
-            }
+            Some(states) => states
+                .get(n)
+                .ok_or_else(|| PyValueError::new_err(format!("No state for channel: {n}")))?
+                .extract::<OscState>(py)?
+                .into(),
             None => executor::OscState::new(c.base_freq),
         };
         executor.add_channel(n.clone(), osc);
@@ -491,10 +494,10 @@ fn build_pulse_lists(
 }
 
 fn sample_waveform(
-    py: Python,
+    py: Python<'_>,
     channels: &HashMap<ChannelId, Channel>,
     pulse_lists: ChannelPulses,
-    crosstalk: Option<(PyArrayLike2<f64, AllowTypeChange>, Vec<ChannelId>)>,
+    crosstalk: Option<CrosstalkMatrix<'_>>,
     time_tolerance: Time,
 ) -> PyResult<ChannelWaveforms> {
     let waveforms: HashMap<_, _> = channels
@@ -513,18 +516,18 @@ fn sample_waveform(
         let array = unsafe { waveforms[n].bind(py).as_array_mut() };
         sampler.add_channel(n.clone(), array, c.sample_rate, c.delay, c.align_level);
     }
-    if let Some((crosstalk, names)) = &crosstalk {
-        sampler.set_crosstalk(crosstalk.as_array(), names.clone());
+    if let Some((ref crosstalk, names)) = crosstalk {
+        sampler.set_crosstalk(crosstalk.as_array(), names);
     }
     py.allow_threads(|| sampler.sample(time_tolerance))?;
     Ok(waveforms)
 }
 
-fn post_process(w: &mut ArrayViewMut2<f64>, c: &Channel) {
-    let iq_matrix = c.iq_matrix.as_ref().map(|x| x.view());
-    let offset = c.offset.as_ref().map(|x| x.view());
-    let iir = c.iir.as_ref().map(|x| x.view());
-    let fir = c.fir.as_ref().map(|x| x.view());
+fn post_process(w: &mut ArrayViewMut2<'_, f64>, c: &Channel) {
+    let iq_matrix = c.iq_matrix.as_ref().map(IqMatrix::view);
+    let offset = c.offset.as_ref().map(OffsetArray::view);
+    let iir = c.iir.as_ref().map(IirArray::view);
+    let fir = c.fir.as_ref().map(FirArray::view);
     if let Some(iq_matrix) = iq_matrix {
         apply_iq_inplace(w, iq_matrix);
     }

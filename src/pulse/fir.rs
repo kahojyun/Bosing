@@ -10,6 +10,7 @@ impl<'a, 'b> WithSimd for ApplyFirInplace<'a, 'b> {
     type Output = ();
 
     #[inline(always)]
+    #[expect(clippy::inline_always, reason = "Follow pulp's suggestion")]
     fn with_simd<S: Simd>(mut self, simd: S) -> Self::Output {
         let lanes = std::mem::size_of::<S::f64s>() / std::mem::size_of::<f64>();
         let buffer_len = align_ceil(self.taps.len(), lanes);
@@ -45,13 +46,13 @@ impl<'a, 'b> WithSimd for ApplyFirInplace<'a, 'b> {
     }
 }
 
-pub(crate) fn fir_filter_inplace(waveform: ArrayViewMut2<f64>, taps: ArrayView1<f64>) {
+pub fn filter_inplace(waveform: ArrayViewMut2<'_, f64>, taps: ArrayView1<'_, f64>) {
     let arch = Arch::new();
     arch.dispatch(ApplyFirInplace { waveform, taps });
 }
 
 #[inline]
-fn align_ceil(x: usize, n: usize) -> usize {
+const fn align_ceil(x: usize, n: usize) -> usize {
     let r = x % n;
     if r == 0 {
         x
@@ -75,7 +76,7 @@ mod tests {
             stack![Axis(0), arr1, arr1]
         };
 
-        fir_filter_inplace(signal.view_mut(), taps.view());
+        filter_inplace(signal.view_mut(), taps.view());
 
         assert_eq!(signal, expected);
     }

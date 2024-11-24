@@ -2,7 +2,7 @@ use hashbrown::HashMap;
 use thiserror::Error;
 
 use crate::{
-    pulse::{Envelope, PulseList, PulseListBuilder, PushArgs},
+    pulse::{Envelope, List, ListBuilder, PushArgs},
     quant::{Amplitude, ChannelId, Frequency, Phase, ShapeId, Time},
     schedule::{
         Arrange as _, Arranged, ElementRef, ElementVariant, Measure, Play, SetFreq, SetPhase,
@@ -13,7 +13,7 @@ use crate::{
 };
 
 #[derive(Debug, Clone)]
-pub(crate) struct Executor {
+pub struct Executor {
     channels: HashMap<ChannelId, Channel>,
     shapes: HashMap<ShapeId, Shape>,
     amp_tolerance: Amplitude,
@@ -22,7 +22,7 @@ pub(crate) struct Executor {
 }
 
 #[derive(Error, Debug)]
-pub(crate) enum Error {
+pub enum Error {
     #[error("Channel not found: {0:?}")]
     ChannelNotFound(Vec<ChannelId>),
     #[error("Shape not found: {0:?}")]
@@ -34,7 +34,7 @@ pub(crate) enum Error {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub(crate) struct OscState {
+pub struct OscState {
     pub(crate) base_freq: Frequency,
     pub(crate) delta_freq: Frequency,
     pub(crate) phase: Phase,
@@ -45,7 +45,7 @@ type Result<T> = std::result::Result<T, Error>;
 #[derive(Debug, Clone)]
 struct Channel {
     osc: OscState,
-    pulses: PulseListBuilder,
+    pulses: ListBuilder,
 }
 
 struct AddPulseArgs {
@@ -79,7 +79,7 @@ impl Executor {
             name,
             Channel {
                 osc,
-                pulses: PulseListBuilder::new(self.amp_tolerance, self.time_tolerance),
+                pulses: ListBuilder::new(self.amp_tolerance, self.time_tolerance),
             },
         );
     }
@@ -95,7 +95,7 @@ impl Executor {
             .collect()
     }
 
-    pub(crate) fn into_result(self) -> HashMap<ChannelId, PulseList> {
+    pub(crate) fn into_result(self) -> HashMap<ChannelId, List> {
         self.channels
             .into_iter()
             .map(|(n, b)| (n, b.pulses.build()))
@@ -221,7 +221,7 @@ impl Executor {
 }
 
 impl OscState {
-    pub(crate) fn new(base_freq: Frequency) -> Self {
+    pub(crate) const fn new(base_freq: Frequency) -> Self {
         Self {
             base_freq,
             delta_freq: Frequency::ZERO,
@@ -300,7 +300,7 @@ impl Channel {
             amplitude,
             drag_coef,
             phase,
-        })
+        });
     }
 }
 

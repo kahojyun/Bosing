@@ -5,13 +5,14 @@ use std::sync::OnceLock;
 use crate::{
     python::Direction,
     quant::{ChannelId, Time},
-    schedule::{merge_channel_ids, stack::helper::Helper, Arranged, ElementRef, Measure},
 };
 
-use super::{Arrange, TimeRange};
+use super::{merge_channel_ids, Arrange, Arranged, ElementRef, Measure, TimeRange};
+
+use self::helper::Helper;
 
 #[derive(Debug, Clone)]
-pub(crate) struct Stack {
+pub struct Stack {
     children: Vec<ElementRef>,
     direction: Direction,
     channel_ids: Vec<ChannelId>,
@@ -36,14 +37,14 @@ impl Stack {
     }
 
     pub(crate) fn with_children(mut self, children: Vec<ElementRef>) -> Self {
-        let channel_ids = merge_channel_ids(children.iter().map(|e| e.channels()));
+        let channel_ids = merge_channel_ids(children.iter().map(Measure::channels));
         self.children = children;
         self.channel_ids = channel_ids;
         self.measure_result.take();
         self
     }
 
-    pub(crate) fn direction(&self) -> Direction {
+    pub(crate) const fn direction(&self) -> Direction {
         self.direction
     }
 
@@ -151,7 +152,6 @@ mod tests {
 
     #[test_case(Direction::Forward; "forward")]
     #[test_case(Direction::Backward; "backward")]
-
     fn collect_by_direction(direction: Direction) {
         let v = [1, 2, 3];
 
@@ -211,6 +211,18 @@ mod tests {
     #[test_case(Direction::Forward, &[0.0, 0.0, 20.0, 40.0, 40.0]; "forward")]
     #[test_case(Direction::Backward, &[40.0, 40.0, 20.0, 0.0, 0.0]; "backward")]
     fn test_measure_with_channels(direction: Direction, offsets: &[f64]) {
+        fn create_channel(i: usize) -> ChannelId {
+            ChannelId::new(i.to_string())
+        }
+        fn create_mock(duration: f64, channels: &[usize]) -> MockMeasure {
+            let mut mock = MockMeasure::new();
+            mock.expect_measure()
+                .return_const(Time::new(duration).unwrap());
+            mock.expect_channels()
+                .return_const(channels.iter().copied().map(create_channel).collect());
+            mock
+        }
+
         let children = [
             create_mock(10.0, &[0]),
             create_mock(20.0, &[1]),
@@ -233,17 +245,5 @@ mod tests {
                 .collect::<Vec<_>>(),
             offsets
         );
-
-        fn create_channel(i: usize) -> ChannelId {
-            ChannelId::new(i.to_string())
-        }
-        fn create_mock(duration: f64, channels: &[usize]) -> MockMeasure {
-            let mut mock = MockMeasure::new();
-            mock.expect_measure()
-                .return_const(Time::new(duration).unwrap());
-            mock.expect_channels()
-                .return_const(channels.iter().copied().map(create_channel).collect());
-            mock
-        }
     }
 }

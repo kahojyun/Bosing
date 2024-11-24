@@ -4,7 +4,7 @@ use pyo3::{exceptions::PyValueError, prelude::*};
 
 use crate::{quant::Time, schedule};
 
-use super::{Arg, Element, ElementSubclass, Label, RichRepr};
+use super::{Arg, Element, ElementSubclass, Label, Rich};
 
 /// A grid layout element.
 ///
@@ -51,16 +51,16 @@ use super::{Arg, Element, ElementSubclass, Label, RichRepr};
 ///             element4,
 ///             columns=['auto', '1*', '2'],
 ///         )
-#[pyclass(module="bosing",extends=Element, frozen)]
+#[pyclass(module="bosing", extends=Element, frozen)]
 #[derive(Debug)]
-pub(crate) struct Grid {
-    children: Vec<GridEntry>,
+pub struct Grid {
+    children: Vec<Entry>,
 }
 
 impl ElementSubclass for Grid {
     type Variant = schedule::Grid;
 
-    fn repr(slf: &Bound<Self>) -> Vec<Arg> {
+    fn repr(slf: &Bound<'_, Self>) -> Vec<Arg> {
         let py = slf.py();
         let mut res: Vec<_> = slf
             .get()
@@ -87,13 +87,13 @@ impl Grid {
         min_duration=Time::ZERO,
         label=None,
     ))]
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments)]
     fn new(
-        py: Python,
+        py: Python<'_>,
         children: Vec<Py<PyAny>>,
         columns: Vec<Py<PyAny>>,
-        margin: Option<&Bound<PyAny>>,
-        alignment: Option<&Bound<PyAny>>,
+        margin: Option<&Bound<'_, PyAny>>,
+        alignment: Option<&Bound<'_, PyAny>>,
         phantom: bool,
         duration: Option<Time>,
         max_duration: Time,
@@ -155,7 +155,7 @@ impl Grid {
     /// Returns:
     ///     Grid: New grid schedule.
     #[pyo3(signature=(*children))]
-    fn with_children(slf: &Bound<Self>, children: Vec<Py<PyAny>>) -> PyResult<Py<Self>> {
+    fn with_children(slf: &Bound<'_, Self>, children: Vec<Py<PyAny>>) -> PyResult<Py<Self>> {
         let py = slf.py();
         let children: Vec<_> = children
             .into_iter()
@@ -184,21 +184,21 @@ impl Grid {
     }
 
     #[getter]
-    fn columns(slf: &Bound<Self>) -> Vec<GridLength> {
+    fn columns(slf: &Bound<'_, Self>) -> Vec<Length> {
         Self::variant(slf).columns().to_vec()
     }
 
     #[getter]
-    fn children(slf: &Bound<Self>) -> Vec<GridEntry> {
+    fn children(slf: &Bound<'_, Self>) -> Vec<Entry> {
         let py = slf.py();
         slf.get().children.iter().map(|x| x.clone_ref(py)).collect()
     }
 
-    fn __repr__(slf: &Bound<Self>) -> PyResult<String> {
+    fn __repr__(slf: &Bound<'_, Self>) -> PyResult<String> {
         Self::to_repr(slf)
     }
 
-    fn __rich_repr__(slf: &Bound<Self>) -> Vec<Arg> {
+    fn __rich_repr__(slf: &Bound<'_, Self>) -> Vec<Arg> {
         Self::to_rich_repr(slf)
     }
 }
@@ -210,15 +210,15 @@ impl Grid {
 /// - Seconds: Fixed length in seconds.
 /// - Auto: Auto length.
 /// - Star: Ratio of the remaining duration.
-#[pyclass(module = "bosing", frozen, eq)]
+#[pyclass(module = "bosing", name = "GridLengthUnit", frozen, eq)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum GridLengthUnit {
+pub enum LengthUnit {
     Seconds,
     Auto,
     Star,
 }
 
-impl ToPyObject for GridLengthUnit {
+impl ToPyObject for LengthUnit {
     fn to_object(&self, py: Python<'_>) -> PyObject {
         (*self).into_py(py)
     }
@@ -229,24 +229,24 @@ impl ToPyObject for GridLengthUnit {
 /// :class:`GridLength` is used to specify the length of a grid column. The
 /// length can be specified in seconds, as a fraction of the remaining duration,
 /// or automatically.
-#[pyclass(module = "bosing", get_all, frozen)]
+#[pyclass(module = "bosing", name = "GridLength", get_all, frozen)]
 #[derive(Debug, Clone)]
-pub(crate) struct GridLength {
+pub struct Length {
     pub(crate) value: f64,
-    unit: GridLengthUnit,
+    unit: LengthUnit,
 }
 
 #[pymethods]
-impl GridLength {
+impl Length {
     /// Create an automatic grid length.
     ///
     /// Returns:
     ///     GridLength: Automatic grid length.
     #[staticmethod]
-    fn auto() -> Self {
-        GridLength {
+    const fn auto() -> Self {
+        Self {
             value: 0.0,
-            unit: GridLengthUnit::Auto,
+            unit: LengthUnit::Auto,
         }
     }
 
@@ -262,9 +262,9 @@ impl GridLength {
         if !(value.is_finite() && value > 0.0) {
             return Err(PyValueError::new_err("The value must be greater than 0."));
         }
-        Ok(GridLength {
+        Ok(Self {
             value,
-            unit: GridLengthUnit::Star,
+            unit: LengthUnit::Star,
         })
     }
 
@@ -282,9 +282,9 @@ impl GridLength {
                 "The value must be greater than or equal to 0.",
             ));
         }
-        Ok(GridLength {
+        Ok(Self {
             value,
-            unit: GridLengthUnit::Seconds,
+            unit: LengthUnit::Seconds,
         })
     }
 
@@ -308,32 +308,32 @@ impl GridLength {
     /// Raises:
     ///     ValueError: If the value cannot be converted.
     #[staticmethod]
-    fn convert(obj: &Bound<PyAny>) -> PyResult<Py<Self>> {
+    fn convert(obj: &Bound<'_, PyAny>) -> PyResult<Py<Self>> {
         let py = obj.py();
         if let Ok(slf) = obj.extract() {
             return Ok(slf);
         }
         if let Ok(v) = obj.extract() {
-            return Py::new(py, GridLength::fixed(v)?);
+            return Py::new(py, Self::fixed(v)?);
         }
         if let Ok(s) = obj.extract::<String>() {
-            return Py::new(py, GridLength::from_str(&s)?);
+            return Py::new(py, Self::from_str(&s)?);
         }
         Err(PyValueError::new_err(
             "Failed to convert the value to GridLength.",
         ))
     }
 
-    fn __repr__(slf: &Bound<Self>) -> PyResult<String> {
+    fn __repr__(slf: &Bound<'_, Self>) -> PyResult<String> {
         Self::to_repr(slf)
     }
 
-    fn __rich_repr__(slf: &Bound<Self>) -> Vec<Arg> {
+    fn __rich_repr__(slf: &Bound<'_, Self>) -> Vec<Arg> {
         Self::to_rich_repr(slf)
     }
 }
 
-impl RichRepr for GridLength {
+impl Rich for Length {
     fn repr(slf: &Bound<'_, Self>) -> impl Iterator<Item = Arg> {
         let mut res = Vec::new();
         let py = slf.py();
@@ -344,48 +344,48 @@ impl RichRepr for GridLength {
     }
 }
 
-impl GridLength {
+impl Length {
     pub(crate) fn is_auto(&self) -> bool {
-        self.unit == GridLengthUnit::Auto
+        self.unit == LengthUnit::Auto
     }
 
     pub(crate) fn is_star(&self) -> bool {
-        self.unit == GridLengthUnit::Star
+        self.unit == LengthUnit::Star
     }
 
     pub(crate) fn is_fixed(&self) -> bool {
-        self.unit == GridLengthUnit::Seconds
+        self.unit == LengthUnit::Seconds
     }
 }
 
-impl FromStr for GridLength {
+impl FromStr for Length {
     type Err = anyhow::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         if s == "auto" {
-            return Ok(GridLength::auto());
+            return Ok(Self::auto());
         }
         if s == "*" {
-            return Ok(GridLength::star(1.0)?);
+            return Ok(Self::star(1.0)?);
         }
         if let Some(v) = s.strip_suffix('*').and_then(|x| x.parse().ok()) {
-            return Ok(GridLength::star(v)?);
+            return Ok(Self::star(v)?);
         }
         if let Ok(v) = s.parse() {
-            return Ok(GridLength::fixed(v)?);
+            return Ok(Self::fixed(v)?);
         }
         Err(anyhow::anyhow!("Invalid GridLength string: {}", s))
     }
 }
 
-impl ToPyObject for GridLength {
+impl ToPyObject for Length {
     fn to_object(&self, py: Python<'_>) -> PyObject {
         self.clone().into_py(py)
     }
 }
 
-fn extract_grid_length(obj: &Bound<PyAny>) -> PyResult<GridLength> {
-    GridLength::convert(obj).and_then(|x| x.extract(obj.py()))
+fn extract_grid_length(obj: &Bound<'_, PyAny>) -> PyResult<Length> {
+    Length::convert(obj).and_then(|x| x.extract(obj.py()))
 }
 
 /// A child element in a grid layout.
@@ -394,16 +394,16 @@ fn extract_grid_length(obj: &Bound<PyAny>) -> PyResult<GridLength> {
 ///     element (Element): Child element.
 ///     column (int): Column index.
 ///     span (int): Column span.
-#[pyclass(module = "bosing", get_all, frozen)]
+#[pyclass(module = "bosing", name = "GridEntry", get_all, frozen)]
 #[derive(Debug)]
-pub(crate) struct GridEntry {
+pub struct Entry {
     element: Py<Element>,
     column: usize,
     span: usize,
 }
 
-impl GridEntry {
-    fn clone_ref(&self, py: Python) -> Self {
+impl Entry {
+    fn clone_ref(&self, py: Python<'_>) -> Self {
         Self {
             element: self.element.clone_ref(py),
             column: self.column,
@@ -413,14 +413,14 @@ impl GridEntry {
 }
 
 #[pymethods]
-impl GridEntry {
+impl Entry {
     #[new]
     #[pyo3(signature = (element, column=0, span=1))]
     fn new(element: Py<Element>, column: usize, span: usize) -> PyResult<Self> {
         if span == 0 {
             return Err(PyValueError::new_err("The span must be greater than 0."));
         }
-        Ok(GridEntry {
+        Ok(Self {
             element,
             column,
             span,
@@ -445,35 +445,35 @@ impl GridEntry {
     /// Raises:
     ///     ValueError: If the value cannot be converted.
     #[staticmethod]
-    fn convert(obj: &Bound<PyAny>) -> PyResult<Py<Self>> {
+    fn convert(obj: &Bound<'_, PyAny>) -> PyResult<Py<Self>> {
         let py = obj.py();
         if let Ok(slf) = obj.extract() {
             return Ok(slf);
         }
         if let Ok(element) = obj.extract() {
-            return Py::new(py, GridEntry::new(element, 0, 1)?);
+            return Py::new(py, Self::new(element, 0, 1)?);
         }
         if let Ok((element, column)) = obj.extract() {
-            return Py::new(py, GridEntry::new(element, column, 1)?);
+            return Py::new(py, Self::new(element, column, 1)?);
         }
         if let Ok((element, column, span)) = obj.extract() {
-            return Py::new(py, GridEntry::new(element, column, span)?);
+            return Py::new(py, Self::new(element, column, span)?);
         }
         Err(PyValueError::new_err(
             "Failed to convert the value to GridEntry.",
         ))
     }
 
-    fn __repr__(slf: &Bound<Self>) -> PyResult<String> {
+    fn __repr__(slf: &Bound<'_, Self>) -> PyResult<String> {
         Self::to_repr(slf)
     }
 
-    fn __rich_repr__(slf: &Bound<Self>) -> Vec<Arg> {
+    fn __rich_repr__(slf: &Bound<'_, Self>) -> Vec<Arg> {
         Self::to_rich_repr(slf)
     }
 }
 
-impl RichRepr for GridEntry {
+impl Rich for Entry {
     fn repr(slf: &Bound<'_, Self>) -> impl Iterator<Item = Arg> {
         let mut res = Vec::new();
         let py = slf.py();
@@ -485,7 +485,7 @@ impl RichRepr for GridEntry {
     }
 }
 
-impl<'py> FromPyObject<'py> for GridEntry {
+impl<'py> FromPyObject<'py> for Entry {
     fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
         let py = ob.py();
         let ob = ob.downcast_exact::<Self>()?.get();
@@ -493,6 +493,6 @@ impl<'py> FromPyObject<'py> for GridEntry {
     }
 }
 
-fn extract_grid_entry(obj: &Bound<PyAny>) -> PyResult<GridEntry> {
-    GridEntry::convert(obj).and_then(|x| x.extract(obj.py()))
+fn extract_grid_entry(obj: &Bound<'_, PyAny>) -> PyResult<Entry> {
+    Entry::convert(obj).and_then(|x| x.extract(obj.py()))
 }

@@ -25,7 +25,7 @@ use crate::{
 /// If `shape` is `None`, constructor will set `plateau` to `width + plateau`
 /// and `width` to `0`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub(crate) struct Envelope {
+pub struct Envelope {
     shape: Option<Shape>,
     width: Time,
     plateau: Time,
@@ -38,7 +38,7 @@ impl Envelope {
             width = Time::ZERO;
         }
         if width == Time::ZERO {
-            shape = None
+            shape = None;
         }
         Self {
             shape,
@@ -86,31 +86,31 @@ impl Mul<f64> for PulseAmplitude {
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct PulseList {
+pub struct List {
     items: HashMap<ListBin, Vec<(Time, PulseAmplitude)>>,
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct Crosstalk<'a> {
+pub struct Crosstalk<'a> {
     matrix: ArrayView2<'a, f64>,
     names: Vec<ChannelId>,
 }
 
 impl<'a> Crosstalk<'a> {
-    pub(crate) fn new(matrix: ArrayView2<'a, f64>, names: Vec<ChannelId>) -> Self {
+    pub(crate) const fn new(matrix: ArrayView2<'a, f64>, names: Vec<ChannelId>) -> Self {
         Self { matrix, names }
     }
 }
 
 #[derive(Debug)]
-pub(crate) struct Sampler<'a> {
+pub struct Sampler<'a> {
     channels: HashMap<ChannelId, Channel<'a>>,
-    pulse_lists: HashMap<ChannelId, PulseList>,
+    pulse_lists: HashMap<ChannelId, List>,
     crosstalk: Option<Crosstalk<'a>>,
 }
 
 impl<'a> Sampler<'a> {
-    pub(crate) fn new(pulse_lists: HashMap<ChannelId, PulseList>) -> Self {
+    pub(crate) fn new(pulse_lists: HashMap<ChannelId, List>) -> Self {
         Self {
             channels: HashMap::new(),
             pulse_lists,
@@ -127,7 +127,7 @@ impl<'a> Sampler<'a> {
         align_level: i32,
     ) {
         self.channels.insert(
-            name.clone(),
+            name,
             Channel {
                 waveform,
                 sample_rate,
@@ -166,14 +166,14 @@ impl<'a> Sampler<'a> {
                         c.align_level,
                         time_tolerance,
                     )
-                    .with_context(|| format!("Failed to sample channel '{}'", n))
+                    .with_context(|| format!("Failed to sample channel '{n}'"))
                 } else {
                     let list = self.pulse_lists[&n]
                         .items
                         .iter()
                         .map(|(bin, items)| (bin.clone(), items.iter().copied()));
                     sample_pulse_list(list, c.waveform, c.sample_rate, c.delay, c.align_level)
-                        .with_context(|| format!("Failed to sample channel '{}'", n))
+                        .with_context(|| format!("Failed to sample channel '{n}'"))
                 }
             })
         } else {
@@ -183,7 +183,7 @@ impl<'a> Sampler<'a> {
                     .iter()
                     .map(|(bin, items)| (bin.clone(), items.iter().copied()));
                 sample_pulse_list(list, c.waveform, c.sample_rate, c.delay, c.align_level)
-                    .with_context(|| format!("Failed to sample channel '{}'", n))
+                    .with_context(|| format!("Failed to sample channel '{n}'"))
             })
         }
     }
@@ -198,13 +198,13 @@ struct Channel<'a> {
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct PulseListBuilder {
+pub struct ListBuilder {
     items: HashMap<ListBin, Vec<(Time, PulseAmplitude)>>,
     amp_tolerance: Amplitude,
     time_tolerance: Time,
 }
 
-pub(crate) struct PushArgs {
+pub struct PushArgs {
     pub(crate) envelope: Envelope,
     pub(crate) global_freq: Frequency,
     pub(crate) local_freq: Frequency,
@@ -214,7 +214,7 @@ pub(crate) struct PushArgs {
     pub(crate) phase: Phase,
 }
 
-impl PulseListBuilder {
+impl ListBuilder {
     pub(crate) fn new(amp_tolerance: Amplitude, time_tolerance: Time) -> Self {
         Self {
             items: HashMap::new(),
@@ -254,7 +254,7 @@ impl PulseListBuilder {
         self.items.entry(bin).or_default().push((time, amplitude));
     }
 
-    pub(crate) fn build(mut self) -> PulseList {
+    pub(crate) fn build(mut self) -> List {
         for pulses in self.items.values_mut() {
             pulses.sort_unstable_by_key(|(time, _)| *time);
             let mut i = 0;
@@ -273,12 +273,12 @@ impl PulseListBuilder {
             }
             pulses.truncate(i + 1);
         }
-        PulseList { items: self.items }
+        List { items: self.items }
     }
 }
 
 fn mix_add_envelope(
-    mut waveform: ArrayViewMut2<f64>,
+    mut waveform: ArrayViewMut2<'_, f64>,
     envelope: &[f64],
     amplitude: Complex64,
     drag_amp: Complex64,
@@ -307,7 +307,7 @@ fn mix_add_envelope(
 }
 
 fn mix_add_plateau(
-    mut waveform: ArrayViewMut2<f64>,
+    mut waveform: ArrayViewMut2<'_, f64>,
     amplitude: Complex64,
     phase: Phase,
     dphase: Phase,
@@ -351,15 +351,15 @@ fn get_envelope(
     } else {
         shape.sample_array(x0, dx, &mut envelope[..plateau_start_index]);
         envelope[plateau_start_index..plateau_end_index].fill(1.0);
-        let x2 = (plateau_end_index as f64 * dt - t2) / width;
+        let x2 = (plateau_end_index as f64).mul_add(dt, -t2) / width;
         shape.sample_array(x2, dx, &mut envelope[plateau_end_index..]);
     }
     Arc::new(envelope)
 }
 
 fn merge_and_sample<'a>(
-    lists: impl IntoIterator<Item = (f64, &'a PulseList)>,
-    waveform: ArrayViewMut2<f64>,
+    lists: impl IntoIterator<Item = (f64, &'a List)>,
+    waveform: ArrayViewMut2<'_, f64>,
     sample_rate: Frequency,
     delay: Time,
     align_level: i32,
@@ -375,7 +375,7 @@ fn merge_and_sample<'a>(
                 items
                     .iter()
                     .map(move |&(time, amp)| (time, amp * multiplier)),
-            )
+            );
         }
     }
     let merged = merged.into_iter().map(|(bin, items)| {
@@ -403,7 +403,7 @@ fn merge_and_sample<'a>(
 
 fn sample_pulse_list<PL, L>(
     list: PL,
-    mut waveform: ArrayViewMut2<f64>,
+    mut waveform: ArrayViewMut2<'_, f64>,
     sample_rate: Frequency,
     delay: Time,
     align_level: i32,
@@ -445,7 +445,7 @@ where
                 );
                 let drag = drag * sample_rate.value();
                 if waveform.shape()[1] < envelope.len() {
-                    bail!("The pulse end time is out of bounds, try adjusting channel delay, length or schedule. end time: {}", t_start.value() + envelope.len() as f64 * dt.value());
+                    bail!("The pulse end time is out of bounds, try adjusting channel delay, length or schedule. end time: {}", (envelope.len() as f64).mul_add(dt.value(), t_start.value()));
                 }
                 mix_add_envelope(waveform, &envelope, amp, drag, phase0, dphase);
             } else {
@@ -462,28 +462,28 @@ where
     Ok(())
 }
 
-pub(crate) fn apply_iq_inplace(waveform: &mut ArrayViewMut2<f64>, iq_matrix: ArrayView2<f64>) {
+pub fn apply_iq_inplace(waveform: &mut ArrayViewMut2<'_, f64>, iq_matrix: ArrayView2<'_, f64>) {
     assert!(matches!(waveform.shape(), [2, _]));
     assert!(matches!(iq_matrix.shape(), [2, 2]));
     for mut col in waveform.columns_mut() {
         let y = [
-            iq_matrix[(0, 0)] * col[0] + iq_matrix[(0, 1)] * col[1],
-            iq_matrix[(1, 0)] * col[0] + iq_matrix[(1, 1)] * col[1],
+            iq_matrix[(0, 0)].mul_add(col[0], iq_matrix[(0, 1)] * col[1]),
+            iq_matrix[(1, 0)].mul_add(col[0], iq_matrix[(1, 1)] * col[1]),
         ];
         col[0] = y[0];
         col[1] = y[1];
     }
 }
 
-pub(crate) fn apply_offset_inplace(waveform: &mut ArrayViewMut2<f64>, offset: ArrayView1<f64>) {
+pub fn apply_offset_inplace(waveform: &mut ArrayViewMut2<'_, f64>, offset: ArrayView1<'_, f64>) {
     assert!(waveform.shape()[0] == offset.len());
     azip!((mut row in waveform.axis_iter_mut(Axis(0)), &offset in &offset) row += offset);
 }
 
-pub(crate) fn apply_iir_inplace(waveform: &mut ArrayViewMut2<f64>, sos: ArrayView2<f64>) {
-    self::iir::iir_filter_inplace(waveform.view_mut(), sos).unwrap()
+pub fn apply_iir_inplace(waveform: &mut ArrayViewMut2<'_, f64>, sos: ArrayView2<'_, f64>) {
+    self::iir::filter_inplace(waveform.view_mut(), sos).unwrap();
 }
 
-pub(crate) fn apply_fir_inplace(waveform: &mut ArrayViewMut2<f64>, taps: ArrayView1<f64>) {
-    self::fir::fir_filter_inplace(waveform.view_mut(), taps)
+pub fn apply_fir_inplace(waveform: &mut ArrayViewMut2<'_, f64>, taps: ArrayView1<'_, f64>) {
+    self::fir::filter_inplace(waveform.view_mut(), taps);
 }

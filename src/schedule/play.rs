@@ -1,12 +1,11 @@
 use anyhow::{bail, Result};
 
-use crate::{
-    quant::{Amplitude, ChannelId, Frequency, Phase, ShapeId, Time},
-    schedule::Measure,
-};
+use crate::quant::{Amplitude, ChannelId, Frequency, Phase, ShapeId, Time};
+
+use super::Measure;
 
 #[derive(Debug, Clone)]
-pub(crate) struct Play {
+pub struct Play {
     channel_id: [ChannelId; 1],
     shape_id: Option<ShapeId>,
     amplitude: Amplitude,
@@ -76,44 +75,44 @@ impl Play {
         Ok(self)
     }
 
-    pub(crate) fn with_flexible(mut self, flexible: bool) -> Self {
+    pub(crate) const fn with_flexible(mut self, flexible: bool) -> Self {
         self.flexible = flexible;
         self
     }
 
-    pub(crate) fn channel_id(&self) -> &ChannelId {
+    pub(crate) const fn channel_id(&self) -> &ChannelId {
         &self.channel_id[0]
     }
 
-    pub(crate) fn shape_id(&self) -> Option<&ShapeId> {
+    pub(crate) const fn shape_id(&self) -> Option<&ShapeId> {
         self.shape_id.as_ref()
     }
 
-    pub(crate) fn amplitude(&self) -> Amplitude {
+    pub(crate) const fn amplitude(&self) -> Amplitude {
         self.amplitude
     }
 
-    pub(crate) fn width(&self) -> Time {
+    pub(crate) const fn width(&self) -> Time {
         self.width
     }
 
-    pub(crate) fn plateau(&self) -> Time {
+    pub(crate) const fn plateau(&self) -> Time {
         self.plateau
     }
 
-    pub(crate) fn drag_coef(&self) -> f64 {
+    pub(crate) const fn drag_coef(&self) -> f64 {
         self.drag_coef
     }
 
-    pub(crate) fn frequency(&self) -> Frequency {
+    pub(crate) const fn frequency(&self) -> Frequency {
         self.frequency
     }
 
-    pub(crate) fn phase(&self) -> Phase {
+    pub(crate) const fn phase(&self) -> Phase {
         self.phase
     }
 
-    pub(crate) fn flexible(&self) -> bool {
+    pub(crate) const fn flexible(&self) -> bool {
         self.flexible
     }
 }

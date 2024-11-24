@@ -5,7 +5,7 @@ mod repr;
 
 use pyo3::prelude::*;
 
-pub(crate) use elements::{Alignment, Direction, GridLength};
+pub use elements::{Alignment, Direction, GridLength};
 
 /// Export the bosing library to Python.
 #[pymodule(name = "_bosing")]

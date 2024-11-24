@@ -4,7 +4,7 @@ use pyo3::{exceptions::PyValueError, prelude::*};
 
 use crate::{quant::Time, schedule};
 
-use super::{Arg, Element, ElementSubclass, Label, RichRepr};
+use super::{Arg, Element, ElementSubclass, Label, Rich};
 
 /// An absolute layout element.
 ///
@@ -31,14 +31,14 @@ use super::{Arg, Element, ElementSubclass, Label, RichRepr};
 ///         )
 #[pyclass(module="bosing",extends=Element, frozen)]
 #[derive(Debug)]
-pub(crate) struct Absolute {
-    children: Vec<AbsoluteEntry>,
+pub struct Absolute {
+    children: Vec<Entry>,
 }
 
 impl ElementSubclass for Absolute {
     type Variant = schedule::Absolute;
 
-    fn repr(slf: &Bound<Self>) -> Vec<Arg> {
+    fn repr(slf: &Bound<'_, Self>) -> Vec<Arg> {
         let py = slf.py();
         slf.get()
             .children
@@ -61,19 +61,19 @@ impl Absolute {
         min_duration=Time::ZERO,
         label=None,
     ))]
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments)]
     fn new(
-        py: Python,
+        py: Python<'_>,
         children: Vec<Py<PyAny>>,
-        margin: Option<&Bound<PyAny>>,
-        alignment: Option<&Bound<PyAny>>,
+        margin: Option<&Bound<'_, PyAny>>,
+        alignment: Option<&Bound<'_, PyAny>>,
         phantom: bool,
         duration: Option<Time>,
         max_duration: Time,
         min_duration: Time,
         label: Option<Label>,
     ) -> PyResult<(Self, Element)> {
-        let children: Vec<AbsoluteEntry> = children
+        let children: Vec<Entry> = children
             .into_iter()
             .map(|x| extract_absolute_entry(&x.into_bound(py)))
             .collect::<PyResult<_>>()?;
@@ -119,7 +119,7 @@ impl Absolute {
     /// Returns:
     ///     Absolute: New absolute schedule.
     #[pyo3(signature=(*children))]
-    fn with_children(slf: &Bound<Self>, children: Vec<Py<PyAny>>) -> PyResult<Py<Self>> {
+    fn with_children(slf: &Bound<'_, Self>, children: Vec<Py<PyAny>>) -> PyResult<Py<Self>> {
         let py = slf.py();
         let children: Vec<_> = children
             .into_iter()
@@ -145,16 +145,16 @@ impl Absolute {
     }
 
     #[getter]
-    fn children(slf: &Bound<Self>) -> Vec<AbsoluteEntry> {
+    fn children(slf: &Bound<'_, Self>) -> Vec<Entry> {
         let py = slf.py();
         slf.get().children.iter().map(|x| x.clone_ref(py)).collect()
     }
 
-    fn __repr__(slf: &Bound<Self>) -> PyResult<String> {
+    fn __repr__(slf: &Bound<'_, Self>) -> PyResult<String> {
         Self::to_repr(slf)
     }
 
-    fn __rich_repr__(slf: &Bound<Self>) -> Vec<Arg> {
+    fn __rich_repr__(slf: &Bound<'_, Self>) -> Vec<Arg> {
         Self::to_rich_repr(slf)
     }
 }
@@ -167,15 +167,15 @@ impl Absolute {
 /// Args:
 ///     time (float): Time relative to the start of the parent element.
 ///     element (Element): Child element.
-#[pyclass(module = "bosing", get_all, frozen)]
+#[pyclass(module = "bosing", name = "AbsoluteEntry", get_all, frozen)]
 #[derive(Debug)]
-pub(crate) struct AbsoluteEntry {
+pub struct Entry {
     time: Time,
     element: Py<Element>,
 }
 
-impl AbsoluteEntry {
-    fn clone_ref(&self, py: Python) -> Self {
+impl Entry {
+    fn clone_ref(&self, py: Python<'_>) -> Self {
         Self {
             time: self.time,
             element: self.element.clone_ref(py),
@@ -184,13 +184,13 @@ impl AbsoluteEntry {
 }
 
 #[pymethods]
-impl AbsoluteEntry {
+impl Entry {
     #[new]
     fn new(time: Time, element: Py<Element>) -> PyResult<Self> {
         if !time.value().is_finite() {
             return Err(PyValueError::new_err("Time must be finite"));
         }
-        Ok(AbsoluteEntry { time, element })
+        Ok(Self { time, element })
     }
 
     /// Convert the value to AbsoluteEntry.
@@ -210,32 +210,32 @@ impl AbsoluteEntry {
     /// Raises:
     ///     ValueError: If the value cannot be converted.
     #[staticmethod]
-    fn convert(obj: &Bound<PyAny>) -> PyResult<Py<Self>> {
+    fn convert(obj: &Bound<'_, PyAny>) -> PyResult<Py<Self>> {
         let py = obj.py();
         if let Ok(slf) = obj.extract() {
             return Ok(slf);
         }
         if let Ok(element) = obj.extract() {
-            return Py::new(py, AbsoluteEntry::new(Time::ZERO, element)?);
+            return Py::new(py, Self::new(Time::ZERO, element)?);
         }
         if let Ok((time, element)) = obj.extract() {
-            return Py::new(py, AbsoluteEntry::new(time, element)?);
+            return Py::new(py, Self::new(time, element)?);
         }
         Err(PyValueError::new_err(
             "Failed to convert the value to AbsoluteEntry",
         ))
     }
 
-    fn __repr__(slf: &Bound<Self>) -> PyResult<String> {
+    fn __repr__(slf: &Bound<'_, Self>) -> PyResult<String> {
         Self::to_repr(slf)
     }
 
-    fn __rich_repr__(slf: &Bound<Self>) -> Vec<Arg> {
+    fn __rich_repr__(slf: &Bound<'_, Self>) -> Vec<Arg> {
         Self::to_rich_repr(slf)
     }
 }
 
-impl RichRepr for AbsoluteEntry {
+impl Rich for Entry {
     fn repr(slf: &Bound<'_, Self>) -> impl Iterator<Item = Arg> {
         let mut res = Vec::new();
         let py = slf.py();
@@ -246,7 +246,7 @@ impl RichRepr for AbsoluteEntry {
     }
 }
 
-impl<'py> FromPyObject<'py> for AbsoluteEntry {
+impl<'py> FromPyObject<'py> for Entry {
     fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
         let py = ob.py();
         let ob = ob.downcast_exact::<Self>()?.get();
@@ -254,6 +254,6 @@ impl<'py> FromPyObject<'py> for AbsoluteEntry {
     }
 }
 
-fn extract_absolute_entry(obj: &Bound<PyAny>) -> PyResult<AbsoluteEntry> {
-    AbsoluteEntry::convert(obj).and_then(|x| x.extract(obj.py()))
+fn extract_absolute_entry(obj: &Bound<'_, PyAny>) -> PyResult<Entry> {
+    Entry::convert(obj).and_then(|x| x.extract(obj.py()))
 }

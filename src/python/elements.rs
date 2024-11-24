@@ -15,12 +15,12 @@ use crate::{
 
 use super::{
     plot::plot_element,
-    repr::{Arg, RichRepr},
+    repr::{Arg, Rich},
 };
 
-pub(crate) use self::{
-    absolute::{Absolute, AbsoluteEntry},
-    grid::{Grid, GridEntry, GridLength, GridLengthUnit},
+pub use self::{
+    absolute::{Absolute, Entry as AbsoluteEntry},
+    grid::{Entry as GridEntry, Grid, Length as GridLength, LengthUnit as GridLengthUnit},
     stack::{Direction, Stack},
 };
 
@@ -35,7 +35,7 @@ pub(crate) use self::{
 /// - :attr:`Alignment.Stretch`: Stretch the element to fill the parent.
 #[pyclass(module = "bosing", frozen, eq)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum Alignment {
+pub enum Alignment {
     End,
     Start,
     Center,
@@ -63,16 +63,16 @@ impl Alignment {
     /// Raises:
     ///     ValueError: If the value cannot be converted to Alignment.
     #[staticmethod]
-    fn convert(obj: &Bound<PyAny>) -> PyResult<Py<Self>> {
+    fn convert(obj: &Bound<'_, PyAny>) -> PyResult<Py<Self>> {
         if let Ok(slf) = obj.extract() {
             return Ok(slf);
         }
         if let Ok(s) = obj.extract::<String>() {
             let alignment = match s.as_str() {
-                "end" => Some(Alignment::End),
-                "start" => Some(Alignment::Start),
-                "center" => Some(Alignment::Center),
-                "stretch" => Some(Alignment::Stretch),
+                "end" => Some(Self::End),
+                "start" => Some(Self::Start),
+                "center" => Some(Self::Center),
+                "stretch" => Some(Self::Stretch),
                 _ => None,
             };
             if let Some(alignment) = alignment {
@@ -164,7 +164,7 @@ impl Alignment {
 ///     label (str | None): Label of the element. Defaults to ``None``.
 #[pyclass(module = "bosing", subclass, frozen)]
 #[derive(Debug, Clone)]
-pub(crate) struct Element(pub(super) ElementRef);
+pub struct Element(pub(super) ElementRef);
 
 #[pymethods]
 impl Element {
@@ -229,7 +229,7 @@ impl Element {
     #[pyo3(signature = (ax=None, *, channels=None, max_depth=5, show_label=true))]
     fn plot(
         &self,
-        py: Python,
+        py: Python<'_>,
         ax: Option<PyObject>,
         channels: Option<Vec<ChannelId>>,
         max_depth: usize,
@@ -246,9 +246,9 @@ where
 {
     type Variant: Into<ElementVariant>;
 
-    fn repr(slf: &Bound<Self>) -> Vec<Arg>;
+    fn repr(slf: &Bound<'_, Self>) -> Vec<Arg>;
 
-    fn inner<'a>(slf: &'a Bound<Self>) -> &'a ElementRef {
+    fn inner<'a>(slf: &'a Bound<'_, Self>) -> &'a ElementRef {
         slf.downcast::<Element>()
             .expect("Self should be a subclass of Element")
             .get()
@@ -256,11 +256,11 @@ where
             .borrow()
     }
 
-    fn common<'a>(slf: &'a Bound<Self>) -> &'a ElementCommon {
+    fn common<'a>(slf: &'a Bound<'_, Self>) -> &'a ElementCommon {
         Self::inner(slf).common.borrow()
     }
 
-    fn variant<'a>(slf: &'a Bound<Self>) -> &'a Self::Variant {
+    fn variant<'a>(slf: &'a Bound<'_, Self>) -> &'a Self::Variant {
         Self::inner(slf)
             .variant
             .borrow()
@@ -268,17 +268,35 @@ where
             .expect("Element should have a valid variant")
     }
 
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments)]
     fn build_element(
         variant: Self::Variant,
-        margin: Option<&Bound<PyAny>>,
-        alignment: Option<&Bound<PyAny>>,
+        margin: Option<&Bound<'_, PyAny>>,
+        alignment: Option<&Bound<'_, PyAny>>,
         phantom: bool,
         duration: Option<Time>,
         max_duration: Time,
         min_duration: Time,
         label: Option<Label>,
     ) -> PyResult<Element> {
+        fn extract_alignment(obj: &Bound<'_, PyAny>) -> PyResult<Alignment> {
+            Alignment::convert(obj).and_then(|x| x.extract(obj.py()))
+        }
+
+        fn extract_margin(obj: &Bound<'_, PyAny>) -> PyResult<(Time, Time)> {
+            if let Ok(v) = obj.extract() {
+                let t = Time::new(v)?;
+                return Ok((t, t));
+            }
+            if let Ok((v1, v2)) = obj.extract() {
+                let t1 = Time::new(v1)?;
+                let t2 = Time::new(v2)?;
+                return Ok((t1, t2));
+            }
+            let msg = "Failed to convert the value to (float, float).";
+            Err(PyValueError::new_err(msg))
+        }
+
         let mut builder = ElementCommonBuilder::new();
         if let Some(obj) = margin {
             builder.margin(extract_margin(obj)?);
@@ -293,29 +311,11 @@ where
             .min_duration(min_duration)
             .label(label);
         let common = builder.build()?;
-        return Ok(Element(Arc::new(schedule::Element::new(common, variant))));
-
-        fn extract_alignment(obj: &Bound<PyAny>) -> PyResult<Alignment> {
-            Alignment::convert(obj).and_then(|x| x.extract(obj.py()))
-        }
-
-        fn extract_margin(obj: &Bound<PyAny>) -> PyResult<(Time, Time)> {
-            if let Ok(v) = obj.extract() {
-                let t = Time::new(v)?;
-                return Ok((t, t));
-            }
-            if let Ok((v1, v2)) = obj.extract() {
-                let t1 = Time::new(v1)?;
-                let t2 = Time::new(v2)?;
-                return Ok((t1, t2));
-            }
-            let msg = "Failed to convert the value to (float, float).";
-            Err(PyValueError::new_err(msg))
-        }
+        Ok(Element(Arc::new(schedule::Element::new(common, variant))))
     }
 }
 
-impl<T> RichRepr for T
+impl<T> Rich for T
 where
     T: ElementSubclass,
     for<'a> &'a T::Variant: TryFrom<&'a ElementVariant>,
@@ -385,12 +385,12 @@ where
 ///         to ``False``.
 #[pyclass(module="bosing",extends=Element, frozen)]
 #[derive(Debug, Clone)]
-pub(crate) struct Play;
+pub struct Play;
 
 impl ElementSubclass for Play {
     type Variant = schedule::Play;
 
-    fn repr(slf: &Bound<Self>) -> Vec<Arg> {
+    fn repr(slf: &Bound<'_, Self>) -> Vec<Arg> {
         let mut res = Vec::new();
         let py = slf.py();
         push_repr!(res, py, Self::channel_id(slf));
@@ -428,7 +428,7 @@ impl Play {
         min_duration=Time::ZERO,
         label=None,
     ))]
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments)]
     fn new(
         channel_id: ChannelId,
         shape_id: Option<ShapeId>,
@@ -439,8 +439,8 @@ impl Play {
         frequency: Frequency,
         phase: Phase,
         flexible: bool,
-        margin: Option<&Bound<PyAny>>,
-        alignment: Option<&Bound<PyAny>>,
+        margin: Option<&Bound<'_, PyAny>>,
+        alignment: Option<&Bound<'_, PyAny>>,
         phantom: bool,
         duration: Option<Time>,
         max_duration: Time,
@@ -469,55 +469,55 @@ impl Play {
     }
 
     #[getter]
-    fn channel_id<'a>(slf: &'a Bound<Self>) -> &'a ChannelId {
+    fn channel_id<'a>(slf: &'a Bound<'_, Self>) -> &'a ChannelId {
         Self::variant(slf).channel_id()
     }
 
     #[getter]
-    fn shape_id<'a>(slf: &'a Bound<Self>) -> Option<&'a ShapeId> {
+    fn shape_id<'a>(slf: &'a Bound<'_, Self>) -> Option<&'a ShapeId> {
         Self::variant(slf).shape_id()
     }
 
     #[getter]
-    fn amplitude(slf: &Bound<Self>) -> Amplitude {
+    fn amplitude(slf: &Bound<'_, Self>) -> Amplitude {
         Self::variant(slf).amplitude()
     }
 
     #[getter]
-    fn width(slf: &Bound<Self>) -> Time {
+    fn width(slf: &Bound<'_, Self>) -> Time {
         Self::variant(slf).width()
     }
 
     #[getter]
-    fn plateau(slf: &Bound<Self>) -> Time {
+    fn plateau(slf: &Bound<'_, Self>) -> Time {
         Self::variant(slf).plateau()
     }
 
     #[getter]
-    fn drag_coef(slf: &Bound<Self>) -> f64 {
+    fn drag_coef(slf: &Bound<'_, Self>) -> f64 {
         Self::variant(slf).drag_coef()
     }
 
     #[getter]
-    fn frequency(slf: &Bound<Self>) -> Frequency {
+    fn frequency(slf: &Bound<'_, Self>) -> Frequency {
         Self::variant(slf).frequency()
     }
 
     #[getter]
-    fn phase(slf: &Bound<Self>) -> Phase {
+    fn phase(slf: &Bound<'_, Self>) -> Phase {
         Self::variant(slf).phase()
     }
 
     #[getter]
-    fn flexible(slf: &Bound<Self>) -> bool {
+    fn flexible(slf: &Bound<'_, Self>) -> bool {
         Self::variant(slf).flexible()
     }
 
-    fn __repr__(slf: &Bound<Self>) -> PyResult<String> {
+    fn __repr__(slf: &Bound<'_, Self>) -> PyResult<String> {
         Self::to_repr(slf)
     }
 
-    fn __rich_repr__(slf: &Bound<Self>) -> Vec<Arg> {
+    fn __rich_repr__(slf: &Bound<'_, Self>) -> Vec<Arg> {
         Self::to_rich_repr(slf)
     }
 }
@@ -537,12 +537,12 @@ impl Play {
 ///     phase (float): Phase shift in **cycles**.
 #[pyclass(module="bosing",extends=Element, frozen)]
 #[derive(Debug, Clone)]
-pub(crate) struct ShiftPhase;
+pub struct ShiftPhase;
 
 impl ElementSubclass for ShiftPhase {
     type Variant = schedule::ShiftPhase;
 
-    fn repr(slf: &Bound<Self>) -> Vec<Arg> {
+    fn repr(slf: &Bound<'_, Self>) -> Vec<Arg> {
         let mut res = Vec::new();
         let py = slf.py();
         push_repr!(res, py, Self::channel_id(slf));
@@ -566,12 +566,12 @@ impl ShiftPhase {
         min_duration=Time::ZERO,
         label=None,
     ))]
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments)]
     fn new(
         channel_id: ChannelId,
         phase: Phase,
-        margin: Option<&Bound<PyAny>>,
-        alignment: Option<&Bound<PyAny>>,
+        margin: Option<&Bound<'_, PyAny>>,
+        alignment: Option<&Bound<'_, PyAny>>,
         phantom: bool,
         duration: Option<Time>,
         max_duration: Time,
@@ -595,20 +595,20 @@ impl ShiftPhase {
     }
 
     #[getter]
-    fn channel_id<'a>(slf: &'a Bound<Self>) -> &'a ChannelId {
+    fn channel_id<'a>(slf: &'a Bound<'_, Self>) -> &'a ChannelId {
         Self::variant(slf).channel_id()
     }
 
     #[getter]
-    fn phase(slf: &Bound<Self>) -> Phase {
+    fn phase(slf: &Bound<'_, Self>) -> Phase {
         Self::variant(slf).phase()
     }
 
-    fn __repr__(slf: &Bound<Self>) -> PyResult<String> {
+    fn __repr__(slf: &Bound<'_, Self>) -> PyResult<String> {
         Self::to_repr(slf)
     }
 
-    fn __rich_repr__(slf: &Bound<Self>) -> Vec<Arg> {
+    fn __rich_repr__(slf: &Bound<'_, Self>) -> Vec<Arg> {
         Self::to_rich_repr(slf)
     }
 }
@@ -636,12 +636,12 @@ impl ShiftPhase {
 ///     phase (float): Target phase value in **cycles**.
 #[pyclass(module="bosing",extends=Element, frozen)]
 #[derive(Debug, Clone)]
-pub(crate) struct SetPhase;
+pub struct SetPhase;
 
 impl ElementSubclass for SetPhase {
     type Variant = schedule::SetPhase;
 
-    fn repr(slf: &Bound<Self>) -> Vec<Arg> {
+    fn repr(slf: &Bound<'_, Self>) -> Vec<Arg> {
         let mut res = Vec::new();
         let py = slf.py();
         push_repr!(res, py, Self::channel_id(slf));
@@ -665,12 +665,12 @@ impl SetPhase {
         min_duration=Time::ZERO,
         label=None,
     ))]
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments)]
     fn new(
         channel_id: ChannelId,
         phase: Phase,
-        margin: Option<&Bound<PyAny>>,
-        alignment: Option<&Bound<PyAny>>,
+        margin: Option<&Bound<'_, PyAny>>,
+        alignment: Option<&Bound<'_, PyAny>>,
         phantom: bool,
         duration: Option<Time>,
         max_duration: Time,
@@ -694,20 +694,20 @@ impl SetPhase {
     }
 
     #[getter]
-    fn channel_id<'a>(slf: &'a Bound<Self>) -> &'a ChannelId {
+    fn channel_id<'a>(slf: &'a Bound<'_, Self>) -> &'a ChannelId {
         Self::variant(slf).channel_id()
     }
 
     #[getter]
-    fn phase(slf: &Bound<Self>) -> Phase {
+    fn phase(slf: &Bound<'_, Self>) -> Phase {
         Self::variant(slf).phase()
     }
 
-    fn __repr__(slf: &Bound<Self>) -> PyResult<String> {
+    fn __repr__(slf: &Bound<'_, Self>) -> PyResult<String> {
         Self::to_repr(slf)
     }
 
-    fn __rich_repr__(slf: &Bound<Self>) -> Vec<Arg> {
+    fn __rich_repr__(slf: &Bound<'_, Self>) -> Vec<Arg> {
         Self::to_rich_repr(slf)
     }
 }
@@ -723,12 +723,12 @@ impl SetPhase {
 ///     frequency (float): Delta frequency.
 #[pyclass(module="bosing",extends=Element, frozen)]
 #[derive(Debug, Clone)]
-pub(crate) struct ShiftFreq;
+pub struct ShiftFreq;
 
 impl ElementSubclass for ShiftFreq {
     type Variant = schedule::ShiftFreq;
 
-    fn repr(slf: &Bound<Self>) -> Vec<Arg> {
+    fn repr(slf: &Bound<'_, Self>) -> Vec<Arg> {
         let mut res = Vec::new();
         let py = slf.py();
         push_repr!(res, py, Self::channel_id(slf));
@@ -752,12 +752,12 @@ impl ShiftFreq {
         min_duration=Time::ZERO,
         label=None,
     ))]
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments)]
     fn new(
         channel_id: ChannelId,
         frequency: Frequency,
-        margin: Option<&Bound<PyAny>>,
-        alignment: Option<&Bound<PyAny>>,
+        margin: Option<&Bound<'_, PyAny>>,
+        alignment: Option<&Bound<'_, PyAny>>,
         phantom: bool,
         duration: Option<Time>,
         max_duration: Time,
@@ -781,20 +781,20 @@ impl ShiftFreq {
     }
 
     #[getter]
-    fn channel_id<'a>(slf: &'a Bound<Self>) -> &'a ChannelId {
+    fn channel_id<'a>(slf: &'a Bound<'_, Self>) -> &'a ChannelId {
         Self::variant(slf).channel_id()
     }
 
     #[getter]
-    fn frequency(slf: &Bound<Self>) -> Frequency {
+    fn frequency(slf: &Bound<'_, Self>) -> Frequency {
         Self::variant(slf).frequency()
     }
 
-    fn __repr__(slf: &Bound<Self>) -> PyResult<String> {
+    fn __repr__(slf: &Bound<'_, Self>) -> PyResult<String> {
         Self::to_repr(slf)
     }
 
-    fn __rich_repr__(slf: &Bound<Self>) -> Vec<Arg> {
+    fn __rich_repr__(slf: &Bound<'_, Self>) -> Vec<Arg> {
         Self::to_rich_repr(slf)
     }
 }
@@ -811,12 +811,12 @@ impl ShiftFreq {
 ///     frequency (float): Target frequency.
 #[pyclass(module="bosing",extends=Element, frozen)]
 #[derive(Debug, Clone)]
-pub(crate) struct SetFreq;
+pub struct SetFreq;
 
 impl ElementSubclass for SetFreq {
     type Variant = schedule::SetFreq;
 
-    fn repr(slf: &Bound<Self>) -> Vec<Arg> {
+    fn repr(slf: &Bound<'_, Self>) -> Vec<Arg> {
         let mut res = Vec::new();
         let py = slf.py();
         push_repr!(res, py, Self::channel_id(slf));
@@ -840,12 +840,12 @@ impl SetFreq {
         min_duration=Time::ZERO,
         label=None,
     ))]
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments)]
     fn new(
         channel_id: ChannelId,
         frequency: Frequency,
-        margin: Option<&Bound<PyAny>>,
-        alignment: Option<&Bound<PyAny>>,
+        margin: Option<&Bound<'_, PyAny>>,
+        alignment: Option<&Bound<'_, PyAny>>,
         phantom: bool,
         duration: Option<Time>,
         max_duration: Time,
@@ -869,20 +869,20 @@ impl SetFreq {
     }
 
     #[getter]
-    fn channel_id<'a>(slf: &'a Bound<Self>) -> &'a ChannelId {
+    fn channel_id<'a>(slf: &'a Bound<'_, Self>) -> &'a ChannelId {
         Self::variant(slf).channel_id()
     }
 
     #[getter]
-    fn frequency(slf: &Bound<Self>) -> Frequency {
+    fn frequency(slf: &Bound<'_, Self>) -> Frequency {
         Self::variant(slf).frequency()
     }
 
-    fn __repr__(slf: &Bound<Self>) -> PyResult<String> {
+    fn __repr__(slf: &Bound<'_, Self>) -> PyResult<String> {
         Self::to_repr(slf)
     }
 
-    fn __rich_repr__(slf: &Bound<Self>) -> Vec<Arg> {
+    fn __rich_repr__(slf: &Bound<'_, Self>) -> Vec<Arg> {
         Self::to_rich_repr(slf)
     }
 }
@@ -901,12 +901,12 @@ impl SetFreq {
 ///     channel_id2 (str): Target channel ID 2.
 #[pyclass(module="bosing",extends=Element, frozen)]
 #[derive(Debug, Clone)]
-pub(crate) struct SwapPhase;
+pub struct SwapPhase;
 
 impl ElementSubclass for SwapPhase {
     type Variant = schedule::SwapPhase;
 
-    fn repr(slf: &Bound<Self>) -> Vec<Arg> {
+    fn repr(slf: &Bound<'_, Self>) -> Vec<Arg> {
         let mut res = Vec::new();
         let py = slf.py();
         push_repr!(res, py, Self::channel_id1(slf));
@@ -930,12 +930,12 @@ impl SwapPhase {
         min_duration=Time::ZERO,
         label=None,
     ))]
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments)]
     fn new(
         channel_id1: ChannelId,
         channel_id2: ChannelId,
-        margin: Option<&Bound<PyAny>>,
-        alignment: Option<&Bound<PyAny>>,
+        margin: Option<&Bound<'_, PyAny>>,
+        alignment: Option<&Bound<'_, PyAny>>,
         phantom: bool,
         duration: Option<Time>,
         max_duration: Time,
@@ -959,20 +959,20 @@ impl SwapPhase {
     }
 
     #[getter]
-    fn channel_id1<'a>(slf: &'a Bound<Self>) -> &'a ChannelId {
+    fn channel_id1<'a>(slf: &'a Bound<'_, Self>) -> &'a ChannelId {
         Self::variant(slf).channel_id1()
     }
 
     #[getter]
-    fn channel_id2<'a>(slf: &'a Bound<Self>) -> &'a ChannelId {
+    fn channel_id2<'a>(slf: &'a Bound<'_, Self>) -> &'a ChannelId {
         Self::variant(slf).channel_id2()
     }
 
-    fn __repr__(slf: &Bound<Self>) -> PyResult<String> {
+    fn __repr__(slf: &Bound<'_, Self>) -> PyResult<String> {
         Self::to_repr(slf)
     }
 
-    fn __rich_repr__(slf: &Bound<Self>) -> Vec<Arg> {
+    fn __rich_repr__(slf: &Bound<'_, Self>) -> Vec<Arg> {
         Self::to_rich_repr(slf)
     }
 }
@@ -990,12 +990,12 @@ impl SwapPhase {
 ///     *channel_ids (str): Channel IDs. Defaults to empty.
 #[pyclass(module="bosing",extends=Element, frozen)]
 #[derive(Debug, Clone)]
-pub(crate) struct Barrier;
+pub struct Barrier;
 
 impl ElementSubclass for Barrier {
     type Variant = schedule::Barrier;
 
-    fn repr(slf: &Bound<Self>) -> Vec<Arg> {
+    fn repr(slf: &Bound<'_, Self>) -> Vec<Arg> {
         let py = slf.py();
         Self::variant(slf)
             .channel_ids()
@@ -1018,11 +1018,11 @@ impl Barrier {
         min_duration=Time::ZERO,
         label=None,
     ))]
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments)]
     fn new(
         channel_ids: Vec<ChannelId>,
-        margin: Option<&Bound<PyAny>>,
-        alignment: Option<&Bound<PyAny>>,
+        margin: Option<&Bound<'_, PyAny>>,
+        alignment: Option<&Bound<'_, PyAny>>,
         phantom: bool,
         duration: Option<Time>,
         max_duration: Time,
@@ -1046,15 +1046,15 @@ impl Barrier {
     }
 
     #[getter]
-    fn channel_ids(slf: &Bound<Self>) -> Vec<ChannelId> {
+    fn channel_ids(slf: &Bound<'_, Self>) -> Vec<ChannelId> {
         Self::variant(slf).channel_ids().to_vec()
     }
 
-    fn __repr__(slf: &Bound<Self>) -> PyResult<String> {
+    fn __repr__(slf: &Bound<'_, Self>) -> PyResult<String> {
         Self::to_repr(slf)
     }
 
-    fn __rich_repr__(slf: &Bound<Self>) -> Vec<Arg> {
+    fn __rich_repr__(slf: &Bound<'_, Self>) -> Vec<Arg> {
         Self::to_rich_repr(slf)
     }
 }
@@ -1069,14 +1069,14 @@ impl Barrier {
 ///     spacing (float): Spacing between repetitions. Defaults to ``0``.
 #[pyclass(module="bosing",extends=Element, get_all, frozen)]
 #[derive(Debug)]
-pub(crate) struct Repeat {
+pub struct Repeat {
     child: Py<Element>,
 }
 
 impl ElementSubclass for Repeat {
     type Variant = schedule::Repeat;
 
-    fn repr(slf: &Bound<Self>) -> Vec<Arg> {
+    fn repr(slf: &Bound<'_, Self>) -> Vec<Arg> {
         let mut res = Vec::new();
         let py = slf.py();
         push_repr!(res, py, &slf.get().child);
@@ -1102,13 +1102,13 @@ impl Repeat {
         min_duration=Time::ZERO,
         label=None,
     ))]
-    #[allow(clippy::too_many_arguments)]
+    #[expect(clippy::too_many_arguments)]
     fn new(
         child: Py<Element>,
         count: usize,
         spacing: Time,
-        margin: Option<&Bound<PyAny>>,
-        alignment: Option<&Bound<PyAny>>,
+        margin: Option<&Bound<'_, PyAny>>,
+        alignment: Option<&Bound<'_, PyAny>>,
         phantom: bool,
         duration: Option<Time>,
         max_duration: Time,
@@ -1133,20 +1133,20 @@ impl Repeat {
     }
 
     #[getter]
-    fn count(slf: &Bound<Self>) -> usize {
+    fn count(slf: &Bound<'_, Self>) -> usize {
         Self::variant(slf).count()
     }
 
     #[getter]
-    fn spacing(slf: &Bound<Self>) -> Time {
+    fn spacing(slf: &Bound<'_, Self>) -> Time {
         Self::variant(slf).spacing()
     }
 
-    fn __repr__(slf: &Bound<Self>) -> PyResult<String> {
+    fn __repr__(slf: &Bound<'_, Self>) -> PyResult<String> {
         Self::to_repr(slf)
     }
 
-    fn __rich_repr__(slf: &Bound<Self>) -> Vec<Arg> {
+    fn __rich_repr__(slf: &Bound<'_, Self>) -> Vec<Arg> {
         Self::to_rich_repr(slf)
     }
 }

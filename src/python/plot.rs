@@ -12,7 +12,7 @@ const BOSING_PLOT_PLOT: &str = "plot";
 
 #[pyclass(module = "bosing._bosing", frozen, eq, hash)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub(crate) enum ItemKind {
+pub enum ItemKind {
     Play,
     ShiftPhase,
     SetPhase,
@@ -34,17 +34,17 @@ pub(super) fn plot_element(
     max_depth: usize,
     show_label: bool,
 ) -> PyResult<PyObject> {
-    let channels = match channels {
-        Some(channels) => PyList::new_bound(py, channels),
-        None => PyList::new_bound(py, root.channels()),
-    };
+    let channels = channels.map_or_else(
+        || PyList::new_bound(py, root.channels()),
+        |channels| PyList::new_bound(py, channels),
+    );
     let plot_items = Box::new(arrange_to_plot(root));
     let blocks = PlotIter { inner: plot_items };
     call_plot(py, ax, blocks, channels, max_depth, show_label)
 }
 
 impl ItemKind {
-    fn from_variant(variant: &ElementVariant) -> Self {
+    const fn from_variant(variant: &ElementVariant) -> Self {
         match variant {
             ElementVariant::Play(_) => Self::Play,
             ElementVariant::ShiftPhase(_) => Self::ShiftPhase,
@@ -78,11 +78,11 @@ struct PlotIter {
 
 #[pymethods]
 impl PlotIter {
-    fn __iter__(slf: Bound<Self>) -> Bound<Self> {
+    const fn __iter__(slf: Bound<'_, Self>) -> Bound<'_, Self> {
         slf
     }
 
-    fn __next__(mut slf: PyRefMut<Self>) -> Option<PyObject> {
+    fn __next__(mut slf: PyRefMut<'_, Self>) -> Option<PyObject> {
         slf.inner.next().map(|x| x.into_py(slf.py()))
     }
 }
