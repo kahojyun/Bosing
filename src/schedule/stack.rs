@@ -108,9 +108,7 @@ impl Arrange for Stack {
 
 fn measure_stack<I>(children: I, channels: &[ChannelId], direction: Direction) -> MeasureResult
 where
-    I: IntoIterator,
-    I::IntoIter: DoubleEndedIterator,
-    I::Item: Measure,
+    I: IntoIterator<IntoIter: DoubleEndedIterator, Item: Measure>,
 {
     let mut helper = Helper::new(channels);
     let child_timings = map_and_collect_by_direction(children, direction, |child| {
@@ -129,8 +127,7 @@ where
 /// Map by direction but collect in the original order.
 fn map_and_collect_by_direction<I, F, T>(source: I, direction: Direction, f: F) -> Vec<T>
 where
-    I: IntoIterator,
-    I::IntoIter: DoubleEndedIterator,
+    I: IntoIterator<IntoIter: DoubleEndedIterator>,
     F: FnMut(I::Item) -> T,
 {
     let mut ret: Vec<_> = match direction {

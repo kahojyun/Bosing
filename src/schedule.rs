@@ -321,8 +321,7 @@ where
 
 fn merge_channel_ids<'a, I>(ids: I) -> Vec<ChannelId>
 where
-    I: IntoIterator,
-    I::Item: IntoIterator<Item = &'a ChannelId>,
+    I: IntoIterator<Item: IntoIterator<Item = &'a ChannelId>>,
 {
     let set = ids.into_iter().flatten().collect::<HashSet<_>>();
     set.into_iter().cloned().collect()
