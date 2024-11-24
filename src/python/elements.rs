@@ -241,8 +241,7 @@ impl Element {
 
 trait ElementSubclass: Sized + DerefToPyAny
 where
-    for<'a> &'a Self::Variant: TryFrom<&'a ElementVariant>,
-    for<'a> <&'a Self::Variant as TryFrom<&'a ElementVariant>>::Error: Debug,
+    for<'a> &'a Self::Variant: TryFrom<&'a ElementVariant, Error: Debug>,
 {
     type Variant: Into<ElementVariant>;
 
@@ -318,8 +317,7 @@ where
 impl<T> Rich for T
 where
     T: ElementSubclass,
-    for<'a> &'a T::Variant: TryFrom<&'a ElementVariant>,
-    for<'a> <&'a T::Variant as TryFrom<&'a ElementVariant>>::Error: Debug,
+    for<'a> &'a T::Variant: TryFrom<&'a ElementVariant, Error: Debug>,
 {
     fn repr(slf: &Bound<'_, Self>) -> impl Iterator<Item = Arg> {
         let mut res = Self::repr(slf);
