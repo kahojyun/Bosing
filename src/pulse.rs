@@ -430,12 +430,15 @@ where
         } = bin;
         for (time, PulseAmplitude { amp, drag }) in items {
             let t_start = time + delay;
-            let i_frac_start = AlignedIndex::new(t_start, sample_rate, align_level).unwrap();
+            let i_frac_start = AlignedIndex::new(t_start, sample_rate, align_level)
+                .expect("Reasonable align_level should not fail.");
             if i_frac_start.value() < 0.0 {
                 bail!("The start time of a pulse is negative, try adjusting channel delay or schedule. start time: {}", t_start.value());
             }
-            let i_start = i_frac_start.ceil_to_usize().unwrap();
-            let index_offset = i_frac_start.index_offset().unwrap();
+            let i_start = i_frac_start
+                .ceil_to_usize()
+                .expect("Reasonable align_level should not fail.");
+            let index_offset = i_frac_start.index_offset();
             let total_freq = global_freq + local_freq;
             let dt = sample_rate.dt();
             #[expect(clippy::cast_precision_loss, reason = "Index is small.")]
@@ -496,7 +499,8 @@ pub fn apply_offset_inplace(waveform: &mut ArrayViewMut2<'_, f64>, offset: Array
 }
 
 pub fn apply_iir_inplace(waveform: &mut ArrayViewMut2<'_, f64>, sos: ArrayView2<'_, f64>) {
-    self::iir::filter_inplace(waveform.view_mut(), sos).unwrap();
+    self::iir::filter_inplace(waveform.view_mut(), sos)
+        .expect("`sos` should be checked in IirArray.");
 }
 
 pub fn apply_fir_inplace(waveform: &mut ArrayViewMut2<'_, f64>, taps: ArrayView1<'_, f64>) {

@@ -71,7 +71,7 @@ impl Grid {
 
     pub(crate) fn with_columns(mut self, columns: Vec<GridLength>) -> Self {
         if columns.is_empty() {
-            self.columns = vec![GridLength::star(1.0).unwrap()];
+            self.columns = vec![GridLength::STAR];
         } else {
             self.columns = columns;
         }
@@ -109,7 +109,7 @@ impl Default for Grid {
     fn default() -> Self {
         Self {
             children: vec![],
-            columns: vec![GridLength::star(1.0).unwrap()],
+            columns: vec![GridLength::STAR],
             channel_ids: vec![],
             measure_result: OnceLock::new(),
         }

@@ -274,6 +274,14 @@ type ChannelStates = HashMap<ChannelId, Py<OscState>>;
 type ChannelPulses = HashMap<ChannelId, List>;
 type CrosstalkMatrix<'a> = (PyArrayLike2<'a, f64, AllowTypeChange>, Vec<ChannelId>);
 
+fn default_time_tolerance() -> Time {
+    Time::new(1e-12).expect("Should be valid static value.")
+}
+
+fn default_amp_tolerance() -> Amplitude {
+    Amplitude::new(0.1 / 2f64.powi(16)).expect("Should be valid static value.")
+}
+
 /// Generate waveforms from a schedule.
 ///
 /// .. caution::
@@ -326,8 +334,8 @@ type CrosstalkMatrix<'a> = (PyArrayLike2<'a, f64, AllowTypeChange>, Vec<ChannelI
     shapes,
     schedule,
     *,
-    time_tolerance=Time::new(1e-12).unwrap(),
-    amp_tolerance=Amplitude::new(0.1 / 2f64.powi(16)).unwrap(),
+    time_tolerance=default_time_tolerance(),
+    amp_tolerance=default_amp_tolerance(),
     allow_oversize=false,
     crosstalk=None,
 ))]
@@ -393,8 +401,8 @@ pub fn generate_waveforms(
     shapes,
     schedule,
     *,
-    time_tolerance=Time::new(1e-12).unwrap(),
-    amp_tolerance=Amplitude::new(0.1 / 2f64.powi(16)).unwrap(),
+    time_tolerance=default_time_tolerance(),
+    amp_tolerance=default_amp_tolerance(),
     allow_oversize=false,
     crosstalk=None,
     states=None,

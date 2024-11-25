@@ -236,6 +236,13 @@ pub struct Length {
     unit: LengthUnit,
 }
 
+impl Length {
+    pub const STAR: Self = Self {
+        value: 1.0,
+        unit: LengthUnit::Star,
+    };
+}
+
 #[pymethods]
 impl Length {
     /// Create an automatic grid length.
@@ -366,7 +373,7 @@ impl FromStr for Length {
             return Ok(Self::auto());
         }
         if s == "*" {
-            return Ok(Self::star(1.0)?);
+            return Ok(Self::STAR);
         }
         if let Some(v) = s.strip_suffix('*').and_then(|x| x.parse().ok()) {
             return Ok(Self::star(v)?);
