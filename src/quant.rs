@@ -5,7 +5,7 @@ use std::{
     sync::Arc,
 };
 
-use num::NumCast;
+use num::cast;
 use numpy::Complex64;
 use ordered_float::NotNan;
 use pyo3::{exceptions::PyValueError, prelude::*, types::PyFloat, IntoPy};
@@ -91,11 +91,11 @@ impl AlignedIndex {
     }
 
     pub(crate) fn ceil_to_usize(self) -> Option<usize> {
-        <usize as NumCast>::from(self.0.ceil())
+        cast(self.0)
     }
 
-    pub(crate) fn index_offset(self) -> Result<Self> {
-        Self::from_value(self.0.ceil() - self.0.into_inner())
+    pub(crate) fn index_offset(self) -> Self {
+        Self::from_value(self.0.ceil() - self.0.into_inner()).expect("Should be a valid index.")
     }
 }
 
