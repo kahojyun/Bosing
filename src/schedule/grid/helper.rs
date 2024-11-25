@@ -108,6 +108,7 @@ impl<'a> Helper<'a> {
         if n_auto == 0 {
             return false;
         }
+        #[expect(clippy::cast_precision_loss, reason = "Column counts are small")]
         let increment = remaining / n_auto as f64;
         self.column_sizes
             .iter_mut()

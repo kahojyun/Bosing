@@ -331,6 +331,15 @@ fn get_envelope(
     index_offset: AlignedIndex,
     sample_rate: Frequency,
 ) -> Arc<Vec<f64>> {
+    fn time_to_index(t: f64, sr: f64) -> usize {
+        assert!(t >= 0.0, "Time must be non-negative.");
+        assert!(sr > 0.0, "Sample rate should be positive.");
+        #[expect(clippy::cast_sign_loss, reason = "Asserted non-negative.")]
+        #[expect(clippy::cast_possible_truncation, reason = "Index is small.")]
+        let res = (t * sr).ceil() as usize;
+        res
+    }
+
     let width = width.value();
     let plateau = plateau.value();
     let index_offset = index_offset.value();
@@ -340,9 +349,9 @@ fn get_envelope(
     let t1 = width / 2.0 - t_offset;
     let t2 = width / 2.0 + plateau - t_offset;
     let t3 = width + plateau - t_offset;
-    let length = (t3 * sample_rate).ceil() as usize;
-    let plateau_start_index = (t1 * sample_rate).ceil() as usize;
-    let plateau_end_index = (t2 * sample_rate).ceil() as usize;
+    let length = time_to_index(t3, sample_rate);
+    let plateau_start_index = time_to_index(t1, sample_rate);
+    let plateau_end_index = time_to_index(t2, sample_rate);
     let mut envelope = vec![0.0; length];
     let x0 = -t1 / width;
     let dx = dt / width;
@@ -351,6 +360,7 @@ fn get_envelope(
     } else {
         shape.sample_array(x0, dx, &mut envelope[..plateau_start_index]);
         envelope[plateau_start_index..plateau_end_index].fill(1.0);
+        #[expect(clippy::cast_precision_loss, reason = "Index is small.")]
         let x2 = (plateau_end_index as f64).mul_add(dt, -t2) / width;
         shape.sample_array(x2, dx, &mut envelope[plateau_end_index..]);
     }
@@ -428,6 +438,7 @@ where
             let index_offset = i_frac_start.index_offset().unwrap();
             let total_freq = global_freq + local_freq;
             let dt = sample_rate.dt();
+            #[expect(clippy::cast_precision_loss, reason = "Index is small.")]
             let phase0 = global_freq * (i_start as f64 * dt - delay)
                 + local_freq * index_offset.value() * dt;
             let dphase = total_freq * dt;
@@ -445,11 +456,15 @@ where
                 );
                 let drag = drag * sample_rate.value();
                 if waveform.shape()[1] < envelope.len() {
-                    bail!("The pulse end time is out of bounds, try adjusting channel delay, length or schedule. end time: {}", (envelope.len() as f64).mul_add(dt.value(), t_start.value()));
+                    #[expect(clippy::cast_precision_loss, reason = "Index is small.")]
+                    let end_time = (envelope.len() as f64).mul_add(dt.value(), t_start.value());
+                    bail!("The pulse end time is out of bounds, try adjusting channel delay, length or schedule. end time: {}", end_time);
                 }
                 mix_add_envelope(waveform, &envelope, amp, drag, phase0, dphase);
             } else {
                 let plateau = envelope.plateau;
+                #[expect(clippy::cast_sign_loss, reason = "Plateau is positive.")]
+                #[expect(clippy::cast_possible_truncation, reason = "Index is small.")]
                 let i_plateau = (plateau.value() * sample_rate.value()).ceil() as usize;
                 if waveform.shape()[1] < i_plateau {
                     bail!("The pulse end time is out of bounds, try adjusting channel delay, length or schedule. end time: {}", t_start.value() + plateau.value());

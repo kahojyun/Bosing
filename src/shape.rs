@@ -77,7 +77,9 @@ trait ShapeTrait {
     fn sample(&self, x: f64) -> f64;
     fn sample_array(&self, x0: f64, dx: f64, array: &mut [f64]) {
         for (i, y) in array.iter_mut().enumerate() {
-            *y = self.sample((i as f64).mul_add(dx, x0));
+            #[expect(clippy::cast_precision_loss, reason = "Array length is small")]
+            let i = i as f64;
+            *y = self.sample(i.mul_add(dx, x0));
         }
     }
 }
