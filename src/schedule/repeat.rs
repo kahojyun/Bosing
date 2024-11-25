@@ -52,6 +52,7 @@ impl Measure for Repeat {
             return Time::ZERO;
         }
         *self.measure_result.get_or_init(|| {
+            #[expect(clippy::cast_precision_loss, reason = "Count is small")]
             let n = self.count as f64;
             let child_duration = self.child.measure();
             child_duration * n + self.spacing * (n - 1.0)
@@ -64,6 +65,7 @@ impl Arrange for Repeat {
         let child_duration = self.child.measure();
         let offset_per_repeat = child_duration + self.spacing;
         (0..self.count).map(move |i| {
+            #[expect(clippy::cast_precision_loss, reason = "Count is small")]
             let offset = offset_per_repeat * i as f64;
             let child_time_range = TimeRange {
                 start: time_range.start + offset,
