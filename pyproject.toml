@@ -29,6 +29,7 @@ Source = "https://github.com/kahojyun/Bosing"
 [tool.maturin]
 python-source = "python"
 module-name = "bosing._bosing"
+manifest-path = "bosing-py/Cargo.toml"
 features = ["pyo3/extension-module"]
 
 [dependency-groups]
