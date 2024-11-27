@@ -15,7 +15,7 @@ rust-version.workspace = true
 license.workspace = true
 authors.workspace = true
 
-[dependencies]
+[workspace.dependencies]
 anyhow = "1.0.93"
 bspline = "1.1.0"
 cached = "0.54.0"
@@ -36,10 +36,30 @@ pyo3 = { version = "0.22.6", features = [
 ] }
 rayon = "1.10.0"
 thiserror = "2.0.3"
-
-[dev-dependencies]
+# Testing
 mockall = "0.13.0"
 test-case = "3.3.1"
+
+[dependencies]
+anyhow.workspace = true
+bspline.workspace = true
+cached.workspace = true
+float-cmp.workspace = true
+hashbrown.workspace = true
+indoc.workspace = true
+itertools.workspace = true
+ndarray.workspace = true
+num.workspace = true
+numpy.workspace = true
+ordered-float.workspace = true
+pulp.workspace = true
+pyo3.workspace = true
+rayon.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+mockall.workspace = true
+test-case.workspace = true
 
 [workspace.lints.rust]
 rust-2018-idioms = "warn"

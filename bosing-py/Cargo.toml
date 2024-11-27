@@ -12,6 +12,7 @@ crate-type = ["cdylib"]
 
 [dependencies]
 bosing = { path = ".." }
+pyo3.workspace = true
 
 [lints]
 workspace = true
