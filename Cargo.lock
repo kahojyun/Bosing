@@ -62,6 +62,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "bosing-py"
+version = "0.0.0-dev"
+dependencies = [
+ "bosing",
+]
+
+[[package]]
 name = "bspline"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
