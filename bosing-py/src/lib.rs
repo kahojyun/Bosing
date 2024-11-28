@@ -1,8 +1,12 @@
 //! Python bindings for the bosing library.
+mod elements;
 mod extract;
+mod macros;
 mod plot;
 mod repr;
+mod shapes;
 mod types;
+mod wavegen;
 
 use pyo3::prelude::*;
 
@@ -21,28 +25,3 @@ pub mod _bosing {
         wavegen::{generate_waveforms, generate_waveforms_with_states, Channel, OscState},
     };
 }
-
-macro_rules! push_repr {
-    ($vec:expr, $py:expr, $value:expr) => {
-        $vec.push(crate::repr::Arg::positional($value, $py));
-    };
-    ($vec:expr, $py:expr, $key:expr, $value:expr) => {
-        $vec.push(crate::repr::Arg::keyword(
-            pyo3::intern!($py, $key).clone().unbind(),
-            $value,
-            $py,
-        ));
-    };
-    ($vec:expr, $py:expr, $key:expr, $value:expr, $default:expr) => {
-        $vec.push(crate::repr::Arg::key_with_default(
-            pyo3::intern!($py, $key).clone().unbind(),
-            $value,
-            $default,
-            $py,
-        ));
-    };
-}
-
-mod elements;
-mod shapes;
-mod wavegen;

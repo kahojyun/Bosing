@@ -9,7 +9,10 @@ use bosing::schedule::{
 };
 use pyo3::{exceptions::PyValueError, prelude::*, types::DerefToPyAny};
 
-use crate::types::{Amplitude, ChannelId, Frequency, Label, Phase, ShapeId, Time};
+use crate::{
+    push_repr,
+    types::{Amplitude, ChannelId, Frequency, Label, Phase, ShapeId, Time},
+};
 
 use super::{
     plot,

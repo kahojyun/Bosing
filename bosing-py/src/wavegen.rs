@@ -17,6 +17,7 @@ use rayon::prelude::*;
 use crate::{
     elements::Element,
     extract::{FirArray, IirArray, IqMatrix, OffsetArray},
+    push_repr,
     repr::{Arg, Rich},
     shapes::Shape,
     types::{Amplitude, ChannelId, Frequency, Phase, ShapeId, Time},

@@ -3,7 +3,7 @@ use std::sync::Arc;
 use bosing::schedule;
 use pyo3::{exceptions::PyValueError, prelude::*};
 
-use crate::types::Time;
+use crate::{push_repr, types::Time};
 
 use super::{Arg, Element, ElementSubclass, Label, Rich as _};
 
