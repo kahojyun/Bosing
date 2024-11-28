@@ -8,10 +8,8 @@ mod shapes;
 mod types;
 mod wavegen;
 
-use pyo3::prelude::*;
-
 /// Export the bosing library to Python.
-#[pymodule]
+#[pyo3::pymodule]
 pub mod _bosing {
     #[pymodule_export]
     pub use crate::{
