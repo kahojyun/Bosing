@@ -6,6 +6,10 @@ version = "0.0.0-dev"
 rust-version = "1.82"
 license = "MIT"
 authors = ["Jiahao Yuan <kahojyun@icloud.com>"]
+description = "Waveform generator for pulse sequences in quantum computing"
+repository = "https://github.com/kahojyun/Bosing"
+keywords = ["pulse", "waveform", "awg"]
+categories = ["science"]
 
 [package]
 name = "bosing"
@@ -14,6 +18,10 @@ version.workspace = true
 rust-version.workspace = true
 license.workspace = true
 authors.workspace = true
+description.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
 
 [workspace.dependencies]
 anyhow = "1.0.93"
@@ -21,7 +29,6 @@ bspline = "1.1.0"
 cached = "0.54.0"
 float-cmp = "0.10.0"
 hashbrown = { version = "0.14.5", features = ["rayon"] }
-indoc = "2.0.5"
 itertools = "0.13.0"
 ndarray = { version = "0.16.1", features = ["rayon"] }
 num = "0.4.3"
@@ -46,7 +53,6 @@ bspline.workspace = true
 cached.workspace = true
 float-cmp.workspace = true
 hashbrown.workspace = true
-indoc.workspace = true
 itertools.workspace = true
 ndarray.workspace = true
 num.workspace = true

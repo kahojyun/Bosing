@@ -47,7 +47,6 @@ dependencies = [
  "cached",
  "float-cmp",
  "hashbrown",
- "indoc",
  "itertools",
  "mockall",
  "ndarray",
