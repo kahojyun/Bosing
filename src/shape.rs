@@ -15,11 +15,12 @@ use ordered_float::NotNan;
 pub struct Shape(Arc<ShapeVariant>);
 
 impl Shape {
-    pub(crate) fn new_hann() -> Self {
+    #[must_use]
+    pub fn new_hann() -> Self {
         Self(get_shape_instance(ShapeKey::Hann))
     }
 
-    pub(crate) fn new_interp(knots: Vec<f64>, controls: Vec<f64>, degree: usize) -> Result<Self> {
+    pub fn new_interp(knots: Vec<f64>, controls: Vec<f64>, degree: usize) -> Result<Self> {
         let knots = knots
             .into_iter()
             .map(NotNan::new)

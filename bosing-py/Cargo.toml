@@ -12,6 +12,10 @@ bosing = { path = ".." }
 pyo3.workspace = true
 numpy.workspace = true
 ndarray.workspace = true
+itertools.workspace = true
+hashbrown.workspace = true
+rayon.workspace = true
+anyhow.workspace = true
 
 [lints]
 workspace = true

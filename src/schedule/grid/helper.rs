@@ -28,12 +28,9 @@ impl<'a> Helper<'a> {
     pub(super) fn new(columns: &'a [Length]) -> Self {
         let column_sizes = columns
             .iter()
-            .map(|c| {
-                if c.is_fixed() {
-                    Time::new(c.value).expect("Should be checked in GridLenth")
-                } else {
-                    Time::ZERO
-                }
+            .map(|c| match c {
+                &Length::Fixed(v) => Time::new(v).expect("Should be checked in GridLenth"),
+                _ => Time::ZERO,
             })
             .collect();
         Self {
@@ -114,8 +111,11 @@ impl<'a> Helper<'a> {
             .zip(self.columns)
             .skip(start)
             .take(span)
-            .filter(|(_, c)| c.is_auto())
-            .for_each(|(s, _)| *s += increment);
+            .for_each(|(s, c)| {
+                if matches!(c, &Length::Auto) {
+                    *s += increment;
+                }
+            });
         true
     }
 
@@ -134,11 +134,13 @@ impl<'a> Helper<'a> {
                 .zip(self.columns)
                 .skip(start)
                 .take(span)
-                .filter(|(_, column)| column.is_star())
-                .map(|(column_size, column)| StarItem {
-                    size_per_star: *column_size / column.value,
-                    column_size,
-                    star: column.value,
+                .filter_map(|(column_size, column)| match column {
+                    &Length::Star(v) => Some(StarItem {
+                        size_per_star: *column_size / v,
+                        column_size,
+                        star: v,
+                    }),
+                    _ => None,
                 })
                 .collect();
             if items.is_empty() {

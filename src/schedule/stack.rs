@@ -29,17 +29,20 @@ struct MeasureResult {
 }
 
 impl Stack {
-    pub(crate) fn new() -> Self {
+    #[must_use]
+    pub fn new() -> Self {
         Self::default()
     }
 
-    pub(crate) fn with_direction(mut self, direction: Direction) -> Self {
+    #[must_use]
+    pub fn with_direction(mut self, direction: Direction) -> Self {
         self.direction = direction;
         self.measure_result.take();
         self
     }
 
-    pub(crate) fn with_children(mut self, children: Vec<ElementRef>) -> Self {
+    #[must_use]
+    pub fn with_children(mut self, children: Vec<ElementRef>) -> Self {
         let channel_ids = merge_channel_ids(children.iter().map(Measure::channels));
         self.children = children;
         self.channel_ids = channel_ids;
@@ -47,7 +50,7 @@ impl Stack {
         self
     }
 
-    pub(crate) const fn direction(&self) -> Direction {
+    pub const fn direction(&self) -> Direction {
         self.direction
     }
 

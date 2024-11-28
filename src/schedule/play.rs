@@ -18,7 +18,7 @@ pub struct Play {
 }
 
 impl Play {
-    pub(crate) fn new(
+    pub fn new(
         channel_id: ChannelId,
         shape_id: Option<ShapeId>,
         amplitude: Amplitude,
@@ -43,7 +43,7 @@ impl Play {
         })
     }
 
-    pub(crate) fn with_plateau(mut self, plateau: Time) -> Result<Self> {
+    pub fn with_plateau(mut self, plateau: Time) -> Result<Self> {
         if !plateau.value().is_finite() || plateau.value() < 0.0 {
             bail!("Invalid plateau {:?}", plateau);
         }
@@ -51,7 +51,7 @@ impl Play {
         Ok(self)
     }
 
-    pub(crate) fn with_drag_coef(mut self, drag_coef: f64) -> Result<Self> {
+    pub fn with_drag_coef(mut self, drag_coef: f64) -> Result<Self> {
         if !drag_coef.is_finite() {
             bail!("Invalid drag_coef {}", drag_coef);
         }
@@ -59,7 +59,7 @@ impl Play {
         Ok(self)
     }
 
-    pub(crate) fn with_frequency(mut self, frequency: Frequency) -> Result<Self> {
+    pub fn with_frequency(mut self, frequency: Frequency) -> Result<Self> {
         if !frequency.value().is_finite() {
             bail!("Invalid frequency {:?}", frequency);
         }
@@ -67,7 +67,7 @@ impl Play {
         Ok(self)
     }
 
-    pub(crate) fn with_phase(mut self, phase: Phase) -> Result<Self> {
+    pub fn with_phase(mut self, phase: Phase) -> Result<Self> {
         if !phase.value().is_finite() {
             bail!("Invalid phase {:?}", phase);
         }
@@ -75,44 +75,54 @@ impl Play {
         Ok(self)
     }
 
-    pub(crate) const fn with_flexible(mut self, flexible: bool) -> Self {
+    #[must_use]
+    pub const fn with_flexible(mut self, flexible: bool) -> Self {
         self.flexible = flexible;
         self
     }
 
-    pub(crate) const fn channel_id(&self) -> &ChannelId {
+    #[must_use]
+    pub const fn channel_id(&self) -> &ChannelId {
         &self.channel_id[0]
     }
 
-    pub(crate) const fn shape_id(&self) -> Option<&ShapeId> {
+    #[must_use]
+    pub const fn shape_id(&self) -> Option<&ShapeId> {
         self.shape_id.as_ref()
     }
 
-    pub(crate) const fn amplitude(&self) -> Amplitude {
+    #[must_use]
+    pub const fn amplitude(&self) -> Amplitude {
         self.amplitude
     }
 
-    pub(crate) const fn width(&self) -> Time {
+    #[must_use]
+    pub const fn width(&self) -> Time {
         self.width
     }
 
-    pub(crate) const fn plateau(&self) -> Time {
+    #[must_use]
+    pub const fn plateau(&self) -> Time {
         self.plateau
     }
 
-    pub(crate) const fn drag_coef(&self) -> f64 {
+    #[must_use]
+    pub const fn drag_coef(&self) -> f64 {
         self.drag_coef
     }
 
-    pub(crate) const fn frequency(&self) -> Frequency {
+    #[must_use]
+    pub const fn frequency(&self) -> Frequency {
         self.frequency
     }
 
-    pub(crate) const fn phase(&self) -> Phase {
+    #[must_use]
+    pub const fn phase(&self) -> Phase {
         self.phase
     }
 
-    pub(crate) const fn flexible(&self) -> bool {
+    #[must_use]
+    pub const fn flexible(&self) -> bool {
         self.flexible
     }
 }

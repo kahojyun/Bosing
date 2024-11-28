@@ -1,8 +1,9 @@
-use std::{str::FromStr, sync::Arc};
+use std::sync::Arc;
 
+use bosing::schedule;
 use pyo3::{exceptions::PyValueError, prelude::*};
 
-use crate::{quant::Time, schedule};
+use crate::types::Time;
 
 use super::{Arg, Element, ElementSubclass, Label, Rich};
 
@@ -106,7 +107,7 @@ impl Grid {
             .collect::<PyResult<_>>()?;
         let columns: Vec<_> = columns
             .into_iter()
-            .map(|x| extract_grid_length(&x.into_bound(py)))
+            .map(|x| extract_grid_length(&x.into_bound(py)).map(Into::into))
             .collect::<PyResult<_>>()?;
         let rust_children = children
             .iter()
@@ -185,7 +186,12 @@ impl Grid {
 
     #[getter]
     fn columns(slf: &Bound<'_, Self>) -> Vec<Length> {
-        Self::variant(slf).columns().to_vec()
+        Self::variant(slf)
+            .columns()
+            .iter()
+            .copied()
+            .map(Into::into)
+            .collect()
     }
 
     #[getter]
@@ -229,32 +235,49 @@ impl ToPyObject for LengthUnit {
 /// :class:`GridLength` is used to specify the length of a grid column. The
 /// length can be specified in seconds, as a fraction of the remaining duration,
 /// or automatically.
-#[pyclass(module = "bosing", name = "GridLength", get_all, frozen)]
+#[pyclass(module = "bosing", name = "GridLength", frozen)]
 #[derive(Debug, Clone)]
-pub struct Length {
-    pub(crate) value: f64,
-    unit: LengthUnit,
-}
+pub struct Length(schedule::GridLength);
 
 impl Length {
-    pub const STAR: Self = Self {
-        value: 1.0,
-        unit: LengthUnit::Star,
-    };
+    pub const STAR: Self = Self(schedule::GridLength::STAR);
 }
 
 #[pymethods]
 impl Length {
+    #[new]
+    fn new(value: f64, unit: LengthUnit) -> PyResult<Self> {
+        match unit {
+            LengthUnit::Seconds => Self::fixed(value),
+            LengthUnit::Auto => Ok(Self::auto()),
+            LengthUnit::Star => Self::star(value),
+        }
+    }
+
+    #[getter]
+    const fn value(&self) -> f64 {
+        match self.0 {
+            schedule::GridLength::Star(v) | schedule::GridLength::Fixed(v) => v,
+            schedule::GridLength::Auto => 0.0,
+        }
+    }
+
+    #[getter]
+    const fn unit(&self) -> LengthUnit {
+        match self.0 {
+            schedule::GridLength::Fixed(_) => LengthUnit::Seconds,
+            schedule::GridLength::Star(_) => LengthUnit::Star,
+            schedule::GridLength::Auto => LengthUnit::Auto,
+        }
+    }
+
     /// Create an automatic grid length.
     ///
     /// Returns:
     ///     GridLength: Automatic grid length.
     #[staticmethod]
     const fn auto() -> Self {
-        Self {
-            value: 0.0,
-            unit: LengthUnit::Auto,
-        }
+        Self(schedule::GridLength::auto())
     }
 
     /// Create a ratio based grid length.
@@ -265,14 +288,10 @@ impl Length {
     /// Returns:
     ///     GridLength: Ratio based grid length.
     #[staticmethod]
-    pub(crate) fn star(value: f64) -> PyResult<Self> {
-        if !(value.is_finite() && value > 0.0) {
-            return Err(PyValueError::new_err("The value must be greater than 0."));
-        }
-        Ok(Self {
-            value,
-            unit: LengthUnit::Star,
-        })
+    fn star(value: f64) -> PyResult<Self> {
+        schedule::GridLength::star(value)
+            .map_err(|e| PyValueError::new_err(e.to_string()))
+            .map(Self)
     }
 
     /// Create a fixed grid length.
@@ -284,15 +303,9 @@ impl Length {
     ///     GridLength: Fixed grid length.
     #[staticmethod]
     fn fixed(value: f64) -> PyResult<Self> {
-        if !(value.is_finite() && value >= 0.0) {
-            return Err(PyValueError::new_err(
-                "The value must be greater than or equal to 0.",
-            ));
-        }
-        Ok(Self {
-            value,
-            unit: LengthUnit::Seconds,
-        })
+        schedule::GridLength::fixed(value)
+            .map_err(|e| PyValueError::new_err(e.to_string()))
+            .map(Self)
     }
 
     /// Convert the value to GridLength.
@@ -317,14 +330,14 @@ impl Length {
     #[staticmethod]
     fn convert(obj: &Bound<'_, PyAny>) -> PyResult<Py<Self>> {
         let py = obj.py();
-        if let Ok(slf) = obj.extract() {
+        if let Ok(slf) = obj.extract::<Py<Self>>() {
             return Ok(slf);
         }
-        if let Ok(v) = obj.extract() {
+        if let Ok(v) = obj.extract::<f64>() {
             return Py::new(py, Self::fixed(v)?);
         }
         if let Ok(s) = obj.extract::<String>() {
-            return Py::new(py, Self::from_str(&s)?);
+            return Py::new(py, Self(s.parse()?));
         }
         Err(PyValueError::new_err(
             "Failed to convert the value to GridLength.",
@@ -345,43 +358,9 @@ impl Rich for Length {
         let mut res = Vec::new();
         let py = slf.py();
         let slf = slf.get();
-        push_repr!(res, py, slf.value);
-        push_repr!(res, py, slf.unit);
+        push_repr!(res, py, slf.value());
+        push_repr!(res, py, slf.unit());
         res.into_iter()
-    }
-}
-
-impl Length {
-    pub(crate) fn is_auto(&self) -> bool {
-        self.unit == LengthUnit::Auto
-    }
-
-    pub(crate) fn is_star(&self) -> bool {
-        self.unit == LengthUnit::Star
-    }
-
-    pub(crate) fn is_fixed(&self) -> bool {
-        self.unit == LengthUnit::Seconds
-    }
-}
-
-impl FromStr for Length {
-    type Err = anyhow::Error;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if s == "auto" {
-            return Ok(Self::auto());
-        }
-        if s == "*" {
-            return Ok(Self::STAR);
-        }
-        if let Some(v) = s.strip_suffix('*').and_then(|x| x.parse().ok()) {
-            return Ok(Self::star(v)?);
-        }
-        if let Ok(v) = s.parse() {
-            return Ok(Self::fixed(v)?);
-        }
-        Err(anyhow::anyhow!("Invalid GridLength string: {}", s))
     }
 }
 
@@ -393,6 +372,18 @@ impl ToPyObject for Length {
 
 fn extract_grid_length(obj: &Bound<'_, PyAny>) -> PyResult<Length> {
     Length::convert(obj).and_then(|x| x.extract(obj.py()))
+}
+
+impl From<Length> for schedule::GridLength {
+    fn from(value: Length) -> Self {
+        value.0
+    }
+}
+
+impl From<schedule::GridLength> for Length {
+    fn from(value: schedule::GridLength) -> Self {
+        Self(value)
+    }
 }
 
 /// A child element in a grid layout.

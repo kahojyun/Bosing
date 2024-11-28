@@ -63,10 +63,14 @@ dependencies = [
 name = "bosing-py"
 version = "0.0.0-dev"
 dependencies = [
+ "anyhow",
  "bosing",
+ "hashbrown",
+ "itertools",
  "ndarray",
  "numpy",
  "pyo3",
+ "rayon",
 ]
 
 [[package]]

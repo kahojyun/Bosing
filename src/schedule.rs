@@ -16,11 +16,11 @@ use crate::quant::{ChannelId, Label, Time};
 
 pub use self::{
     absolute::{Absolute, Entry as AbsoluteEntry},
-    grid::{Entry as GridEntry, Grid},
+    grid::{Entry as GridEntry, Grid, Length as GridLength},
     play::Play,
     repeat::Repeat,
     simple::{Barrier, SetFreq, SetPhase, ShiftFreq, ShiftPhase, SwapPhase},
-    stack::Stack,
+    stack::{Direction, Stack},
 };
 
 pub type ElementRef = Arc<Element>;
@@ -35,8 +35,8 @@ pub enum Alignment {
 
 #[derive(Debug, Clone)]
 pub struct Element {
-    pub(crate) common: ElementCommon,
-    pub(crate) variant: ElementVariant,
+    pub common: ElementCommon,
+    pub variant: ElementVariant,
 }
 
 #[derive(Debug, Clone)]
@@ -55,14 +55,14 @@ pub struct ElementCommonBuilder(ElementCommon);
 
 #[derive(Debug, Clone, Copy)]
 pub struct TimeRange {
-    pub(crate) start: Time,
-    pub(crate) span: Time,
+    pub start: Time,
+    pub span: Time,
 }
 
 #[derive(Debug, Clone, Copy)]
 pub struct Arranged<T> {
-    pub(crate) item: T,
-    pub(crate) time_range: TimeRange,
+    pub item: T,
+    pub time_range: TimeRange,
 }
 
 #[cfg_attr(test, automock)]
@@ -140,14 +140,14 @@ impl_variant!(
 );
 
 impl Element {
-    pub(crate) fn new(common: ElementCommon, variant: impl Into<ElementVariant>) -> Self {
+    pub fn new(common: ElementCommon, variant: impl Into<ElementVariant>) -> Self {
         Self {
             common,
             variant: variant.into(),
         }
     }
 
-    pub(crate) fn inner_time_range(&self, time_range: TimeRange) -> TimeRange {
+    pub fn inner_time_range(&self, time_range: TimeRange) -> TimeRange {
         let min_max = self.common.min_max_duration();
         let inner_start = time_range.start + self.common.margin.0;
         let inner_span = min_max.clamp(time_range.span - self.common.total_margin());
@@ -159,31 +159,38 @@ impl Element {
 }
 
 impl ElementCommon {
-    pub(crate) const fn margin(&self) -> (Time, Time) {
+    #[must_use]
+    pub const fn margin(&self) -> (Time, Time) {
         self.margin
     }
 
-    pub(crate) const fn alignment(&self) -> Alignment {
+    #[must_use]
+    pub const fn alignment(&self) -> Alignment {
         self.alignment
     }
 
-    pub(crate) const fn phantom(&self) -> bool {
+    #[must_use]
+    pub const fn phantom(&self) -> bool {
         self.phantom
     }
 
-    pub(crate) const fn duration(&self) -> Option<Time> {
+    #[must_use]
+    pub const fn duration(&self) -> Option<Time> {
         self.duration
     }
 
-    pub(crate) const fn max_duration(&self) -> Time {
+    #[must_use]
+    pub const fn max_duration(&self) -> Time {
         self.max_duration
     }
 
-    pub(crate) const fn min_duration(&self) -> Time {
+    #[must_use]
+    pub const fn min_duration(&self) -> Time {
         self.min_duration
     }
 
-    pub(crate) const fn label(&self) -> Option<&Label> {
+    #[must_use]
+    pub const fn label(&self) -> Option<&Label> {
         self.label.as_ref()
     }
 
@@ -200,46 +207,47 @@ impl ElementCommon {
 }
 
 impl ElementCommonBuilder {
-    pub(crate) fn new() -> Self {
+    #[must_use]
+    pub fn new() -> Self {
         Self::default()
     }
 
-    pub(crate) fn margin(&mut self, margin: (Time, Time)) -> &mut Self {
+    pub fn margin(&mut self, margin: (Time, Time)) -> &mut Self {
         self.0.margin = margin;
         self
     }
 
-    pub(crate) fn alignment(&mut self, alignment: Alignment) -> &mut Self {
+    pub fn alignment(&mut self, alignment: Alignment) -> &mut Self {
         self.0.alignment = alignment;
         self
     }
 
-    pub(crate) fn phantom(&mut self, phantom: bool) -> &mut Self {
+    pub fn phantom(&mut self, phantom: bool) -> &mut Self {
         self.0.phantom = phantom;
         self
     }
 
-    pub(crate) fn duration(&mut self, duration: Option<Time>) -> &mut Self {
+    pub fn duration(&mut self, duration: Option<Time>) -> &mut Self {
         self.0.duration = duration;
         self
     }
 
-    pub(crate) fn max_duration(&mut self, max_duration: Time) -> &mut Self {
+    pub fn max_duration(&mut self, max_duration: Time) -> &mut Self {
         self.0.max_duration = max_duration;
         self
     }
 
-    pub(crate) fn min_duration(&mut self, min_duration: Time) -> &mut Self {
+    pub fn min_duration(&mut self, min_duration: Time) -> &mut Self {
         self.0.min_duration = min_duration;
         self
     }
 
-    pub(crate) fn label(&mut self, label: Option<Label>) -> &mut Self {
+    pub fn label(&mut self, label: Option<Label>) -> &mut Self {
         self.0.label = label;
         self
     }
 
-    pub(crate) fn validate(&self) -> Result<()> {
+    pub fn validate(&self) -> Result<()> {
         let v = &self.0;
         if !(v.margin.0.value().is_finite() && v.margin.1.value().is_finite()) {
             bail!("Invalid margin {:?}", v.margin);
@@ -258,7 +266,7 @@ impl ElementCommonBuilder {
         Ok(())
     }
 
-    pub(crate) fn build(&self) -> Result<ElementCommon> {
+    pub fn build(&self) -> Result<ElementCommon> {
         self.validate()?;
         Ok(self.0.clone())
     }

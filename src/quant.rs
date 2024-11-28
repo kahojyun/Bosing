@@ -37,7 +37,7 @@ pub struct AlignedIndex(NotNan<f64>);
 macro_rules! def_id {
     ($t:ident) => {
         #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-        pub struct $t(Arc<str>);
+        pub struct $t(pub Arc<str>);
     };
 }
 
@@ -48,7 +48,7 @@ def_id!(Label);
 type Result<T> = std::result::Result<T, Error>;
 
 impl Time {
-    pub(crate) const INFINITY: Self = Self(unsafe { NotNan::new_unchecked(f64::INFINITY) });
+    pub const INFINITY: Self = Self(unsafe { NotNan::new_unchecked(f64::INFINITY) });
 }
 
 impl Phase {
@@ -56,19 +56,21 @@ impl Phase {
         self.value() * std::f64::consts::TAU
     }
 
-    pub(crate) fn phaser(self) -> Complex64 {
+    #[must_use]
+    pub fn phaser(self) -> Complex64 {
         Complex64::from_polar(1.0, self.radians())
     }
 }
 
 impl Frequency {
-    pub(crate) fn dt(self) -> Time {
+    #[must_use]
+    pub fn dt(self) -> Time {
         Time::new(1.0 / self.value()).expect("Frequency should be non-zero")
     }
 }
 
 impl AlignedIndex {
-    pub(crate) fn new(time: Time, sample_rate: Frequency, align_level: i32) -> Result<Self> {
+    pub fn new(time: Time, sample_rate: Frequency, align_level: i32) -> Result<Self> {
         fn scaleb(x: f64, s: i32) -> f64 {
             let s: f64 = s.into();
             x * s.exp2()
@@ -86,15 +88,18 @@ impl AlignedIndex {
         Ok(Self(NotNan::new(value)?))
     }
 
-    pub(crate) fn value(self) -> f64 {
+    #[must_use]
+    pub fn value(self) -> f64 {
         self.0.into_inner()
     }
 
-    pub(crate) fn ceil_to_usize(self) -> Option<usize> {
+    #[must_use]
+    pub fn ceil_to_usize(self) -> Option<usize> {
         cast(self.0)
     }
 
-    pub(crate) fn index_offset(self) -> Self {
+    #[must_use]
+    pub fn index_offset(self) -> Self {
         Self::from_value(self.0.ceil() - self.0.into_inner()).expect("Should be a valid index.")
     }
 }
@@ -146,15 +151,16 @@ macro_rules! forward_ref_binop {
 macro_rules! impl_quant {
     ($t:ty) => {
         impl $t {
-            pub(crate) fn new(value: f64) -> Result<Self> {
+            pub fn new(value: f64) -> Result<Self> {
                 Ok(Self(NotNan::new(value)?))
             }
 
-            pub(crate) fn value(&self) -> f64 {
+            #[must_use]
+            pub fn value(&self) -> f64 {
                 self.0.into_inner()
             }
 
-            pub(crate) const ZERO: Self = Self(unsafe { NotNan::new_unchecked(0.0) });
+            pub const ZERO: Self = Self(unsafe { NotNan::new_unchecked(0.0) });
         }
 
         impl Add for $t {
@@ -263,7 +269,7 @@ impl_quant!(Amplitude);
 macro_rules! impl_id {
     ($t:ty) => {
         impl $t {
-            pub(crate) fn new(name: impl Into<Arc<str>>) -> Self {
+            pub fn new(name: impl Into<Arc<str>>) -> Self {
                 Self(name.into())
             }
         }

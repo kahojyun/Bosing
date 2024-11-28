@@ -10,62 +10,48 @@ use super::{merge_channel_ids, Alignment, Arrange, Arranged, ElementRef, Measure
 
 use self::helper::Helper;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum LengthUnit {
-    Seconds,
+#[derive(Debug, Clone, Copy)]
+pub enum Length {
+    Fixed(f64),
+    Star(f64),
     Auto,
-    Star,
-}
-
-#[derive(Debug, Clone)]
-pub struct Length {
-    pub(crate) value: f64,
-    unit: LengthUnit,
 }
 
 impl Length {
-    pub const STAR: Self = Self {
-        value: 1.0,
-        unit: LengthUnit::Star,
-    };
+    pub const STAR: Self = Self::Star(1.0);
 
+    #[must_use]
     pub const fn auto() -> Self {
-        Self {
-            value: 0.0,
-            unit: LengthUnit::Auto,
-        }
+        Self::Auto
     }
 
     pub fn star(value: f64) -> Result<Self> {
         if !(value.is_finite() && value > 0.0) {
             bail!("The value must be greater than 0.");
         }
-        Ok(Self {
-            value,
-            unit: LengthUnit::Star,
-        })
+        Ok(Self::Star(value))
     }
 
     pub fn fixed(value: f64) -> Result<Self> {
         if !(value.is_finite() && value >= 0.0) {
             bail!("The value must be greater than or equal to 0.");
         }
-        Ok(Self {
-            value,
-            unit: LengthUnit::Seconds,
-        })
+        Ok(Self::Fixed(value))
     }
 
-    pub(crate) fn is_auto(&self) -> bool {
-        self.unit == LengthUnit::Auto
+    #[must_use]
+    pub const fn is_auto(&self) -> bool {
+        matches!(self, Self::Auto)
     }
 
-    pub(crate) fn is_star(&self) -> bool {
-        self.unit == LengthUnit::Star
+    #[must_use]
+    pub const fn is_star(&self) -> bool {
+        matches!(self, Self::Star(_))
     }
 
-    pub(crate) fn is_fixed(&self) -> bool {
-        self.unit == LengthUnit::Seconds
+    #[must_use]
+    pub const fn is_fixed(&self) -> bool {
+        matches!(self, Self::Fixed(_))
     }
 }
 
@@ -80,12 +66,12 @@ impl FromStr for Length {
             return Ok(Self::STAR);
         }
         if let Some(v) = s.strip_suffix('*').and_then(|x| x.parse().ok()) {
-            return Ok(Self::star(v)?);
+            return Self::star(v);
         }
         if let Ok(v) = s.parse() {
-            return Ok(Self::fixed(v)?);
+            return Self::fixed(v);
         }
-        Err(anyhow::anyhow!("Invalid GridLength string: {}", s))
+        Err(anyhow::anyhow!("Invalid string: {}", s))
     }
 }
 
@@ -118,7 +104,7 @@ struct MeasureItem {
 }
 
 impl Entry {
-    pub(crate) const fn new(element: ElementRef) -> Self {
+    pub const fn new(element: ElementRef) -> Self {
         Self {
             element,
             column: 0,
@@ -126,12 +112,13 @@ impl Entry {
         }
     }
 
-    pub(crate) const fn with_column(mut self, column: usize) -> Self {
+    #[must_use]
+    pub const fn with_column(mut self, column: usize) -> Self {
         self.column = column;
         self
     }
 
-    pub(crate) fn with_span(mut self, span: usize) -> Result<Self> {
+    pub fn with_span(mut self, span: usize) -> Result<Self> {
         if span == 0 {
             bail!("Span should be greater than 0");
         }
@@ -141,11 +128,13 @@ impl Entry {
 }
 
 impl Grid {
-    pub(crate) fn new() -> Self {
+    #[must_use]
+    pub fn new() -> Self {
         Self::default()
     }
 
-    pub(crate) fn with_columns(mut self, columns: Vec<Length>) -> Self {
+    #[must_use]
+    pub fn with_columns(mut self, columns: Vec<Length>) -> Self {
         if columns.is_empty() {
             self.columns = vec![Length::STAR];
         } else {
@@ -155,7 +144,8 @@ impl Grid {
         self
     }
 
-    pub(crate) fn with_children(mut self, children: Vec<Entry>) -> Self {
+    #[must_use]
+    pub fn with_children(mut self, children: Vec<Entry>) -> Self {
         let channel_ids = merge_channel_ids(children.iter().map(|e| e.element.variant.channels()));
         self.children = children;
         self.channel_ids = channel_ids;
@@ -163,7 +153,7 @@ impl Grid {
         self
     }
 
-    pub(crate) fn columns(&self) -> &[Length] {
+    pub fn columns(&self) -> &[Length] {
         &self.columns
     }
 

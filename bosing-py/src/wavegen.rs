@@ -1,5 +1,12 @@
 mod pyfn;
 
+use bosing::{
+    executor::{self, Executor},
+    pulse::{
+        apply_fir_inplace, apply_iir_inplace, apply_iq_inplace, apply_offset_inplace, List, Sampler,
+    },
+    quant,
+};
 use hashbrown::HashMap;
 use ndarray::ArrayViewMut2;
 use numpy::{prelude::*, AllowTypeChange, PyArray2, PyArrayLike2};
@@ -9,18 +16,11 @@ use pyo3::{
 };
 
 use crate::{
-    executor::{self, Executor},
-    pulse::{
-        apply_fir_inplace, apply_iir_inplace, apply_iq_inplace, apply_offset_inplace, List, Sampler,
-    },
-    quant::{Amplitude, ChannelId, Frequency, Phase, ShapeId, Time},
-};
-
-use super::{
     elements::Element,
     extract::{FirArray, IirArray, IqMatrix, OffsetArray},
     repr::{Arg, Rich},
     shapes::Shape,
+    types::{Amplitude, ChannelId, Frequency, Phase, ShapeId, Time},
 };
 
 pub use self::pyfn::{generate_waveforms, generate_waveforms_with_states};
@@ -59,7 +59,7 @@ pub use self::pyfn::{generate_waveforms, generate_waveforms_with_states};
 ///     is_real (bool): Whether the channel is real. Defaults to ``False``.
 #[pyclass(module = "bosing", get_all, frozen)]
 #[derive(Debug, Clone)]
-pub(super) struct Channel {
+pub struct Channel {
     base_freq: Frequency,
     sample_rate: Frequency,
     length: usize,
@@ -178,23 +178,49 @@ impl Rich for Channel {
 ///     base_freq (float): Base frequency of the oscillator.
 ///     delta_freq (float): Frequency shift of the oscillator.
 ///     phase (float): Phase of the oscillator in **cycles**.
-#[pyclass(module = "bosing", get_all, set_all)]
+#[pyclass(module = "bosing")]
 #[derive(Debug, Clone, Copy)]
-pub(super) struct OscState {
-    base_freq: Frequency,
-    delta_freq: Frequency,
-    phase: Phase,
-}
+pub struct OscState(executor::OscState);
 
 #[pymethods]
 impl OscState {
     #[new]
-    const fn new(base_freq: Frequency, delta_freq: Frequency, phase: Phase) -> Self {
-        Self {
-            base_freq,
-            delta_freq,
-            phase,
-        }
+    fn new(base_freq: Frequency, delta_freq: Frequency, phase: Phase) -> Self {
+        Self(executor::OscState {
+            base_freq: base_freq.into(),
+            delta_freq: delta_freq.into(),
+            phase: phase.into(),
+        })
+    }
+
+    #[getter]
+    fn base_freq(&self) -> Frequency {
+        self.0.base_freq.into()
+    }
+
+    #[setter]
+    fn set_base_freq(&mut self, base_freq: Frequency) {
+        self.0.base_freq = base_freq.into();
+    }
+
+    #[getter]
+    fn delta_freq(&self) -> Frequency {
+        self.0.delta_freq.into()
+    }
+
+    #[setter]
+    fn set_delta_freq(&mut self, delta_freq: Frequency) {
+        self.0.delta_freq = delta_freq.into();
+    }
+
+    #[getter]
+    fn phase(&self) -> Phase {
+        self.0.phase.into()
+    }
+
+    #[setter]
+    fn set_phase(&mut self, phase: Phase) {
+        self.0.phase = phase.into();
     }
 
     /// Calculate the total frequency of the oscillator.
@@ -202,7 +228,7 @@ impl OscState {
     /// Returns:
     ///     float: Total frequency of the oscillator.
     fn total_freq(&self) -> Frequency {
-        executor::OscState::from(*self).total_freq()
+        self.0.total_freq().into()
     }
 
     /// Calculate the phase of the oscillator at a given time.
@@ -213,7 +239,7 @@ impl OscState {
     /// Returns:
     ///     float: Phase of the oscillator in **cycles**.
     fn phase_at(&self, time: Time) -> Phase {
-        executor::OscState::from(*self).phase_at(time)
+        self.0.phase_at(time.into()).into()
     }
 
     /// Get a new state with a time shift.
@@ -224,7 +250,7 @@ impl OscState {
     /// Returns:
     ///     OscState: The new state.
     fn with_time_shift(&self, time: Time) -> Self {
-        executor::OscState::from(*self).with_time_shift(time).into()
+        self.0.with_time_shift(time.into()).into()
     }
 
     fn __repr__(slf: &Bound<'_, Self>) -> PyResult<String> {
@@ -241,36 +267,28 @@ impl Rich for OscState {
         let mut res = Vec::new();
         let py = slf.py();
         let slf = slf.borrow();
-        push_repr!(res, py, slf.base_freq);
-        push_repr!(res, py, slf.delta_freq);
-        push_repr!(res, py, slf.phase);
+        push_repr!(res, py, slf.base_freq());
+        push_repr!(res, py, slf.delta_freq());
+        push_repr!(res, py, slf.phase());
         res.into_iter()
     }
 }
 
 impl From<executor::OscState> for OscState {
-    fn from(osc: executor::OscState) -> Self {
-        Self {
-            base_freq: osc.base_freq,
-            delta_freq: osc.delta_freq,
-            phase: osc.phase,
-        }
+    fn from(value: executor::OscState) -> Self {
+        Self(value)
     }
 }
 
 impl From<OscState> for executor::OscState {
-    fn from(osc: OscState) -> Self {
-        Self {
-            base_freq: osc.base_freq,
-            delta_freq: osc.delta_freq,
-            phase: osc.phase,
-        }
+    fn from(value: OscState) -> Self {
+        value.0
     }
 }
 
 type ChannelWaveforms = HashMap<ChannelId, Py<PyArray2<f64>>>;
 type ChannelStates = HashMap<ChannelId, Py<OscState>>;
-type ChannelPulses = HashMap<ChannelId, List>;
+type ChannelPulses = HashMap<quant::ChannelId, List>;
 type CrosstalkMatrix<'a> = (PyArrayLike2<'a, f64, AllowTypeChange>, Vec<ChannelId>);
 
 fn build_pulse_lists(
@@ -283,7 +301,7 @@ fn build_pulse_lists(
     states: Option<&ChannelStates>,
 ) -> PyResult<(ChannelPulses, ChannelStates)> {
     let py = schedule.py();
-    let mut executor = Executor::new(amp_tolerance, time_tolerance, allow_oversize);
+    let mut executor = Executor::new(amp_tolerance.into(), time_tolerance.into(), allow_oversize);
     for (n, c) in channels {
         let osc = match &states {
             Some(states) => states
@@ -291,13 +309,13 @@ fn build_pulse_lists(
                 .ok_or_else(|| PyValueError::new_err(format!("No state for channel: {n}")))?
                 .extract::<OscState>(py)?
                 .into(),
-            None => executor::OscState::new(c.base_freq),
+            None => executor::OscState::new(c.base_freq.into()),
         };
-        executor.add_channel(n.clone(), osc);
+        executor.add_channel(n.clone().into(), osc);
     }
     for (n, s) in shapes {
         let s = s.bind(py);
-        executor.add_shape(n.clone(), Shape::get_rust_shape(s)?);
+        executor.add_shape(n.clone().into(), Shape::get_rust_shape(s)?);
     }
     let schedule = &schedule.get().0;
     let (states, pulselists) = py
@@ -310,7 +328,7 @@ fn build_pulse_lists(
         .map_err(|e: executor::Error| PyRuntimeError::new_err(e.to_string()))?;
     let states = states
         .into_iter()
-        .map(|(n, s)| Ok((n, Py::new(py, OscState::from(s))?)))
+        .map(|(n, s)| Ok((n.into(), Py::new(py, OscState::from(s))?)))
         .collect::<PyResult<_>>()?;
 
     Ok((pulselists, states))
@@ -337,12 +355,19 @@ fn sample_waveform(
     for (n, c) in channels {
         // SAFETY: These arrays are just created.
         let array = unsafe { waveforms[n].bind(py).as_array_mut() };
-        sampler.add_channel(n.clone(), array, c.sample_rate, c.delay, c.align_level);
+        sampler.add_channel(
+            n.clone().into(),
+            array,
+            c.sample_rate.into(),
+            c.delay.into(),
+            c.align_level,
+        );
     }
     if let Some((ref crosstalk, names)) = crosstalk {
+        let names = names.into_iter().map(Into::into).collect();
         sampler.set_crosstalk(crosstalk.as_array(), names);
     }
-    py.allow_threads(|| sampler.sample(time_tolerance))?;
+    py.allow_threads(|| sampler.sample(time_tolerance.into()))?;
     Ok(waveforms)
 }
 

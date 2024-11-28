@@ -1,11 +1,12 @@
-use itertools::Itertools as _;
-use pyo3::{prelude::*, sync::GILOnceCell, types::PyList};
-
-use crate::{
-    quant::{ChannelId, Label, Time},
+use bosing::{
+    quant,
     schedule::{Arrange as _, Arranged, ElementRef, ElementVariant, Measure, TimeRange},
     util::{pre_order_iter, IterVariant},
 };
+use itertools::Itertools as _;
+use pyo3::{prelude::*, sync::GILOnceCell, types::PyList};
+
+use crate::types::{ChannelId, Label, Time};
 
 const BOSING_PLOT_MODULE: &str = "bosing._plot";
 const BOSING_PLOT_PLOT: &str = "plot";
@@ -26,7 +27,7 @@ pub enum ItemKind {
     Grid,
 }
 
-pub(super) fn plot_element(
+pub fn element(
     py: Python<'_>,
     root: ElementRef,
     ax: Option<PyObject>,
@@ -35,7 +36,7 @@ pub(super) fn plot_element(
     show_label: bool,
 ) -> PyResult<PyObject> {
     let channels = channels.map_or_else(
-        || PyList::new_bound(py, root.channels()),
+        || PyList::new_bound(py, root.channels().iter().cloned().map(ChannelId::from)),
         |channels| PyList::new_bound(py, channels),
     );
     let plot_items = Box::new(arrange_to_plot(root));
@@ -61,9 +62,9 @@ impl ItemKind {
     }
 }
 
-#[pyclass(module = "bosing._bosing", frozen, get_all)]
+#[pyclass(module = "bosing._bosing", name = "PlotArgs", frozen, get_all)]
 #[derive(Debug)]
-pub(super) struct PlotArgs {
+pub struct Args {
     ax: Option<PyObject>,
     blocks: Py<PlotIter>,
     channels: Py<PyList>,
@@ -73,7 +74,7 @@ pub(super) struct PlotArgs {
 
 #[pyclass(module = "bosing._bosing")]
 struct PlotIter {
-    inner: Box<dyn Iterator<Item = PlotItem> + Send>,
+    inner: Box<dyn Iterator<Item = Item> + Send>,
 }
 
 #[pymethods]
@@ -87,9 +88,9 @@ impl PlotIter {
     }
 }
 
-#[pyclass(module = "bosing._bosing", frozen, get_all)]
+#[pyclass(module = "bosing._bosing", name = "PlotItem", frozen, get_all)]
 #[derive(Debug)]
-pub(super) struct PlotItem {
+pub struct Item {
     channels: Vec<ChannelId>,
     start: Time,
     span: Time,
@@ -112,7 +113,7 @@ fn call_plot(
             .getattr(BOSING_PLOT_PLOT)
             .map(Into::into)
     })?;
-    let args = PlotArgs {
+    let args = Args {
         ax,
         blocks: Py::new(py, blocks)?,
         channels: channels.unbind(),
@@ -122,9 +123,9 @@ fn call_plot(
     plot.call1(py, (args,))
 }
 
-fn arrange_to_plot(root: ElementRef) -> impl Iterator<Item = PlotItem> {
+fn arrange_to_plot(root: ElementRef) -> impl Iterator<Item = Item> {
     let time_range = TimeRange {
-        start: Time::ZERO,
+        start: quant::Time::ZERO,
         span: root.measure(),
     };
     arrange_tree(root, time_range).map(
@@ -134,12 +135,12 @@ fn arrange_to_plot(root: ElementRef) -> impl Iterator<Item = PlotItem> {
              depth,
          }| {
             let kind = ItemKind::from_variant(&item.variant);
-            let channels = item.channels().to_vec();
-            let label = item.common.label().cloned();
-            PlotItem {
+            let channels = item.channels().iter().cloned().map(Into::into).collect();
+            let label = item.common.label().cloned().map(Into::into);
+            Item {
                 channels,
-                start,
-                span,
+                start: start.into(),
+                span: span.into(),
                 depth,
                 kind,
                 label,

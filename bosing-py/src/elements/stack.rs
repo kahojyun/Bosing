@@ -1,8 +1,9 @@
 use std::sync::Arc;
 
+use bosing::schedule;
 use pyo3::{exceptions::PyValueError, prelude::*};
 
-use crate::{quant::Time, schedule};
+use crate::types::Time;
 
 use super::{Arg, Element, ElementSubclass, Label, Rich as _};
 
@@ -74,7 +75,7 @@ impl Stack {
         let rust_children = children.iter().map(|x| x.get().0.clone()).collect();
         let variant = schedule::Stack::new().with_children(rust_children);
         let variant = if let Some(obj) = direction {
-            variant.with_direction(extract_direction(obj)?)
+            variant.with_direction(extract_direction(obj)?.into())
         } else {
             variant
         };
@@ -128,7 +129,7 @@ impl Stack {
 
     #[getter]
     fn direction(slf: &Bound<'_, Self>) -> Direction {
-        Self::variant(slf).direction()
+        Self::variant(slf).direction().into()
     }
 
     fn __repr__(slf: &Bound<'_, Self>) -> PyResult<String> {
@@ -156,6 +157,24 @@ impl Stack {
 pub enum Direction {
     Backward,
     Forward,
+}
+
+impl From<schedule::Direction> for Direction {
+    fn from(direction: schedule::Direction) -> Self {
+        match direction {
+            schedule::Direction::Backward => Self::Backward,
+            schedule::Direction::Forward => Self::Forward,
+        }
+    }
+}
+
+impl From<Direction> for schedule::Direction {
+    fn from(direction: Direction) -> Self {
+        match direction {
+            Direction::Backward => Self::Backward,
+            Direction::Forward => Self::Forward,
+        }
+    }
 }
 
 #[pymethods]

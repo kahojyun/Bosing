@@ -39,7 +39,7 @@ pub struct Barrier {
 }
 
 impl ShiftPhase {
-    pub(crate) fn new(channel_id: ChannelId, phase: Phase) -> Result<Self> {
+    pub fn new(channel_id: ChannelId, phase: Phase) -> Result<Self> {
         if !phase.value().is_finite() {
             bail!("Invalid phase {:?}", phase);
         }
@@ -49,17 +49,19 @@ impl ShiftPhase {
         })
     }
 
-    pub(crate) const fn channel_id(&self) -> &ChannelId {
+    #[must_use]
+    pub const fn channel_id(&self) -> &ChannelId {
         &self.channel_ids[0]
     }
 
-    pub(crate) const fn phase(&self) -> Phase {
+    #[must_use]
+    pub const fn phase(&self) -> Phase {
         self.phase
     }
 }
 
 impl SetPhase {
-    pub(crate) fn new(channel_id: ChannelId, phase: Phase) -> Result<Self> {
+    pub fn new(channel_id: ChannelId, phase: Phase) -> Result<Self> {
         if !phase.value().is_finite() {
             bail!("Invalid phase {:?}", phase);
         }
@@ -69,17 +71,19 @@ impl SetPhase {
         })
     }
 
-    pub(crate) const fn channel_id(&self) -> &ChannelId {
+    #[must_use]
+    pub const fn channel_id(&self) -> &ChannelId {
         &self.channel_ids[0]
     }
 
-    pub(crate) const fn phase(&self) -> Phase {
+    #[must_use]
+    pub const fn phase(&self) -> Phase {
         self.phase
     }
 }
 
 impl ShiftFreq {
-    pub(crate) fn new(channel_id: ChannelId, frequency: Frequency) -> Result<Self> {
+    pub fn new(channel_id: ChannelId, frequency: Frequency) -> Result<Self> {
         if !frequency.value().is_finite() {
             bail!("Invalid frequency {:?}", frequency);
         }
@@ -89,17 +93,19 @@ impl ShiftFreq {
         })
     }
 
-    pub(crate) const fn channel_id(&self) -> &ChannelId {
+    #[must_use]
+    pub const fn channel_id(&self) -> &ChannelId {
         &self.channel_ids[0]
     }
 
-    pub(crate) const fn frequency(&self) -> Frequency {
+    #[must_use]
+    pub const fn frequency(&self) -> Frequency {
         self.frequency
     }
 }
 
 impl SetFreq {
-    pub(crate) fn new(channel_id: ChannelId, frequency: Frequency) -> Result<Self> {
+    pub fn new(channel_id: ChannelId, frequency: Frequency) -> Result<Self> {
         if !frequency.value().is_finite() {
             bail!("Invalid frequency {:?}", frequency);
         }
@@ -109,37 +115,44 @@ impl SetFreq {
         })
     }
 
-    pub(crate) const fn channel_id(&self) -> &ChannelId {
+    #[must_use]
+    pub const fn channel_id(&self) -> &ChannelId {
         &self.channel_ids[0]
     }
 
-    pub(crate) const fn frequency(&self) -> Frequency {
+    #[must_use]
+    pub const fn frequency(&self) -> Frequency {
         self.frequency
     }
 }
 
 impl SwapPhase {
-    pub(crate) const fn new(channel_id1: ChannelId, channel_id2: ChannelId) -> Self {
+    #[must_use]
+    pub const fn new(channel_id1: ChannelId, channel_id2: ChannelId) -> Self {
         Self {
             channel_ids: [channel_id1, channel_id2],
         }
     }
 
-    pub(crate) const fn channel_id1(&self) -> &ChannelId {
+    #[must_use]
+    pub const fn channel_id1(&self) -> &ChannelId {
         &self.channel_ids[0]
     }
 
-    pub(crate) const fn channel_id2(&self) -> &ChannelId {
+    #[must_use]
+    pub const fn channel_id2(&self) -> &ChannelId {
         &self.channel_ids[1]
     }
 }
 
 impl Barrier {
-    pub(crate) const fn new(channel_ids: Vec<ChannelId>) -> Self {
+    #[must_use]
+    pub const fn new(channel_ids: Vec<ChannelId>) -> Self {
         Self { channel_ids }
     }
 
-    pub(crate) fn channel_ids(&self) -> &[ChannelId] {
+    #[must_use]
+    pub fn channel_ids(&self) -> &[ChannelId] {
         &self.channel_ids
     }
 }

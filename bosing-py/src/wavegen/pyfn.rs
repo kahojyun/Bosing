@@ -9,8 +9,9 @@ use pyo3::{exceptions::PyValueError, prelude::*};
 use rayon::prelude::*;
 
 use crate::{
-    python::{elements::Element, shapes::Shape},
-    quant::{Amplitude, ChannelId, ShapeId, Time},
+    elements::Element,
+    shapes::Shape,
+    types::{Amplitude, ChannelId, ShapeId, Time},
 };
 
 use super::{
