@@ -1,6 +1,5 @@
+use bosing::shape;
 use pyo3::{exceptions::PyTypeError, prelude::*};
-
-use crate::shape;
 
 /// Base class for shapes.
 ///

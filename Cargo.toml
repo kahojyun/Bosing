@@ -1,21 +1,34 @@
+[workspace]
+members = ["bosing-py"]
+
+[workspace.package]
+version = "0.0.0-dev"
+rust-version = "1.82"
+license = "MIT"
+authors = ["Jiahao Yuan <kahojyun@icloud.com>"]
+description = "Waveform generator for pulse sequences in quantum computing"
+repository = "https://github.com/kahojyun/Bosing"
+keywords = ["pulse", "waveform", "awg"]
+categories = ["science"]
+
 [package]
 name = "bosing"
-version = "0.0.0-dev"
 edition = "2021"
-license = "MIT"
-rust-version = "1.82"
+version.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+description.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
 
-[lib]
-name = "bosing"
-crate-type = ["cdylib"]
-
-[dependencies]
+[workspace.dependencies]
 anyhow = "1.0.93"
 bspline = "1.1.0"
 cached = "0.54.0"
 float-cmp = "0.10.0"
 hashbrown = { version = "0.14.5", features = ["rayon"] }
-indoc = "2.0.5"
 itertools = "0.13.0"
 ndarray = { version = "0.16.1", features = ["rayon"] }
 num = "0.4.3"
@@ -30,17 +43,37 @@ pyo3 = { version = "0.22.6", features = [
 ] }
 rayon = "1.10.0"
 thiserror = "2.0.3"
-
-[dev-dependencies]
+# Testing
 mockall = "0.13.0"
 test-case = "3.3.1"
 
-[lints.rust]
+[dependencies]
+anyhow.workspace = true
+bspline.workspace = true
+cached.workspace = true
+float-cmp.workspace = true
+hashbrown.workspace = true
+itertools.workspace = true
+ndarray.workspace = true
+num.workspace = true
+ordered-float.workspace = true
+pulp.workspace = true
+rayon.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+mockall.workspace = true
+test-case.workspace = true
+
+[workspace.lints.rust]
 rust-2018-idioms = "warn"
 
-[lints.clippy]
+[workspace.lints.clippy]
 pedantic = { level = "warn", priority = -1 }
 nursery = { level = "warn", priority = -1 }
 allow_attributes = "warn"
 todo = "warn"
 unwrap_used = "warn"
+
+[lints]
+workspace = true

@@ -4,17 +4,18 @@ mod stack;
 
 use std::{borrow::Borrow as _, fmt::Debug, sync::Arc};
 
+use bosing::schedule::{
+    self, ElementCommon, ElementCommonBuilder, ElementRef, ElementVariant, Measure as _,
+};
 use pyo3::{exceptions::PyValueError, prelude::*, types::DerefToPyAny};
 
 use crate::{
-    quant::{Amplitude, ChannelId, Frequency, Label, Phase, ShapeId, Time},
-    schedule::{
-        self, ElementCommon, ElementCommonBuilder, ElementRef, ElementVariant, Measure as _,
-    },
+    push_repr,
+    types::{Amplitude, ChannelId, Frequency, Label, Phase, ShapeId, Time},
 };
 
 use super::{
-    plot::plot_element,
+    plot,
     repr::{Arg, Rich},
 };
 
@@ -84,6 +85,28 @@ impl Alignment {
             "Must be Alignment or one of 'end', 'start', 'center', 'stretch'"
         );
         Err(PyValueError::new_err(msg))
+    }
+}
+
+impl From<Alignment> for schedule::Alignment {
+    fn from(value: Alignment) -> Self {
+        match value {
+            Alignment::End => Self::End,
+            Alignment::Start => Self::Start,
+            Alignment::Center => Self::Center,
+            Alignment::Stretch => Self::Stretch,
+        }
+    }
+}
+
+impl From<schedule::Alignment> for Alignment {
+    fn from(value: schedule::Alignment) -> Self {
+        match value {
+            schedule::Alignment::End => Self::End,
+            schedule::Alignment::Start => Self::Start,
+            schedule::Alignment::Center => Self::Center,
+            schedule::Alignment::Stretch => Self::Stretch,
+        }
     }
 }
 
@@ -170,12 +193,13 @@ pub struct Element(pub(super) ElementRef);
 impl Element {
     #[getter]
     fn margin(&self) -> (Time, Time) {
-        self.0.common.margin()
+        let margin = self.0.common.margin();
+        (margin.0.into(), margin.1.into())
     }
 
     #[getter]
     fn alignment(&self) -> Alignment {
-        self.0.common.alignment()
+        self.0.common.alignment().into()
     }
 
     #[getter]
@@ -185,22 +209,22 @@ impl Element {
 
     #[getter]
     fn duration(&self) -> Option<Time> {
-        self.0.common.duration()
+        self.0.common.duration().map(Into::into)
     }
 
     #[getter]
     fn max_duration(&self) -> Time {
-        self.0.common.max_duration()
+        self.0.common.max_duration().into()
     }
 
     #[getter]
     fn min_duration(&self) -> Time {
-        self.0.common.min_duration()
+        self.0.common.min_duration().into()
     }
 
     #[getter]
-    fn label(&self) -> Option<&Label> {
-        self.0.common.label()
+    fn label(&self) -> Option<Label> {
+        self.0.common.label().cloned().map(Into::into)
     }
 
     /// Measure the minimum total duration required by the element.
@@ -211,7 +235,7 @@ impl Element {
     /// of other element, the final total duration will be determined by `alignment` option and
     /// parent container type.
     fn measure(&self) -> Time {
-        self.0.measure()
+        self.0.measure().into()
     }
 
     /// Plot arrange result with the element as root.
@@ -235,7 +259,7 @@ impl Element {
         max_depth: usize,
         show_label: bool,
     ) -> PyResult<PyObject> {
-        plot_element(py, self.0.clone(), ax, channels, max_depth, show_label)
+        plot::element(py, self.0.clone(), ax, channels, max_depth, show_label)
     }
 }
 
@@ -284,13 +308,10 @@ where
 
         fn extract_margin(obj: &Bound<'_, PyAny>) -> PyResult<(Time, Time)> {
             if let Ok(v) = obj.extract() {
-                let t = Time::new(v)?;
-                return Ok((t, t));
+                return Ok((v, v));
             }
             if let Ok((v1, v2)) = obj.extract() {
-                let t1 = Time::new(v1)?;
-                let t2 = Time::new(v2)?;
-                return Ok((t1, t2));
+                return Ok((v1, v2));
             }
             let msg = "Failed to convert the value to (float, float).";
             Err(PyValueError::new_err(msg))
@@ -298,17 +319,18 @@ where
 
         let mut builder = ElementCommonBuilder::new();
         if let Some(obj) = margin {
-            builder.margin(extract_margin(obj)?);
+            let margin = extract_margin(obj)?;
+            builder.margin((margin.0.into(), margin.1.into()));
         }
         if let Some(obj) = alignment {
-            builder.alignment(extract_alignment(obj)?);
+            builder.alignment(extract_alignment(obj)?.into());
         }
         builder
             .phantom(phantom)
-            .duration(duration)
-            .max_duration(max_duration)
-            .min_duration(min_duration)
-            .label(label);
+            .duration(duration.map(Into::into))
+            .max_duration(max_duration.into())
+            .min_duration(min_duration.into())
+            .label(label.map(Into::into));
         let common = builder.build()?;
         Ok(Element(Arc::new(schedule::Element::new(common, variant))))
     }
@@ -323,19 +345,40 @@ where
         let mut res = Self::repr(slf);
         let py = slf.py();
         let slf = Self::common(slf);
-        push_repr!(res, py, "margin", slf.margin(), (Time::ZERO, Time::ZERO));
+        let margin = slf.margin();
+        push_repr!(
+            res,
+            py,
+            "margin",
+            (margin.0.into(), margin.1.into()),
+            (Time::ZERO, Time::ZERO)
+        );
         push_repr!(
             res,
             py,
             "alignment",
-            slf.alignment().into_py(py),
+            Alignment::from(slf.alignment()).into_py(py),
             Alignment::End.into_py(py)
         );
         push_repr!(res, py, "phantom", slf.phantom(), false);
-        push_repr!(res, py, "duration", slf.duration(), None);
-        push_repr!(res, py, "max_duration", slf.max_duration(), Time::INFINITY);
-        push_repr!(res, py, "min_duration", slf.min_duration(), Time::ZERO);
-        push_repr!(res, py, "label", slf.label(), None);
+        let duration: Option<Time> = slf.duration().map(Into::into);
+        push_repr!(res, py, "duration", duration, None);
+        push_repr!(
+            res,
+            py,
+            "max_duration",
+            slf.max_duration().into(),
+            Time::INFINITY
+        );
+        push_repr!(
+            res,
+            py,
+            "min_duration",
+            slf.min_duration().into(),
+            Time::ZERO
+        );
+        let label: Option<Label> = slf.label().cloned().map(Into::into);
+        push_repr!(res, py, "label", label, None);
         res.into_iter()
     }
 }
@@ -445,12 +488,17 @@ impl Play {
         min_duration: Time,
         label: Option<Label>,
     ) -> PyResult<(Self, Element)> {
-        let variant = schedule::Play::new(channel_id, shape_id, amplitude, width)?
-            .with_plateau(plateau)?
-            .with_drag_coef(drag_coef)?
-            .with_frequency(frequency)?
-            .with_phase(phase)?
-            .with_flexible(flexible);
+        let variant = schedule::Play::new(
+            channel_id.into(),
+            shape_id.map(Into::into),
+            amplitude.into(),
+            width.into(),
+        )?
+        .with_plateau(plateau.into())?
+        .with_drag_coef(drag_coef)?
+        .with_frequency(frequency.into())?
+        .with_phase(phase.into())?
+        .with_flexible(flexible);
         Ok((
             Self,
             Self::build_element(
@@ -467,28 +515,28 @@ impl Play {
     }
 
     #[getter]
-    fn channel_id<'a>(slf: &'a Bound<'_, Self>) -> &'a ChannelId {
-        Self::variant(slf).channel_id()
+    fn channel_id(slf: &Bound<'_, Self>) -> ChannelId {
+        Self::variant(slf).channel_id().clone().into()
     }
 
     #[getter]
-    fn shape_id<'a>(slf: &'a Bound<'_, Self>) -> Option<&'a ShapeId> {
-        Self::variant(slf).shape_id()
+    fn shape_id(slf: &Bound<'_, Self>) -> Option<ShapeId> {
+        Self::variant(slf).shape_id().cloned().map(Into::into)
     }
 
     #[getter]
     fn amplitude(slf: &Bound<'_, Self>) -> Amplitude {
-        Self::variant(slf).amplitude()
+        Self::variant(slf).amplitude().into()
     }
 
     #[getter]
     fn width(slf: &Bound<'_, Self>) -> Time {
-        Self::variant(slf).width()
+        Self::variant(slf).width().into()
     }
 
     #[getter]
     fn plateau(slf: &Bound<'_, Self>) -> Time {
-        Self::variant(slf).plateau()
+        Self::variant(slf).plateau().into()
     }
 
     #[getter]
@@ -498,12 +546,12 @@ impl Play {
 
     #[getter]
     fn frequency(slf: &Bound<'_, Self>) -> Frequency {
-        Self::variant(slf).frequency()
+        Self::variant(slf).frequency().into()
     }
 
     #[getter]
     fn phase(slf: &Bound<'_, Self>) -> Phase {
-        Self::variant(slf).phase()
+        Self::variant(slf).phase().into()
     }
 
     #[getter]
@@ -576,7 +624,7 @@ impl ShiftPhase {
         min_duration: Time,
         label: Option<Label>,
     ) -> PyResult<(Self, Element)> {
-        let variant = schedule::ShiftPhase::new(channel_id, phase)?;
+        let variant = schedule::ShiftPhase::new(channel_id.into(), phase.into())?;
         Ok((
             Self,
             Self::build_element(
@@ -593,13 +641,13 @@ impl ShiftPhase {
     }
 
     #[getter]
-    fn channel_id<'a>(slf: &'a Bound<'_, Self>) -> &'a ChannelId {
-        Self::variant(slf).channel_id()
+    fn channel_id(slf: &Bound<'_, Self>) -> ChannelId {
+        Self::variant(slf).channel_id().clone().into()
     }
 
     #[getter]
     fn phase(slf: &Bound<'_, Self>) -> Phase {
-        Self::variant(slf).phase()
+        Self::variant(slf).phase().into()
     }
 
     fn __repr__(slf: &Bound<'_, Self>) -> PyResult<String> {
@@ -675,7 +723,7 @@ impl SetPhase {
         min_duration: Time,
         label: Option<Label>,
     ) -> PyResult<(Self, Element)> {
-        let variant = schedule::SetPhase::new(channel_id, phase)?;
+        let variant = schedule::SetPhase::new(channel_id.into(), phase.into())?;
         Ok((
             Self,
             Self::build_element(
@@ -692,13 +740,13 @@ impl SetPhase {
     }
 
     #[getter]
-    fn channel_id<'a>(slf: &'a Bound<'_, Self>) -> &'a ChannelId {
-        Self::variant(slf).channel_id()
+    fn channel_id(slf: &Bound<'_, Self>) -> ChannelId {
+        Self::variant(slf).channel_id().clone().into()
     }
 
     #[getter]
     fn phase(slf: &Bound<'_, Self>) -> Phase {
-        Self::variant(slf).phase()
+        Self::variant(slf).phase().into()
     }
 
     fn __repr__(slf: &Bound<'_, Self>) -> PyResult<String> {
@@ -762,7 +810,7 @@ impl ShiftFreq {
         min_duration: Time,
         label: Option<Label>,
     ) -> PyResult<(Self, Element)> {
-        let variant = schedule::ShiftFreq::new(channel_id, frequency)?;
+        let variant = schedule::ShiftFreq::new(channel_id.into(), frequency.into())?;
         Ok((
             Self,
             Self::build_element(
@@ -779,13 +827,13 @@ impl ShiftFreq {
     }
 
     #[getter]
-    fn channel_id<'a>(slf: &'a Bound<'_, Self>) -> &'a ChannelId {
-        Self::variant(slf).channel_id()
+    fn channel_id(slf: &Bound<'_, Self>) -> ChannelId {
+        Self::variant(slf).channel_id().clone().into()
     }
 
     #[getter]
     fn frequency(slf: &Bound<'_, Self>) -> Frequency {
-        Self::variant(slf).frequency()
+        Self::variant(slf).frequency().into()
     }
 
     fn __repr__(slf: &Bound<'_, Self>) -> PyResult<String> {
@@ -850,7 +898,7 @@ impl SetFreq {
         min_duration: Time,
         label: Option<Label>,
     ) -> PyResult<(Self, Element)> {
-        let variant = schedule::SetFreq::new(channel_id, frequency)?;
+        let variant = schedule::SetFreq::new(channel_id.into(), frequency.into())?;
         Ok((
             Self,
             Self::build_element(
@@ -867,13 +915,13 @@ impl SetFreq {
     }
 
     #[getter]
-    fn channel_id<'a>(slf: &'a Bound<'_, Self>) -> &'a ChannelId {
-        Self::variant(slf).channel_id()
+    fn channel_id(slf: &Bound<'_, Self>) -> ChannelId {
+        Self::variant(slf).channel_id().clone().into()
     }
 
     #[getter]
     fn frequency(slf: &Bound<'_, Self>) -> Frequency {
-        Self::variant(slf).frequency()
+        Self::variant(slf).frequency().into()
     }
 
     fn __repr__(slf: &Bound<'_, Self>) -> PyResult<String> {
@@ -940,7 +988,7 @@ impl SwapPhase {
         min_duration: Time,
         label: Option<Label>,
     ) -> PyResult<(Self, Element)> {
-        let variant = schedule::SwapPhase::new(channel_id1, channel_id2);
+        let variant = schedule::SwapPhase::new(channel_id1.into(), channel_id2.into());
         Ok((
             Self,
             Self::build_element(
@@ -957,13 +1005,13 @@ impl SwapPhase {
     }
 
     #[getter]
-    fn channel_id1<'a>(slf: &'a Bound<'_, Self>) -> &'a ChannelId {
-        Self::variant(slf).channel_id1()
+    fn channel_id1(slf: &Bound<'_, Self>) -> ChannelId {
+        Self::variant(slf).channel_id1().clone().into()
     }
 
     #[getter]
-    fn channel_id2<'a>(slf: &'a Bound<'_, Self>) -> &'a ChannelId {
-        Self::variant(slf).channel_id2()
+    fn channel_id2(slf: &Bound<'_, Self>) -> ChannelId {
+        Self::variant(slf).channel_id2().clone().into()
     }
 
     fn __repr__(slf: &Bound<'_, Self>) -> PyResult<String> {
@@ -998,7 +1046,7 @@ impl ElementSubclass for Barrier {
         Self::variant(slf)
             .channel_ids()
             .iter()
-            .map(|x| Arg::positional(x, py))
+            .map(|x| Arg::positional(ChannelId::from(x.clone()), py))
             .collect()
     }
 }
@@ -1027,6 +1075,7 @@ impl Barrier {
         min_duration: Time,
         label: Option<Label>,
     ) -> PyResult<(Self, Element)> {
+        let channel_ids: Vec<_> = channel_ids.into_iter().map(Into::into).collect();
         let variant = schedule::Barrier::new(channel_ids);
         Ok((
             Self,
@@ -1045,7 +1094,12 @@ impl Barrier {
 
     #[getter]
     fn channel_ids(slf: &Bound<'_, Self>) -> Vec<ChannelId> {
-        Self::variant(slf).channel_ids().to_vec()
+        Self::variant(slf)
+            .channel_ids()
+            .iter()
+            .cloned()
+            .map(Into::into)
+            .collect()
     }
 
     fn __repr__(slf: &Bound<'_, Self>) -> PyResult<String> {
@@ -1114,7 +1168,7 @@ impl Repeat {
         label: Option<Label>,
     ) -> PyResult<(Self, Element)> {
         let rust_child = child.get().0.clone();
-        let variant = schedule::Repeat::new(rust_child, count).with_spacing(spacing)?;
+        let variant = schedule::Repeat::new(rust_child, count).with_spacing(spacing.into())?;
         Ok((
             Self { child },
             Self::build_element(
@@ -1137,7 +1191,7 @@ impl Repeat {
 
     #[getter]
     fn spacing(slf: &Bound<'_, Self>) -> Time {
-        Self::variant(slf).spacing()
+        Self::variant(slf).spacing().into()
     }
 
     fn __repr__(slf: &Bound<'_, Self>) -> PyResult<String> {

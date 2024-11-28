@@ -12,8 +12,10 @@ use float_cmp::approx_eq;
 use hashbrown::HashMap;
 use itertools::{izip, Itertools};
 use ndarray::{azip, s, ArrayView1, ArrayView2, ArrayViewMut2, Axis};
-use numpy::Complex64;
+use num::Complex;
 use rayon::prelude::*;
+
+type Complex64 = Complex<f64>;
 
 use crate::{
     quant::{AlignedIndex, Amplitude, ChannelId, Frequency, Phase, Time},
@@ -32,7 +34,8 @@ pub struct Envelope {
 }
 
 impl Envelope {
-    pub(crate) fn new(mut shape: Option<Shape>, mut width: Time, mut plateau: Time) -> Self {
+    #[must_use]
+    pub fn new(mut shape: Option<Shape>, mut width: Time, mut plateau: Time) -> Self {
         if shape.is_none() {
             plateau += width;
             width = Time::ZERO;
@@ -97,7 +100,8 @@ pub struct Crosstalk<'a> {
 }
 
 impl<'a> Crosstalk<'a> {
-    pub(crate) const fn new(matrix: ArrayView2<'a, f64>, names: Vec<ChannelId>) -> Self {
+    #[must_use]
+    pub const fn new(matrix: ArrayView2<'a, f64>, names: Vec<ChannelId>) -> Self {
         Self { matrix, names }
     }
 }
@@ -110,7 +114,8 @@ pub struct Sampler<'a> {
 }
 
 impl<'a> Sampler<'a> {
-    pub(crate) fn new(pulse_lists: HashMap<ChannelId, List>) -> Self {
+    #[must_use]
+    pub fn new(pulse_lists: HashMap<ChannelId, List>) -> Self {
         Self {
             channels: HashMap::new(),
             pulse_lists,
@@ -118,7 +123,7 @@ impl<'a> Sampler<'a> {
         }
     }
 
-    pub(crate) fn add_channel(
+    pub fn add_channel(
         &mut self,
         name: ChannelId,
         waveform: ArrayViewMut2<'a, f64>,
@@ -137,11 +142,11 @@ impl<'a> Sampler<'a> {
         );
     }
 
-    pub(crate) fn set_crosstalk(&mut self, crosstalk: ArrayView2<'a, f64>, names: Vec<ChannelId>) {
+    pub fn set_crosstalk(&mut self, crosstalk: ArrayView2<'a, f64>, names: Vec<ChannelId>) {
         self.crosstalk = Some(Crosstalk::new(crosstalk, names));
     }
 
-    pub(crate) fn sample(self, time_tolerance: Time) -> Result<()> {
+    pub fn sample(self, time_tolerance: Time) -> Result<()> {
         if let Some(crosstalk) = self.crosstalk {
             let ct_lookup = crosstalk
                 .names
@@ -215,7 +220,8 @@ pub struct PushArgs {
 }
 
 impl ListBuilder {
-    pub(crate) fn new(amp_tolerance: Amplitude, time_tolerance: Time) -> Self {
+    #[must_use]
+    pub fn new(amp_tolerance: Amplitude, time_tolerance: Time) -> Self {
         Self {
             items: HashMap::new(),
             amp_tolerance,
@@ -223,7 +229,7 @@ impl ListBuilder {
         }
     }
 
-    pub(crate) fn push(
+    pub fn push(
         &mut self,
         PushArgs {
             envelope,
@@ -254,7 +260,8 @@ impl ListBuilder {
         self.items.entry(bin).or_default().push((time, amplitude));
     }
 
-    pub(crate) fn build(mut self) -> List {
+    #[must_use]
+    pub fn build(mut self) -> List {
         for pulses in self.items.values_mut() {
             pulses.sort_unstable_by_key(|(time, _)| *time);
             let mut i = 0;

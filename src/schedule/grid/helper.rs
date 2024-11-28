@@ -1,4 +1,6 @@
-use crate::{python::GridLength, quant::Time};
+use crate::quant::Time;
+
+use super::Length;
 
 #[derive(Debug, Clone, Copy)]
 pub(super) struct NormalizedSpan {
@@ -9,7 +11,7 @@ pub(super) struct NormalizedSpan {
 #[derive(Debug)]
 pub(super) struct Helper<'a> {
     column_sizes: Vec<Time>,
-    columns: &'a [GridLength],
+    columns: &'a [Length],
 }
 
 impl NormalizedSpan {
@@ -23,15 +25,12 @@ impl NormalizedSpan {
 }
 
 impl<'a> Helper<'a> {
-    pub(super) fn new(columns: &'a [GridLength]) -> Self {
+    pub(super) fn new(columns: &'a [Length]) -> Self {
         let column_sizes = columns
             .iter()
-            .map(|c| {
-                if c.is_fixed() {
-                    Time::new(c.value).expect("Should be checked in GridLenth")
-                } else {
-                    Time::ZERO
-                }
+            .map(|c| match c {
+                &Length::Fixed(v) => Time::new(v).expect("Should be checked in GridLenth"),
+                _ => Time::ZERO,
             })
             .collect();
         Self {
@@ -40,10 +39,7 @@ impl<'a> Helper<'a> {
         }
     }
 
-    pub(super) fn new_with_column_sizes(
-        columns: &'a [GridLength],
-        column_sizes: Vec<Time>,
-    ) -> Self {
+    pub(super) fn new_with_column_sizes(columns: &'a [Length], column_sizes: Vec<Time>) -> Self {
         assert!(columns.len() == column_sizes.len());
         Self {
             column_sizes,
@@ -115,8 +111,11 @@ impl<'a> Helper<'a> {
             .zip(self.columns)
             .skip(start)
             .take(span)
-            .filter(|(_, c)| c.is_auto())
-            .for_each(|(s, _)| *s += increment);
+            .for_each(|(s, c)| {
+                if matches!(c, &Length::Auto) {
+                    *s += increment;
+                }
+            });
         true
     }
 
@@ -135,11 +134,13 @@ impl<'a> Helper<'a> {
                 .zip(self.columns)
                 .skip(start)
                 .take(span)
-                .filter(|(_, column)| column.is_star())
-                .map(|(column_size, column)| StarItem {
-                    size_per_star: *column_size / column.value,
-                    column_size,
-                    star: column.value,
+                .filter_map(|(column_size, column)| match column {
+                    &Length::Star(v) => Some(StarItem {
+                        size_per_star: *column_size / v,
+                        column_size,
+                        star: v,
+                    }),
+                    _ => None,
                 })
                 .collect();
             if items.is_empty() {
@@ -215,7 +216,7 @@ mod tests {
         expected_expanded: bool,
         expected_column_sizes: &[f64],
     ) {
-        let columns: Vec<GridLength> = columns.iter().map(|s| s.parse().unwrap()).collect();
+        let columns: Vec<Length> = columns.iter().map(|s| s.parse().unwrap()).collect();
         let expected_column_sizes: Vec<Time> = expected_column_sizes
             .iter()
             .map(|s| Time::new(*s).unwrap())
@@ -257,7 +258,7 @@ mod tests {
         expected_expanded: bool,
         expected_column_sizes: &[f64],
     ) {
-        let columns: Vec<GridLength> = columns.iter().map(|s| s.parse().unwrap()).collect();
+        let columns: Vec<Length> = columns.iter().map(|s| s.parse().unwrap()).collect();
         let expected_column_sizes: Vec<Time> = expected_column_sizes
             .iter()
             .map(|s| Time::new(*s).unwrap())
@@ -283,7 +284,7 @@ mod tests {
         expected_expanded_or_fit: bool,
         expected_column_sizes: &[f64],
     ) {
-        let columns: Vec<GridLength> = columns.iter().map(|s| s.parse().unwrap()).collect();
+        let columns: Vec<Length> = columns.iter().map(|s| s.parse().unwrap()).collect();
         let expected_column_sizes: Vec<Time> = expected_column_sizes
             .iter()
             .map(|s| Time::new(*s).unwrap())

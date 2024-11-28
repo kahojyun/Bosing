@@ -1,5 +1,10 @@
-mod pyfn;
-
+use bosing::{
+    executor::{self, Executor},
+    pulse::{
+        apply_fir_inplace, apply_iir_inplace, apply_iq_inplace, apply_offset_inplace, List, Sampler,
+    },
+    quant,
+};
 use hashbrown::HashMap;
 use ndarray::ArrayViewMut2;
 use numpy::{prelude::*, AllowTypeChange, PyArray2, PyArrayLike2};
@@ -7,23 +12,16 @@ use pyo3::{
     exceptions::{PyRuntimeError, PyValueError},
     prelude::*,
 };
+use rayon::prelude::*;
 
 use crate::{
-    executor::{self, Executor},
-    pulse::{
-        apply_fir_inplace, apply_iir_inplace, apply_iq_inplace, apply_offset_inplace, List, Sampler,
-    },
-    quant::{Amplitude, ChannelId, Frequency, Phase, ShapeId, Time},
-};
-
-use super::{
     elements::Element,
     extract::{FirArray, IirArray, IqMatrix, OffsetArray},
+    push_repr,
     repr::{Arg, Rich},
     shapes::Shape,
+    types::{Amplitude, ChannelId, Frequency, Phase, ShapeId, Time},
 };
-
-pub use self::pyfn::{generate_waveforms, generate_waveforms_with_states};
 
 /// Channel configuration.
 ///
@@ -59,7 +57,7 @@ pub use self::pyfn::{generate_waveforms, generate_waveforms_with_states};
 ///     is_real (bool): Whether the channel is real. Defaults to ``False``.
 #[pyclass(module = "bosing", get_all, frozen)]
 #[derive(Debug, Clone)]
-pub(super) struct Channel {
+pub struct Channel {
     base_freq: Frequency,
     sample_rate: Frequency,
     length: usize,
@@ -178,23 +176,49 @@ impl Rich for Channel {
 ///     base_freq (float): Base frequency of the oscillator.
 ///     delta_freq (float): Frequency shift of the oscillator.
 ///     phase (float): Phase of the oscillator in **cycles**.
-#[pyclass(module = "bosing", get_all, set_all)]
+#[pyclass(module = "bosing")]
 #[derive(Debug, Clone, Copy)]
-pub(super) struct OscState {
-    base_freq: Frequency,
-    delta_freq: Frequency,
-    phase: Phase,
-}
+pub struct OscState(executor::OscState);
 
 #[pymethods]
 impl OscState {
     #[new]
-    const fn new(base_freq: Frequency, delta_freq: Frequency, phase: Phase) -> Self {
-        Self {
-            base_freq,
-            delta_freq,
-            phase,
-        }
+    fn new(base_freq: Frequency, delta_freq: Frequency, phase: Phase) -> Self {
+        Self(executor::OscState {
+            base_freq: base_freq.into(),
+            delta_freq: delta_freq.into(),
+            phase: phase.into(),
+        })
+    }
+
+    #[getter]
+    fn base_freq(&self) -> Frequency {
+        self.0.base_freq.into()
+    }
+
+    #[setter]
+    fn set_base_freq(&mut self, base_freq: Frequency) {
+        self.0.base_freq = base_freq.into();
+    }
+
+    #[getter]
+    fn delta_freq(&self) -> Frequency {
+        self.0.delta_freq.into()
+    }
+
+    #[setter]
+    fn set_delta_freq(&mut self, delta_freq: Frequency) {
+        self.0.delta_freq = delta_freq.into();
+    }
+
+    #[getter]
+    fn phase(&self) -> Phase {
+        self.0.phase.into()
+    }
+
+    #[setter]
+    fn set_phase(&mut self, phase: Phase) {
+        self.0.phase = phase.into();
     }
 
     /// Calculate the total frequency of the oscillator.
@@ -202,7 +226,7 @@ impl OscState {
     /// Returns:
     ///     float: Total frequency of the oscillator.
     fn total_freq(&self) -> Frequency {
-        executor::OscState::from(*self).total_freq()
+        self.0.total_freq().into()
     }
 
     /// Calculate the phase of the oscillator at a given time.
@@ -213,7 +237,7 @@ impl OscState {
     /// Returns:
     ///     float: Phase of the oscillator in **cycles**.
     fn phase_at(&self, time: Time) -> Phase {
-        executor::OscState::from(*self).phase_at(time)
+        self.0.phase_at(time.into()).into()
     }
 
     /// Get a new state with a time shift.
@@ -224,7 +248,7 @@ impl OscState {
     /// Returns:
     ///     OscState: The new state.
     fn with_time_shift(&self, time: Time) -> Self {
-        executor::OscState::from(*self).with_time_shift(time).into()
+        self.0.with_time_shift(time.into()).into()
     }
 
     fn __repr__(slf: &Bound<'_, Self>) -> PyResult<String> {
@@ -241,37 +265,213 @@ impl Rich for OscState {
         let mut res = Vec::new();
         let py = slf.py();
         let slf = slf.borrow();
-        push_repr!(res, py, slf.base_freq);
-        push_repr!(res, py, slf.delta_freq);
-        push_repr!(res, py, slf.phase);
+        push_repr!(res, py, slf.base_freq());
+        push_repr!(res, py, slf.delta_freq());
+        push_repr!(res, py, slf.phase());
         res.into_iter()
     }
 }
 
 impl From<executor::OscState> for OscState {
-    fn from(osc: executor::OscState) -> Self {
-        Self {
-            base_freq: osc.base_freq,
-            delta_freq: osc.delta_freq,
-            phase: osc.phase,
-        }
+    fn from(value: executor::OscState) -> Self {
+        Self(value)
     }
 }
 
 impl From<OscState> for executor::OscState {
-    fn from(osc: OscState) -> Self {
-        Self {
-            base_freq: osc.base_freq,
-            delta_freq: osc.delta_freq,
-            phase: osc.phase,
-        }
+    fn from(value: OscState) -> Self {
+        value.0
     }
 }
 
 type ChannelWaveforms = HashMap<ChannelId, Py<PyArray2<f64>>>;
 type ChannelStates = HashMap<ChannelId, Py<OscState>>;
-type ChannelPulses = HashMap<ChannelId, List>;
+type ChannelPulses = HashMap<quant::ChannelId, List>;
 type CrosstalkMatrix<'a> = (PyArrayLike2<'a, f64, AllowTypeChange>, Vec<ChannelId>);
+
+fn default_time_tolerance() -> Time {
+    Time::new(1e-12).expect("Should be valid static value.")
+}
+
+fn default_amp_tolerance() -> Amplitude {
+    Amplitude::new(0.1 / 2f64.powi(16)).expect("Should be valid static value.")
+}
+
+/// Generate waveforms from a schedule.
+///
+/// .. caution::
+///
+///     Crosstalk matrix will not be applied to offset of the channels.
+///
+/// Args:
+///     channels (Mapping[str, Channel]): Information of the channels.
+///     shapes (Mapping[str, Shape]): Shapes used in the schedule.
+///     schedule (Element): Root element of the schedule.
+///     time_tolerance (float): Tolerance for time comparison. Default is ``1e-12``.
+///     amp_tolerance (float): Tolerance for amplitude comparison. Default is
+///         ``0.1 / 2**16``.
+///     allow_oversize (bool): Allow elements to occupy a longer duration than
+///         available. Default is ``False``.
+///     crosstalk (tuple[array_like, Sequence[str]] | None): Crosstalk matrix
+///         with corresponding channel ids. Default is ``None``.
+///
+/// Returns:
+///     dict[str, numpy.ndarray]: Waveforms of the channels. The key is the
+///         channel name and the value is the waveform. The shape of the
+///         waveform is ``(n, length)``, where ``n`` is 2 for complex waveform
+///         and 1 for real waveform.
+///
+/// Raises:
+///     ValueError: If some input is invalid.
+///     TypeError: If some input has an invalid type.
+///     RuntimeError: If waveform generation fails.
+///
+/// Example:
+///     .. code-block:: python
+///
+///         from bosing import Barrier, Channel, Hann, Play, Stack, generate_waveforms
+///         channels = {"xy": Channel(30e6, 2e9, 1000)}
+///         shapes = {"hann": Hann()}
+///         schedule = Stack(duration=500e-9).with_children(
+///             Play(
+///                 channel_id="xy",
+///                 shape_id="hann",
+///                 amplitude=0.3,
+///                 width=100e-9,
+///                 plateau=200e-9,
+///             ),
+///             Barrier(duration=10e-9),
+///         )
+///         result = generate_waveforms(channels, shapes, schedule)
+#[pyfunction]
+#[pyo3(signature = (
+channels,
+shapes,
+schedule,
+*,
+time_tolerance=default_time_tolerance(),
+amp_tolerance=default_amp_tolerance(),
+allow_oversize=false,
+crosstalk=None,
+))]
+#[expect(clippy::too_many_arguments, clippy::missing_errors_doc)]
+pub fn generate_waveforms(
+    py: Python<'_>,
+    channels: HashMap<ChannelId, Channel>,
+    shapes: HashMap<ShapeId, Py<Shape>>,
+    schedule: &Bound<'_, Element>,
+    time_tolerance: Time,
+    amp_tolerance: Amplitude,
+    allow_oversize: bool,
+    crosstalk: Option<CrosstalkMatrix<'_>>,
+) -> PyResult<ChannelWaveforms> {
+    let (waveforms, _) = generate_waveforms_with_states(
+        py,
+        channels,
+        shapes,
+        schedule,
+        time_tolerance,
+        amp_tolerance,
+        allow_oversize,
+        crosstalk,
+        None,
+    )?;
+    Ok(waveforms)
+}
+
+/// Generate waveforms from a schedule with initial states.
+///
+/// .. caution::
+///
+///     Crosstalk matrix will not be applied to offset of the channels.
+///
+/// Args:
+///     channels (collections.abc.Mapping[str, Channel]): Information of the channels.
+///     shapes (Mapping[str, Shape]): Shapes used in the schedule.
+///     schedule (Element): Root element of the schedule.
+///     time_tolerance (float): Tolerance for time comparison. Default is ``1e-12``.
+///     amp_tolerance (float): Tolerance for amplitude comparison. Default is
+///         ``0.1 / 2**16``.
+///     allow_oversize (bool): Allow elements to occupy a longer duration than
+///         available. Default is ``False``.
+///     crosstalk (tuple[array_like, Sequence[str]] | None): Crosstalk matrix
+///         with corresponding channel ids. Default is ``None``.
+///     states (Mapping[str, OscState] | None): Initial states of the channels.
+///
+/// Returns:
+///     tuple[dict[str, numpy.ndarray], dict[str, OscState]]: Waveforms and final states.
+///
+///     Waveforms part is a dictionary mapping channel names to waveforms. The shape of the
+///     waveform is ``(n, length)``, where ``n`` is 2 for complex waveform and 1 for real waveform.
+///
+///     States part is a dictionary mapping channel names to final states.
+///
+/// Raises:
+///     ValueError: If some input is invalid.
+///     TypeError: If some input has an invalid type.
+///     RuntimeError: If waveform generation fails.
+#[pyfunction]
+#[pyo3(signature = (
+channels,
+shapes,
+schedule,
+*,
+time_tolerance=default_time_tolerance(),
+amp_tolerance=default_amp_tolerance(),
+allow_oversize=false,
+crosstalk=None,
+states=None,
+))]
+#[expect(clippy::too_many_arguments, clippy::missing_errors_doc)]
+#[expect(clippy::needless_pass_by_value, reason = "PyO3 extractor")]
+pub fn generate_waveforms_with_states(
+    py: Python<'_>,
+    channels: HashMap<ChannelId, Channel>,
+    shapes: HashMap<ShapeId, Py<Shape>>,
+    schedule: &Bound<'_, Element>,
+    time_tolerance: Time,
+    amp_tolerance: Amplitude,
+    allow_oversize: bool,
+    crosstalk: Option<CrosstalkMatrix<'_>>,
+    states: Option<ChannelStates>,
+) -> PyResult<(ChannelWaveforms, ChannelStates)> {
+    if let Some((crosstalk, names)) = &crosstalk {
+        let nl = names.len();
+        if crosstalk.shape() != [nl, nl] {
+            return Err(PyValueError::new_err(
+                "The size of the crosstalk matrix must be the same as the number of names.",
+            ));
+        }
+    }
+    let (pulse_lists, new_states) = build_pulse_lists(
+        schedule,
+        &channels,
+        &shapes,
+        time_tolerance,
+        amp_tolerance,
+        allow_oversize,
+        states.as_ref(),
+    )?;
+    let waveforms = sample_waveform(py, &channels, pulse_lists, crosstalk, time_tolerance)?;
+    Ok((
+        py.allow_threads(|| {
+            waveforms
+                .into_par_iter()
+                .map(|(n, w)| {
+                    Python::with_gil(|py| {
+                        let w = w.bind(py);
+                        let mut w = w.readwrite();
+                        let mut w = w.as_array_mut();
+                        let c = &channels[&n];
+                        py.allow_threads(|| post_process(&mut w, c));
+                    });
+                    (n, w)
+                })
+                .collect()
+        }),
+        new_states,
+    ))
+}
 
 fn build_pulse_lists(
     schedule: &Bound<'_, Element>,
@@ -283,7 +483,7 @@ fn build_pulse_lists(
     states: Option<&ChannelStates>,
 ) -> PyResult<(ChannelPulses, ChannelStates)> {
     let py = schedule.py();
-    let mut executor = Executor::new(amp_tolerance, time_tolerance, allow_oversize);
+    let mut executor = Executor::new(amp_tolerance.into(), time_tolerance.into(), allow_oversize);
     for (n, c) in channels {
         let osc = match &states {
             Some(states) => states
@@ -291,13 +491,13 @@ fn build_pulse_lists(
                 .ok_or_else(|| PyValueError::new_err(format!("No state for channel: {n}")))?
                 .extract::<OscState>(py)?
                 .into(),
-            None => executor::OscState::new(c.base_freq),
+            None => executor::OscState::new(c.base_freq.into()),
         };
-        executor.add_channel(n.clone(), osc);
+        executor.add_channel(n.clone().into(), osc);
     }
     for (n, s) in shapes {
         let s = s.bind(py);
-        executor.add_shape(n.clone(), Shape::get_rust_shape(s)?);
+        executor.add_shape(n.clone().into(), Shape::get_rust_shape(s)?);
     }
     let schedule = &schedule.get().0;
     let (states, pulselists) = py
@@ -310,7 +510,7 @@ fn build_pulse_lists(
         .map_err(|e: executor::Error| PyRuntimeError::new_err(e.to_string()))?;
     let states = states
         .into_iter()
-        .map(|(n, s)| Ok((n, Py::new(py, OscState::from(s))?)))
+        .map(|(n, s)| Ok((n.into(), Py::new(py, OscState::from(s))?)))
         .collect::<PyResult<_>>()?;
 
     Ok((pulselists, states))
@@ -337,12 +537,19 @@ fn sample_waveform(
     for (n, c) in channels {
         // SAFETY: These arrays are just created.
         let array = unsafe { waveforms[n].bind(py).as_array_mut() };
-        sampler.add_channel(n.clone(), array, c.sample_rate, c.delay, c.align_level);
+        sampler.add_channel(
+            n.clone().into(),
+            array,
+            c.sample_rate.into(),
+            c.delay.into(),
+            c.align_level,
+        );
     }
     if let Some((ref crosstalk, names)) = crosstalk {
+        let names = names.into_iter().map(Into::into).collect();
         sampler.set_crosstalk(crosstalk.as_array(), names);
     }
-    py.allow_threads(|| sampler.sample(time_tolerance))?;
+    py.allow_threads(|| sampler.sample(time_tolerance.into()))?;
     Ok(waveforms)
 }
 

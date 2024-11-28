@@ -15,7 +15,7 @@ pub struct Repeat {
 }
 
 impl Repeat {
-    pub(crate) const fn new(child: ElementRef, count: usize) -> Self {
+    pub const fn new(child: ElementRef, count: usize) -> Self {
         Self {
             child,
             count,
@@ -24,7 +24,7 @@ impl Repeat {
         }
     }
 
-    pub(crate) fn with_spacing(mut self, spacing: Time) -> Result<Self> {
+    pub fn with_spacing(mut self, spacing: Time) -> Result<Self> {
         if !spacing.value().is_finite() {
             bail!("Invalid spacing {:?}", spacing);
         }
@@ -33,11 +33,11 @@ impl Repeat {
         Ok(self)
     }
 
-    pub(crate) const fn count(&self) -> usize {
+    pub const fn count(&self) -> usize {
         self.count
     }
 
-    pub(crate) const fn spacing(&self) -> Time {
+    pub const fn spacing(&self) -> Time {
         self.spacing
     }
 }

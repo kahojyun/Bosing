@@ -35,9 +35,9 @@ pub enum Error {
 
 #[derive(Debug, Clone, Copy)]
 pub struct OscState {
-    pub(crate) base_freq: Frequency,
-    pub(crate) delta_freq: Frequency,
-    pub(crate) phase: Phase,
+    pub base_freq: Frequency,
+    pub delta_freq: Frequency,
+    pub phase: Phase,
 }
 
 type Result<T> = std::result::Result<T, Error>;
@@ -60,11 +60,8 @@ struct AddPulseArgs {
 }
 
 impl Executor {
-    pub(crate) fn new(
-        amp_tolerance: Amplitude,
-        time_tolerance: Time,
-        allow_oversize: bool,
-    ) -> Self {
+    #[must_use]
+    pub fn new(amp_tolerance: Amplitude, time_tolerance: Time, allow_oversize: bool) -> Self {
         Self {
             channels: HashMap::new(),
             shapes: HashMap::new(),
@@ -74,7 +71,7 @@ impl Executor {
         }
     }
 
-    pub(crate) fn add_channel(&mut self, name: ChannelId, osc: OscState) {
+    pub fn add_channel(&mut self, name: ChannelId, osc: OscState) {
         self.channels.insert(
             name,
             Channel {
@@ -84,25 +81,27 @@ impl Executor {
         );
     }
 
-    pub(crate) fn add_shape(&mut self, name: ShapeId, shape: Shape) {
+    pub fn add_shape(&mut self, name: ShapeId, shape: Shape) {
         self.shapes.insert(name, shape);
     }
 
-    pub(crate) fn states(&self) -> HashMap<ChannelId, OscState> {
+    #[must_use]
+    pub fn states(&self) -> HashMap<ChannelId, OscState> {
         self.channels
             .iter()
             .map(|(n, b)| (n.clone(), b.osc))
             .collect()
     }
 
-    pub(crate) fn into_result(self) -> HashMap<ChannelId, List> {
+    #[must_use]
+    pub fn into_result(self) -> HashMap<ChannelId, List> {
         self.channels
             .into_iter()
             .map(|(n, b)| (n, b.pulses.build()))
             .collect()
     }
 
-    pub(crate) fn execute(&mut self, root: &ElementRef) -> Result<()> {
+    pub fn execute(&mut self, root: &ElementRef) -> Result<()> {
         let time_range = TimeRange {
             start: Time::ZERO,
             span: root.measure(),
@@ -221,7 +220,8 @@ impl Executor {
 }
 
 impl OscState {
-    pub(crate) const fn new(base_freq: Frequency) -> Self {
+    #[must_use]
+    pub const fn new(base_freq: Frequency) -> Self {
         Self {
             base_freq,
             delta_freq: Frequency::ZERO,
@@ -229,15 +229,18 @@ impl OscState {
         }
     }
 
-    pub(crate) fn total_freq(&self) -> Frequency {
+    #[must_use]
+    pub fn total_freq(&self) -> Frequency {
         self.base_freq + self.delta_freq
     }
 
-    pub(crate) fn phase_at(&self, time: Time) -> Phase {
+    #[must_use]
+    pub fn phase_at(&self, time: Time) -> Phase {
         self.phase + self.total_freq() * time
     }
 
-    pub(crate) fn with_time_shift(&self, time: Time) -> Self {
+    #[must_use]
+    pub fn with_time_shift(&self, time: Time) -> Self {
         Self {
             base_freq: self.base_freq,
             delta_freq: self.delta_freq,

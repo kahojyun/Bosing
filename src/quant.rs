@@ -6,10 +6,10 @@ use std::{
 };
 
 use num::cast;
-use numpy::Complex64;
 use ordered_float::NotNan;
-use pyo3::{exceptions::PyValueError, prelude::*, types::PyFloat, IntoPy};
 use thiserror::Error;
+
+use crate::Complex64;
 
 #[derive(Debug, Error)]
 pub enum Error {
@@ -37,7 +37,7 @@ pub struct AlignedIndex(NotNan<f64>);
 macro_rules! def_id {
     ($t:ident) => {
         #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-        pub struct $t(Arc<str>);
+        pub struct $t(pub Arc<str>);
     };
 }
 
@@ -48,7 +48,7 @@ def_id!(Label);
 type Result<T> = std::result::Result<T, Error>;
 
 impl Time {
-    pub(crate) const INFINITY: Self = Self(unsafe { NotNan::new_unchecked(f64::INFINITY) });
+    pub const INFINITY: Self = Self(unsafe { NotNan::new_unchecked(f64::INFINITY) });
 }
 
 impl Phase {
@@ -56,19 +56,21 @@ impl Phase {
         self.value() * std::f64::consts::TAU
     }
 
-    pub(crate) fn phaser(self) -> Complex64 {
+    #[must_use]
+    pub fn phaser(self) -> Complex64 {
         Complex64::from_polar(1.0, self.radians())
     }
 }
 
 impl Frequency {
-    pub(crate) fn dt(self) -> Time {
+    #[must_use]
+    pub fn dt(self) -> Time {
         Time::new(1.0 / self.value()).expect("Frequency should be non-zero")
     }
 }
 
 impl AlignedIndex {
-    pub(crate) fn new(time: Time, sample_rate: Frequency, align_level: i32) -> Result<Self> {
+    pub fn new(time: Time, sample_rate: Frequency, align_level: i32) -> Result<Self> {
         fn scaleb(x: f64, s: i32) -> f64 {
             let s: f64 = s.into();
             x * s.exp2()
@@ -86,15 +88,18 @@ impl AlignedIndex {
         Ok(Self(NotNan::new(value)?))
     }
 
-    pub(crate) fn value(self) -> f64 {
+    #[must_use]
+    pub fn value(self) -> f64 {
         self.0.into_inner()
     }
 
-    pub(crate) fn ceil_to_usize(self) -> Option<usize> {
+    #[must_use]
+    pub fn ceil_to_usize(self) -> Option<usize> {
         cast(self.0)
     }
 
-    pub(crate) fn index_offset(self) -> Self {
+    #[must_use]
+    pub fn index_offset(self) -> Self {
         Self::from_value(self.0.ceil() - self.0.into_inner()).expect("Should be a valid index.")
     }
 }
@@ -112,12 +117,6 @@ impl Mul<Frequency> for Time {
 
     fn mul(self, rhs: Frequency) -> Self::Output {
         Phase::new(self.value() * rhs.value()).expect("Should be a valid phase value")
-    }
-}
-
-impl From<Error> for PyErr {
-    fn from(err: Error) -> Self {
-        PyValueError::new_err(err.to_string())
     }
 }
 
@@ -152,22 +151,16 @@ macro_rules! forward_ref_binop {
 macro_rules! impl_quant {
     ($t:ty) => {
         impl $t {
-            pub(crate) fn new(value: f64) -> Result<Self> {
+            pub fn new(value: f64) -> Result<Self> {
                 Ok(Self(NotNan::new(value)?))
             }
 
-            pub(crate) fn value(&self) -> f64 {
+            #[must_use]
+            pub fn value(&self) -> f64 {
                 self.0.into_inner()
             }
 
-            pub(crate) const ZERO: Self = Self(unsafe { NotNan::new_unchecked(0.0) });
-        }
-
-        impl<'py> FromPyObject<'py> for $t {
-            fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
-                let value = ob.extract()?;
-                Ok(Self::new(value)?)
-            }
+            pub const ZERO: Self = Self(unsafe { NotNan::new_unchecked(0.0) });
         }
 
         impl Add for $t {
@@ -246,18 +239,6 @@ macro_rules! impl_quant {
             }
         }
 
-        impl IntoPy<PyObject> for $t {
-            fn into_py(self, py: Python<'_>) -> PyObject {
-                PyFloat::new_bound(py, self.value()).into()
-            }
-        }
-
-        impl ToPyObject for $t {
-            fn to_object(&self, py: Python<'_>) -> PyObject {
-                PyFloat::new_bound(py, self.value()).into()
-            }
-        }
-
         impl From<$t> for f64 {
             fn from(q: $t) -> Self {
                 q.value()
@@ -288,7 +269,7 @@ impl_quant!(Amplitude);
 macro_rules! impl_id {
     ($t:ty) => {
         impl $t {
-            pub(crate) fn new(name: impl Into<Arc<str>>) -> Self {
+            pub fn new(name: impl Into<Arc<str>>) -> Self {
                 Self(name.into())
             }
         }
@@ -296,31 +277,6 @@ macro_rules! impl_id {
         impl std::fmt::Display for $t {
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
                 write!(f, "{}", self.0)
-            }
-        }
-
-        impl<'py> FromPyObject<'py> for $t {
-            fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
-                let name = ob.extract::<String>()?;
-                Ok(Self::new(name))
-            }
-        }
-
-        impl IntoPy<PyObject> for $t {
-            fn into_py(self, py: Python<'_>) -> PyObject {
-                self.0.into_py(py)
-            }
-        }
-
-        impl<'a> IntoPy<PyObject> for &'a $t {
-            fn into_py(self, py: Python<'_>) -> PyObject {
-                self.0.to_object(py)
-            }
-        }
-
-        impl ToPyObject for $t {
-            fn to_object(&self, py: Python<'_>) -> PyObject {
-                self.0.to_object(py)
             }
         }
     };

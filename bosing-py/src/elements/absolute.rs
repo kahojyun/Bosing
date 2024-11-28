@@ -1,8 +1,9 @@
 use std::sync::Arc;
 
+use bosing::schedule;
 use pyo3::{exceptions::PyValueError, prelude::*};
 
-use crate::{quant::Time, schedule};
+use crate::{push_repr, types::Time};
 
 use super::{Arg, Element, ElementSubclass, Label, Rich};
 
@@ -81,7 +82,7 @@ impl Absolute {
             .iter()
             .map(|x| {
                 let element = x.element.get().0.clone();
-                Ok(schedule::AbsoluteEntry::new(element).with_time(x.time)?)
+                Ok(schedule::AbsoluteEntry::new(element).with_time(x.time.into())?)
             })
             .collect::<PyResult<_>>()?;
         let variant = schedule::Absolute::new().with_children(rust_children);
@@ -129,7 +130,7 @@ impl Absolute {
             .iter()
             .map(|x| {
                 let element = x.element.get().0.clone();
-                Ok(schedule::AbsoluteEntry::new(element).with_time(x.time)?)
+                Ok(schedule::AbsoluteEntry::new(element).with_time(x.time.into())?)
             })
             .collect::<PyResult<_>>()?;
         let rust_base = &slf.downcast::<Element>()?.get().0;
@@ -187,7 +188,7 @@ impl Entry {
 impl Entry {
     #[new]
     fn new(time: Time, element: Py<Element>) -> PyResult<Self> {
-        if !time.value().is_finite() {
+        if !time.0.value().is_finite() {
             return Err(PyValueError::new_err("Time must be finite"));
         }
         Ok(Self { time, element })

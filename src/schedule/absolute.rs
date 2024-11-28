@@ -20,14 +20,14 @@ pub struct Absolute {
 }
 
 impl Entry {
-    pub(crate) const fn new(element: ElementRef) -> Self {
+    pub const fn new(element: ElementRef) -> Self {
         Self {
             time: Time::ZERO,
             element,
         }
     }
 
-    pub(crate) fn with_time(mut self, time: Time) -> Result<Self> {
+    pub fn with_time(mut self, time: Time) -> Result<Self> {
         if !time.value().is_finite() {
             bail!("Invalid time {:?}", time);
         }
@@ -37,11 +37,13 @@ impl Entry {
 }
 
 impl Absolute {
-    pub(crate) fn new() -> Self {
+    #[must_use]
+    pub fn new() -> Self {
         Self::default()
     }
 
-    pub(crate) fn with_children(mut self, children: Vec<Entry>) -> Self {
+    #[must_use]
+    pub fn with_children(mut self, children: Vec<Entry>) -> Self {
         let channel_ids = merge_channel_ids(children.iter().map(|e| e.element.variant.channels()));
         self.children = children;
         self.channel_ids = channel_ids;

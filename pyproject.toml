@@ -4,12 +4,9 @@ build-backend = "maturin"
 
 [project]
 name = "bosing"
-dynamic = ["version"]
-description = "Waveform generator for pulse sequences in quantum computing"
+dynamic = ["version", "authors", "description", "license", "keywords"]
 readme = "README.md"
 requires-python = ">=3.9"
-keywords = []
-authors = [{ name = "Jiahao Yuan", email = "kahojyun@icloud.com" }]
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Programming Language :: Rust",
@@ -29,6 +26,7 @@ Source = "https://github.com/kahojyun/Bosing"
 [tool.maturin]
 python-source = "python"
 module-name = "bosing._bosing"
+manifest-path = "bosing-py/Cargo.toml"
 features = ["pyo3/extension-module"]
 
 [dependency-groups]

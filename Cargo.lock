@@ -47,18 +47,29 @@ dependencies = [
  "cached",
  "float-cmp",
  "hashbrown",
- "indoc",
  "itertools",
  "mockall",
  "ndarray",
  "num",
- "numpy",
  "ordered-float",
  "pulp",
- "pyo3",
  "rayon",
  "test-case",
  "thiserror 2.0.3",
+]
+
+[[package]]
+name = "bosing-py"
+version = "0.0.0-dev"
+dependencies = [
+ "anyhow",
+ "bosing",
+ "hashbrown",
+ "itertools",
+ "ndarray",
+ "numpy",
+ "pyo3",
+ "rayon",
 ]
 
 [[package]]
