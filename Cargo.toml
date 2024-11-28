@@ -50,10 +50,8 @@ indoc.workspace = true
 itertools.workspace = true
 ndarray.workspace = true
 num.workspace = true
-numpy.workspace = true
 ordered-float.workspace = true
 pulp.workspace = true
-pyo3.workspace = true
 rayon.workspace = true
 thiserror.workspace = true
 

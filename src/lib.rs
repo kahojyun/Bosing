@@ -3,8 +3,11 @@
 //! children after creation.
 mod executor;
 mod pulse;
-mod python;
 mod quant;
 mod schedule;
 mod shape;
 mod util;
+
+use num::Complex;
+
+type Complex64 = Complex<f64>;

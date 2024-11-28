@@ -52,10 +52,8 @@ dependencies = [
  "mockall",
  "ndarray",
  "num",
- "numpy",
  "ordered-float",
  "pulp",
- "pyo3",
  "rayon",
  "test-case",
  "thiserror 2.0.3",
@@ -66,6 +64,8 @@ name = "bosing-py"
 version = "0.0.0-dev"
 dependencies = [
  "bosing",
+ "ndarray",
+ "numpy",
  "pyo3",
 ]
 

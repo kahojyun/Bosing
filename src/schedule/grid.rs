@@ -1,17 +1,93 @@
 mod helper;
 
-use std::sync::OnceLock;
+use std::{str::FromStr, sync::OnceLock};
 
 use anyhow::{bail, Result};
 
-use crate::{
-    python::GridLength,
-    quant::{ChannelId, Time},
-};
+use crate::quant::{ChannelId, Time};
 
 use super::{merge_channel_ids, Alignment, Arrange, Arranged, ElementRef, Measure, TimeRange};
 
 use self::helper::Helper;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LengthUnit {
+    Seconds,
+    Auto,
+    Star,
+}
+
+#[derive(Debug, Clone)]
+pub struct Length {
+    pub(crate) value: f64,
+    unit: LengthUnit,
+}
+
+impl Length {
+    pub const STAR: Self = Self {
+        value: 1.0,
+        unit: LengthUnit::Star,
+    };
+
+    pub const fn auto() -> Self {
+        Self {
+            value: 0.0,
+            unit: LengthUnit::Auto,
+        }
+    }
+
+    pub fn star(value: f64) -> Result<Self> {
+        if !(value.is_finite() && value > 0.0) {
+            bail!("The value must be greater than 0.");
+        }
+        Ok(Self {
+            value,
+            unit: LengthUnit::Star,
+        })
+    }
+
+    pub fn fixed(value: f64) -> Result<Self> {
+        if !(value.is_finite() && value >= 0.0) {
+            bail!("The value must be greater than or equal to 0.");
+        }
+        Ok(Self {
+            value,
+            unit: LengthUnit::Seconds,
+        })
+    }
+
+    pub(crate) fn is_auto(&self) -> bool {
+        self.unit == LengthUnit::Auto
+    }
+
+    pub(crate) fn is_star(&self) -> bool {
+        self.unit == LengthUnit::Star
+    }
+
+    pub(crate) fn is_fixed(&self) -> bool {
+        self.unit == LengthUnit::Seconds
+    }
+}
+
+impl FromStr for Length {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if s == "auto" {
+            return Ok(Self::auto());
+        }
+        if s == "*" {
+            return Ok(Self::STAR);
+        }
+        if let Some(v) = s.strip_suffix('*').and_then(|x| x.parse().ok()) {
+            return Ok(Self::star(v)?);
+        }
+        if let Ok(v) = s.parse() {
+            return Ok(Self::fixed(v)?);
+        }
+        Err(anyhow::anyhow!("Invalid GridLength string: {}", s))
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct Entry {
@@ -23,7 +99,7 @@ pub struct Entry {
 #[derive(Debug, Clone)]
 pub struct Grid {
     children: Vec<Entry>,
-    columns: Vec<GridLength>,
+    columns: Vec<Length>,
     channel_ids: Vec<ChannelId>,
     measure_result: OnceLock<MeasureResult>,
 }
@@ -69,9 +145,9 @@ impl Grid {
         Self::default()
     }
 
-    pub(crate) fn with_columns(mut self, columns: Vec<GridLength>) -> Self {
+    pub(crate) fn with_columns(mut self, columns: Vec<Length>) -> Self {
         if columns.is_empty() {
-            self.columns = vec![GridLength::STAR];
+            self.columns = vec![Length::STAR];
         } else {
             self.columns = columns;
         }
@@ -87,7 +163,7 @@ impl Grid {
         self
     }
 
-    pub(crate) fn columns(&self) -> &[GridLength] {
+    pub(crate) fn columns(&self) -> &[Length] {
         &self.columns
     }
 
@@ -109,7 +185,7 @@ impl Default for Grid {
     fn default() -> Self {
         Self {
             children: vec![],
-            columns: vec![GridLength::STAR],
+            columns: vec![Length::STAR],
             channel_ids: vec![],
             measure_result: OnceLock::new(),
         }
@@ -172,7 +248,7 @@ impl Arrange for Grid {
     }
 }
 
-fn measure_grid<I>(children: I, columns: &[GridLength]) -> MeasureResult
+fn measure_grid<I>(children: I, columns: &[Length]) -> MeasureResult
 where
     I: IntoIterator<Item = MeasureItem>,
 {
@@ -236,7 +312,7 @@ mod tests {
                 column,
                 span,
             });
-        let columns: Vec<GridLength> = columns.iter().map(|s| s.parse().unwrap()).collect();
+        let columns: Vec<Length> = columns.iter().map(|s| s.parse().unwrap()).collect();
 
         let MeasureResult {
             total_duration,

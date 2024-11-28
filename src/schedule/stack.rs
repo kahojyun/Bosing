@@ -2,14 +2,17 @@ mod helper;
 
 use std::sync::OnceLock;
 
-use crate::{
-    python::Direction,
-    quant::{ChannelId, Time},
-};
+use crate::quant::{ChannelId, Time};
 
 use super::{merge_channel_ids, Arrange, Arranged, ElementRef, Measure, TimeRange};
 
 use self::helper::Helper;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Direction {
+    Backward,
+    Forward,
+}
 
 #[derive(Debug, Clone)]
 pub struct Stack {

@@ -12,10 +12,7 @@ use hashbrown::HashSet;
 #[cfg(test)]
 use mockall::automock;
 
-use crate::{
-    python::Alignment,
-    quant::{ChannelId, Label, Time},
-};
+use crate::quant::{ChannelId, Label, Time};
 
 pub use self::{
     absolute::{Absolute, Entry as AbsoluteEntry},
@@ -27,6 +24,14 @@ pub use self::{
 };
 
 pub type ElementRef = Arc<Element>;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Alignment {
+    End,
+    Start,
+    Center,
+    Stretch,
+}
 
 #[derive(Debug, Clone)]
 pub struct Element {

@@ -6,10 +6,10 @@ use std::{
 };
 
 use num::cast;
-use numpy::Complex64;
 use ordered_float::NotNan;
-use pyo3::{exceptions::PyValueError, prelude::*, types::PyFloat, IntoPy};
 use thiserror::Error;
+
+use crate::Complex64;
 
 #[derive(Debug, Error)]
 pub enum Error {
@@ -115,12 +115,6 @@ impl Mul<Frequency> for Time {
     }
 }
 
-impl From<Error> for PyErr {
-    fn from(err: Error) -> Self {
-        PyValueError::new_err(err.to_string())
-    }
-}
-
 macro_rules! forward_ref_binop {
     ($trait:ident, $method:ident, $t:ty) => {
         impl<'a> $trait<$t> for &'a $t {
@@ -161,13 +155,6 @@ macro_rules! impl_quant {
             }
 
             pub(crate) const ZERO: Self = Self(unsafe { NotNan::new_unchecked(0.0) });
-        }
-
-        impl<'py> FromPyObject<'py> for $t {
-            fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
-                let value = ob.extract()?;
-                Ok(Self::new(value)?)
-            }
         }
 
         impl Add for $t {
@@ -246,18 +233,6 @@ macro_rules! impl_quant {
             }
         }
 
-        impl IntoPy<PyObject> for $t {
-            fn into_py(self, py: Python<'_>) -> PyObject {
-                PyFloat::new_bound(py, self.value()).into()
-            }
-        }
-
-        impl ToPyObject for $t {
-            fn to_object(&self, py: Python<'_>) -> PyObject {
-                PyFloat::new_bound(py, self.value()).into()
-            }
-        }
-
         impl From<$t> for f64 {
             fn from(q: $t) -> Self {
                 q.value()
@@ -296,31 +271,6 @@ macro_rules! impl_id {
         impl std::fmt::Display for $t {
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
                 write!(f, "{}", self.0)
-            }
-        }
-
-        impl<'py> FromPyObject<'py> for $t {
-            fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
-                let name = ob.extract::<String>()?;
-                Ok(Self::new(name))
-            }
-        }
-
-        impl IntoPy<PyObject> for $t {
-            fn into_py(self, py: Python<'_>) -> PyObject {
-                self.0.into_py(py)
-            }
-        }
-
-        impl<'a> IntoPy<PyObject> for &'a $t {
-            fn into_py(self, py: Python<'_>) -> PyObject {
-                self.0.to_object(py)
-            }
-        }
-
-        impl ToPyObject for $t {
-            fn to_object(&self, py: Python<'_>) -> PyObject {
-                self.0.to_object(py)
             }
         }
     };

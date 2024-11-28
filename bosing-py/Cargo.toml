@@ -5,10 +5,13 @@ version.workspace = true
 rust-version.workspace = true
 license.workspace = true
 authors.workspace = true
+publish = false
 
 [dependencies]
 bosing = { path = ".." }
 pyo3.workspace = true
+numpy.workspace = true
+ndarray.workspace = true
 
 [lints]
 workspace = true

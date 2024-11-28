@@ -12,8 +12,10 @@ use float_cmp::approx_eq;
 use hashbrown::HashMap;
 use itertools::{izip, Itertools};
 use ndarray::{azip, s, ArrayView1, ArrayView2, ArrayViewMut2, Axis};
-use numpy::Complex64;
+use num::Complex;
 use rayon::prelude::*;
+
+type Complex64 = Complex<f64>;
 
 use crate::{
     quant::{AlignedIndex, Amplitude, ChannelId, Frequency, Phase, Time},

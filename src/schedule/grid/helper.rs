@@ -1,4 +1,6 @@
-use crate::{python::GridLength, quant::Time};
+use crate::quant::Time;
+
+use super::Length;
 
 #[derive(Debug, Clone, Copy)]
 pub(super) struct NormalizedSpan {
@@ -9,7 +11,7 @@ pub(super) struct NormalizedSpan {
 #[derive(Debug)]
 pub(super) struct Helper<'a> {
     column_sizes: Vec<Time>,
-    columns: &'a [GridLength],
+    columns: &'a [Length],
 }
 
 impl NormalizedSpan {
@@ -23,7 +25,7 @@ impl NormalizedSpan {
 }
 
 impl<'a> Helper<'a> {
-    pub(super) fn new(columns: &'a [GridLength]) -> Self {
+    pub(super) fn new(columns: &'a [Length]) -> Self {
         let column_sizes = columns
             .iter()
             .map(|c| {
@@ -40,10 +42,7 @@ impl<'a> Helper<'a> {
         }
     }
 
-    pub(super) fn new_with_column_sizes(
-        columns: &'a [GridLength],
-        column_sizes: Vec<Time>,
-    ) -> Self {
+    pub(super) fn new_with_column_sizes(columns: &'a [Length], column_sizes: Vec<Time>) -> Self {
         assert!(columns.len() == column_sizes.len());
         Self {
             column_sizes,
@@ -215,7 +214,7 @@ mod tests {
         expected_expanded: bool,
         expected_column_sizes: &[f64],
     ) {
-        let columns: Vec<GridLength> = columns.iter().map(|s| s.parse().unwrap()).collect();
+        let columns: Vec<Length> = columns.iter().map(|s| s.parse().unwrap()).collect();
         let expected_column_sizes: Vec<Time> = expected_column_sizes
             .iter()
             .map(|s| Time::new(*s).unwrap())
@@ -257,7 +256,7 @@ mod tests {
         expected_expanded: bool,
         expected_column_sizes: &[f64],
     ) {
-        let columns: Vec<GridLength> = columns.iter().map(|s| s.parse().unwrap()).collect();
+        let columns: Vec<Length> = columns.iter().map(|s| s.parse().unwrap()).collect();
         let expected_column_sizes: Vec<Time> = expected_column_sizes
             .iter()
             .map(|s| Time::new(*s).unwrap())
@@ -283,7 +282,7 @@ mod tests {
         expected_expanded_or_fit: bool,
         expected_column_sizes: &[f64],
     ) {
-        let columns: Vec<GridLength> = columns.iter().map(|s| s.parse().unwrap()).collect();
+        let columns: Vec<Length> = columns.iter().map(|s| s.parse().unwrap()).collect();
         let expected_column_sizes: Vec<Time> = expected_column_sizes
             .iter()
             .map(|s| Time::new(*s).unwrap())
