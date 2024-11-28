@@ -10,7 +10,7 @@ use pyo3::prelude::*;
 #[pymodule]
 pub mod _bosing {
     #[pymodule_export]
-    use crate::{
+    pub use crate::{
         elements::{
             Absolute, AbsoluteEntry, Alignment, Barrier, Direction, Element, Grid, GridEntry,
             GridLength, GridLengthUnit, Play, Repeat, SetFreq, SetPhase, ShiftFreq, ShiftPhase,
