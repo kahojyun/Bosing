@@ -67,7 +67,7 @@ impl ElementSubclass for Grid {
             .get()
             .children
             .iter()
-            .map(|x| Arg::positional(x.clone_ref(py).into_py(py), py))
+            .map(|x| Arg::positional(x, py))
             .collect();
         push_repr!(res, py, "columns", Self::columns(slf));
         res
@@ -195,9 +195,8 @@ impl Grid {
     }
 
     #[getter]
-    fn children(slf: &Bound<'_, Self>) -> Vec<Entry> {
-        let py = slf.py();
-        slf.get().children.iter().map(|x| x.clone_ref(py)).collect()
+    fn children<'a>(slf: &'a Bound<'_, Self>) -> &'a Vec<Entry> {
+        &slf.get().children
     }
 
     fn __repr__(slf: &Bound<'_, Self>) -> PyResult<String> {
@@ -222,12 +221,6 @@ pub enum LengthUnit {
     Seconds,
     Auto,
     Star,
-}
-
-impl ToPyObject for LengthUnit {
-    fn to_object(&self, py: Python<'_>) -> PyObject {
-        (*self).into_py(py)
-    }
 }
 
 /// Length of a grid column.
@@ -364,12 +357,6 @@ impl Rich for Length {
     }
 }
 
-impl ToPyObject for Length {
-    fn to_object(&self, py: Python<'_>) -> PyObject {
-        self.clone().into_py(py)
-    }
-}
-
 fn extract_grid_length(obj: &Bound<'_, PyAny>) -> PyResult<Length> {
     Length::convert(obj).and_then(|x| x.extract(obj.py()))
 }
@@ -393,7 +380,7 @@ impl From<schedule::GridLength> for Length {
 ///     column (int): Column index.
 ///     span (int): Column span.
 #[pyclass(module = "bosing", name = "GridEntry", get_all, frozen)]
-#[derive(Debug)]
+#[derive(Debug, IntoPyObjectRef)]
 pub struct Entry {
     element: Py<Element>,
     column: usize,

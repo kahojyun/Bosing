@@ -1,3 +1,5 @@
+use std::convert::Infallible;
+
 use ndarray::{prelude::*, ArrayView};
 use numpy::{prelude::*, Ix1, Ix2, PyArray};
 use pyo3::{exceptions::PyTypeError, prelude::*, sync::GILOnceCell};
@@ -31,9 +33,23 @@ macro_rules! define_wrapper {
             }
         }
 
-        impl ToPyObject for $name {
-            fn to_object(&self, py: Python<'_>) -> PyObject {
-                PyArray::from_array_bound(py, &self.0).into()
+        impl<'py> IntoPyObject<'py> for $name {
+            type Target = PyArray<$t, $d>;
+            type Output = Bound<'py, Self::Target>;
+            type Error = Infallible;
+
+            fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+                Ok(PyArray::from_array(py, &self.0))
+            }
+        }
+
+        impl<'a, 'py> IntoPyObject<'py> for &'a $name {
+            type Target = PyArray<$t, $d>;
+            type Output = Bound<'py, Self::Target>;
+            type Error = Infallible;
+
+            fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+                Ok(PyArray::from_array(py, &self.0))
             }
         }
     };
@@ -74,8 +90,8 @@ fn np_as_array<'py>(ob: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyAny>> {
     let py = ob.py();
     let as_array = AS_ARRAY
         .get_or_try_init(py, || -> PyResult<PyObject> {
-            Ok(py.import_bound("numpy")?.getattr("asarray")?.into())
+            Ok(py.import("numpy")?.getattr("asarray")?.into())
         })?
         .bind(py);
-    as_array.call1((ob, <f64 as numpy::Element>::get_dtype_bound(py)))
+    as_array.call1((ob, <f64 as numpy::Element>::get_dtype(py)))
 }

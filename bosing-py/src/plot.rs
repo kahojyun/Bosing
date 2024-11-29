@@ -36,9 +36,9 @@ pub fn element(
     show_label: bool,
 ) -> PyResult<PyObject> {
     let channels = channels.map_or_else(
-        || PyList::new_bound(py, root.channels().iter().cloned().map(ChannelId::from)),
-        |channels| PyList::new_bound(py, channels),
-    );
+        || PyList::new(py, root.channels().iter().cloned().map(ChannelId::from)),
+        |channels| PyList::new(py, channels),
+    )?;
     let plot_items = Box::new(arrange_to_plot(root));
     let blocks = PlotIter { inner: plot_items };
     call_plot(py, ax, blocks, channels, max_depth, show_label)
@@ -74,7 +74,7 @@ pub struct Args {
 
 #[pyclass(module = "bosing._bosing")]
 struct PlotIter {
-    inner: Box<dyn Iterator<Item = Item> + Send>,
+    inner: Box<dyn Iterator<Item = Item> + Send + Sync>,
 }
 
 #[pymethods]
@@ -83,8 +83,8 @@ impl PlotIter {
         slf
     }
 
-    fn __next__(mut slf: PyRefMut<'_, Self>) -> Option<PyObject> {
-        slf.inner.next().map(|x| x.into_py(slf.py()))
+    fn __next__(mut slf: PyRefMut<'_, Self>) -> Option<Item> {
+        slf.inner.next()
     }
 }
 
@@ -109,7 +109,7 @@ fn call_plot(
 ) -> PyResult<PyObject> {
     static PLOT: GILOnceCell<PyObject> = GILOnceCell::new();
     let plot = PLOT.get_or_try_init(py, || {
-        py.import_bound(BOSING_PLOT_MODULE)?
+        py.import(BOSING_PLOT_MODULE)?
             .getattr(BOSING_PLOT_PLOT)
             .map(Into::into)
     })?;

@@ -55,6 +55,7 @@ examples = ["scipy>=1.9.3"]
 [tool.uv]
 cache-keys = [
   { file = "src/**/*.rs" },
+  { file = "bosing-py/**/*.rs" },
   { file = "pyproject.toml" },
   { file = "Cargo.toml" },
   { file = "Cargo.lock" },

@@ -2,31 +2,43 @@ use itertools::Itertools as _;
 use pyo3::{
     prelude::*,
     types::{DerefToPyAny, PyString},
+    IntoPyObjectExt,
 };
 
-#[derive(Debug)]
+// TODO: check if derive IntoPyObject works
+#[derive(Debug, IntoPyObject)]
 pub enum Arg {
     Positional(PyObject),
     Keyword(Py<PyString>, PyObject),
     KeyWithDefault(Py<PyString>, PyObject, PyObject),
 }
 
+fn into_pyobject<'py, T: IntoPyObjectExt<'py>>(value: T, py: Python<'py>) -> PyObject {
+    value
+        .into_py_any(py)
+        .expect("failed to convert to PyObject")
+}
+
 impl Arg {
-    pub(crate) fn positional<T: ToPyObject>(value: T, py: Python<'_>) -> Self {
-        Self::Positional(value.to_object(py))
+    pub(crate) fn positional<'py, T: IntoPyObjectExt<'py>>(value: T, py: Python<'py>) -> Self {
+        Self::Positional(into_pyobject(value, py))
     }
 
-    pub(crate) fn keyword<T: ToPyObject>(key: Py<PyString>, value: T, py: Python<'_>) -> Self {
-        Self::Keyword(key, value.to_object(py))
+    pub(crate) fn keyword<'py, T: IntoPyObjectExt<'py>>(
+        key: Py<PyString>,
+        value: T,
+        py: Python<'py>,
+    ) -> Self {
+        Self::Keyword(key, into_pyobject(value, py))
     }
 
-    pub(crate) fn key_with_default<T: ToPyObject>(
+    pub(crate) fn key_with_default<'py, T: IntoPyObjectExt<'py>>(
         key: Py<PyString>,
         value: T,
         default: T,
-        py: Python<'_>,
+        py: Python<'py>,
     ) -> Self {
-        Self::KeyWithDefault(key, value.to_object(py), default.to_object(py))
+        Self::KeyWithDefault(key, into_pyobject(value, py), into_pyobject(default, py))
     }
 
     pub(crate) fn fmt(&self, py: Python<'_>) -> PyResult<Option<String>> {
@@ -42,16 +54,6 @@ impl Arg {
             }
         };
         Ok(result)
-    }
-}
-
-impl IntoPy<PyObject> for Arg {
-    fn into_py(self, py: Python<'_>) -> PyObject {
-        match self {
-            Self::Positional(v) => (v,).into_py(py),
-            Self::Keyword(n, v) => (n, v).into_py(py),
-            Self::KeyWithDefault(n, v, d) => (n, v, d).into_py(py),
-        }
     }
 }
 

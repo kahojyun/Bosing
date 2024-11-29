@@ -204,10 +204,9 @@ impl Executor {
         if ch1 == ch2 {
             return Ok(());
         }
-        let [channel, other] = self
-            .channels
-            .get_many_mut([ch1, ch2])
-            .ok_or_else(|| Error::ChannelNotFound(vec![ch1.clone(), ch2.clone()]))?;
+        let [Some(channel), Some(other)] = self.channels.get_many_mut([ch1, ch2]) else {
+            return Err(Error::ChannelNotFound(vec![ch1.clone(), ch2.clone()]));
+        };
         channel.osc.swap_phase(&mut other.osc, time);
         Ok(())
     }
