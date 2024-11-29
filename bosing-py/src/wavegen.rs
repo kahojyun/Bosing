@@ -529,7 +529,7 @@ fn sample_waveform(
             let n_w = if c.is_real { 1 } else { 2 };
             (
                 n.clone(),
-                PyArray2::zeros_bound(py, (n_w, c.length), false).unbind(),
+                PyArray2::zeros(py, (n_w, c.length), false).unbind(),
             )
         })
         .collect();

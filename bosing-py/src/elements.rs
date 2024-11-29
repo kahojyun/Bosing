@@ -357,8 +357,8 @@ where
             res,
             py,
             "alignment",
-            Alignment::from(slf.alignment()).into_py(py),
-            Alignment::End.into_py(py)
+            Alignment::from(slf.alignment()),
+            Alignment::End
         );
         push_repr!(res, py, "phantom", slf.phantom(), false);
         let duration: Option<Time> = slf.duration().map(Into::into);

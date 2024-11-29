@@ -1,9 +1,13 @@
 //! Wrappers for the types used in the Bosing API.
 
-use std::fmt;
+use std::{convert::Infallible, fmt};
 
 use bosing::quant;
-use pyo3::{exceptions::PyValueError, prelude::*};
+use pyo3::{
+    exceptions::PyValueError,
+    prelude::*,
+    types::{PyFloat, PyString},
+};
 
 macro_rules! wrap_value {
     ($wrapper:ident, $inner:ty) => {
@@ -29,15 +33,23 @@ macro_rules! wrap_value {
             }
         }
 
-        impl ToPyObject for $wrapper {
-            fn to_object(&self, py: Python<'_>) -> PyObject {
-                self.0.value().to_object(py)
+        impl<'py> IntoPyObject<'py> for $wrapper {
+            type Target = PyFloat;
+            type Output = Bound<'py, Self::Target>;
+            type Error = Infallible;
+
+            fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+                self.0.value().into_pyobject(py)
             }
         }
 
-        impl IntoPy<PyObject> for $wrapper {
-            fn into_py(self, py: Python<'_>) -> PyObject {
-                self.to_object(py)
+        impl<'a, 'py> IntoPyObject<'py> for &'a $wrapper {
+            type Target = PyFloat;
+            type Output = Bound<'py, Self::Target>;
+            type Error = Infallible;
+
+            fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+                self.0.value().into_pyobject(py)
             }
         }
 
@@ -78,15 +90,23 @@ macro_rules! wrap_id {
             }
         }
 
-        impl ToPyObject for $wrapper {
-            fn to_object(&self, py: Python<'_>) -> PyObject {
-                self.0 .0.to_object(py)
+        impl<'py> IntoPyObject<'py> for $wrapper {
+            type Target = PyString;
+            type Output = Bound<'py, Self::Target>;
+            type Error = Infallible;
+
+            fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+                self.0 .0.into_pyobject(py)
             }
         }
 
-        impl IntoPy<PyObject> for $wrapper {
-            fn into_py(self, py: Python<'_>) -> PyObject {
-                self.to_object(py)
+        impl<'a, 'py> IntoPyObject<'py> for &'a $wrapper {
+            type Target = PyString;
+            type Output = Bound<'py, Self::Target>;
+            type Error = Infallible;
+
+            fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
+                self.0 .0.into_pyobject(py)
             }
         }
 

@@ -1,6 +1,6 @@
 # ruff: noqa: PLR0913
 from collections.abc import Iterable, Iterator, Mapping, Sequence
-from typing import Any, ClassVar, Literal, final
+from typing import ClassVar, Literal, final
 
 import numpy as np
 import numpy.typing as npt
@@ -21,24 +21,24 @@ __all__ = [
     "GridLengthUnit",
     "Hann",
     "Interp",
+    "ItemKind",
+    "OscState",
     "Play",
+    "PlotArgs",
+    "PlotItem",
     "Repeat",
     "SetFreq",
     "SetPhase",
+    "Shape",
     "ShiftFreq",
     "ShiftPhase",
-    "Shape",
     "Stack",
     "SwapPhase",
-    "OscState",
     "generate_waveforms",
     "generate_waveforms_with_states",
-    "ItemKind",
-    "PlotArgs",
-    "PlotItem",
 ]
 
-_RichReprResult: TypeAlias = list[Any]
+_RichReprResult: TypeAlias = list[object]
 
 @final
 class Channel:

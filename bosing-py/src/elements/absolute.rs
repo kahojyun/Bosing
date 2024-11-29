@@ -44,7 +44,7 @@ impl ElementSubclass for Absolute {
         slf.get()
             .children
             .iter()
-            .map(|x| Arg::positional(x.clone_ref(py).into_py(py), py))
+            .map(|x| Arg::positional(x, py))
             .collect()
     }
 }
@@ -146,9 +146,8 @@ impl Absolute {
     }
 
     #[getter]
-    fn children(slf: &Bound<'_, Self>) -> Vec<Entry> {
-        let py = slf.py();
-        slf.get().children.iter().map(|x| x.clone_ref(py)).collect()
+    fn children<'a>(slf: &'a Bound<'_, Self>) -> &'a Vec<Entry> {
+        &slf.get().children
     }
 
     fn __repr__(slf: &Bound<'_, Self>) -> PyResult<String> {
@@ -169,7 +168,7 @@ impl Absolute {
 ///     time (float): Time relative to the start of the parent element.
 ///     element (Element): Child element.
 #[pyclass(module = "bosing", name = "AbsoluteEntry", get_all, frozen)]
-#[derive(Debug)]
+#[derive(Debug, IntoPyObjectRef)]
 pub struct Entry {
     time: Time,
     element: Py<Element>,

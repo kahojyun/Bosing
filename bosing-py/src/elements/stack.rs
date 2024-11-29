@@ -39,8 +39,8 @@ impl ElementSubclass for Stack {
             res,
             py,
             "direction",
-            Self::direction(slf).into_py(py),
-            Direction::Backward.into_py(py)
+            Self::direction(slf),
+            Direction::Backward
         );
         res
     }

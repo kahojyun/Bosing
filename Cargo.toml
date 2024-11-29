@@ -28,14 +28,14 @@ anyhow = "1.0.93"
 bspline = "1.1.0"
 cached = "0.54.0"
 float-cmp = "0.10.0"
-hashbrown = { version = "0.14.5", features = ["rayon"] }
+hashbrown = { version = "0.15.2", features = ["rayon"] }
 itertools = "0.13.0"
 ndarray = { version = "0.16.1", features = ["rayon"] }
 num = "0.4.3"
-numpy = "0.22.1"
+numpy = "0.23.0"
 ordered-float = "4.5.0"
-pulp = "0.19.5"
-pyo3 = { version = "0.22.6", features = [
+pulp = "0.19.6"
+pyo3 = { version = "0.23.2", features = [
   "hashbrown",
   "anyhow",
   "generate-import-lib",
@@ -44,7 +44,7 @@ pyo3 = { version = "0.22.6", features = [
 rayon = "1.10.0"
 thiserror = "2.0.3"
 # Testing
-mockall = "0.13.0"
+mockall = "0.13.1"
 test-case = "3.3.1"
 
 [dependencies]
