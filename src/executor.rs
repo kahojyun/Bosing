@@ -138,7 +138,7 @@ impl Executor {
             Some(id) => Some(
                 self.shapes
                     .get(id)
-                    .ok_or(Error::ShapeNotFound(id.clone()))?
+                    .ok_or_else(|| Error::ShapeNotFound(id.clone()))?
                     .clone(),
             ),
             None => None,
@@ -207,7 +207,7 @@ impl Executor {
         let [channel, other] = self
             .channels
             .get_many_mut([ch1, ch2])
-            .ok_or(Error::ChannelNotFound(vec![ch1.clone(), ch2.clone()]))?;
+            .ok_or_else(|| Error::ChannelNotFound(vec![ch1.clone(), ch2.clone()]))?;
         channel.osc.swap_phase(&mut other.osc, time);
         Ok(())
     }
@@ -215,7 +215,7 @@ impl Executor {
     fn get_mut_channel(&mut self, id: &ChannelId) -> Result<&mut Channel> {
         self.channels
             .get_mut(id)
-            .ok_or(Error::ChannelNotFound(vec![id.clone()]))
+            .ok_or_else(|| Error::ChannelNotFound(vec![id.clone()]))
     }
 }
 

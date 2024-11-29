@@ -6,7 +6,7 @@ struct ApplyFirInplace<'a, 'b> {
     taps: ArrayView1<'b, f64>,
 }
 
-impl<'a, 'b> WithSimd for ApplyFirInplace<'a, 'b> {
+impl WithSimd for ApplyFirInplace<'_, '_> {
     type Output = ();
 
     #[inline(always)]
