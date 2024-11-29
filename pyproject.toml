@@ -48,7 +48,7 @@ docs = [
   { include-group = "task" },
 ]
 task = ["taskipy>=1.13.0"]
-lint = ["mypy>=1.11.2", "ruff>=0.6.7"]
+lint = ["basedpyright>=1.22.0", "mypy>=1.11.2", "ruff>=0.6.7"]
 test = ["rich>=13.9.2", "pytest>=8.3.3"]
 examples = ["scipy>=1.9.3"]
 
@@ -65,13 +65,13 @@ cache-keys = [
 [tool.taskipy.tasks]
 format = "task format_py && task format_rs"
 format_py = "ruff format"
-format_rs = "cargo fmt"
+format_rs = "cargo fmt --all"
 lint = "task lint_py && task lint_rs"
-lint_py = "ruff check"
-lint_rs = "cargo clippy --all-targets"
+lint_py = "ruff check && basedpyright"
+lint_rs = "cargo clippy --workspace --all-targets"
 test = "task test_py && task test_rs"
 test_py = "pytest"
-test_rs = "cargo test"
+test_rs = "cargo test --workspace"
 stubtest = "stubtest bosing --allowlist stubtest-allowlist.txt"
 makedocs = "sphinx-build -M html docs docs/_build"
 cleandocs = "sphinx-build -M clean docs docs/_build && rm -r docs/generated"
