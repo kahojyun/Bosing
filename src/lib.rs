@@ -10,6 +10,7 @@ pub mod pulse;
 pub mod quant;
 pub mod schedule;
 pub mod shape;
+pub mod types;
 pub mod util;
 
 use num::Complex;

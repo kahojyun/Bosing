@@ -70,7 +70,7 @@ impl Frequency {
 }
 
 impl AlignedIndex {
-    pub fn new(time: Time, sample_rate: Frequency, align_level: i32) -> Result<Self> {
+    pub fn new(time: Time, sample_rate: SampleRate, align_level: i32) -> Result<Self> {
         fn scaleb(x: f64, s: i32) -> f64 {
             let s: f64 = s.into();
             x * s.exp2()

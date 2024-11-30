@@ -60,6 +60,7 @@ ordered-float.workspace = true
 pulp.workspace = true
 rayon.workspace = true
 thiserror.workspace = true
+typed_floats = "1.0.2"
 
 [dev-dependencies]
 mockall.workspace = true

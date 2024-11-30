@@ -33,6 +33,7 @@ impl Shape {
         Ok(Self(get_shape_instance(key)))
     }
 
+    /// Sample the shape at a given position x in the range \[-0.5, 0.5\].
     pub(crate) fn sample_array(&self, x0: f64, dx: f64, array: &mut [f64]) {
         self.0.sample_array(x0, dx, array);
     }
@@ -90,7 +91,7 @@ struct Hann;
 
 impl ShapeTrait for Hann {
     fn sample(&self, x: f64) -> f64 {
-        0.5 * (1.0 + (2.0 * std::f64::consts::PI * x).cos())
+        0.5 * (1.0 + (std::f64::consts::TAU * x).cos())
     }
 }
 

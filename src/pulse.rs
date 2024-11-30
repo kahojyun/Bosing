@@ -12,43 +12,27 @@ use float_cmp::approx_eq;
 use hashbrown::HashMap;
 use itertools::{izip, Itertools};
 use ndarray::{azip, s, ArrayView1, ArrayView2, ArrayViewMut2, Axis};
-use num::Complex;
 use rayon::prelude::*;
-
-type Complex64 = Complex<f64>;
+use typed_floats::tf64::NonNaNFinite;
 
 use crate::{
-    quant::{AlignedIndex, Amplitude, ChannelId, Frequency, Phase, Time},
     shape::Shape,
+    types::{
+        id::ChannelId,
+        quantity::{Amplitude, Duration, Frequency, Phase, SampleRate, Time},
+    },
+    Complex64,
 };
 
 /// A pulse envelope
-///
-/// If `shape` is `None`, constructor will set `plateau` to `width + plateau`
-/// and `width` to `0`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct Envelope {
-    shape: Option<Shape>,
-    width: Time,
-    plateau: Time,
-}
-
-impl Envelope {
-    #[must_use]
-    pub fn new(mut shape: Option<Shape>, mut width: Time, mut plateau: Time) -> Self {
-        if shape.is_none() {
-            plateau += width;
-            width = Time::ZERO;
-        }
-        if width == Time::ZERO {
-            shape = None;
-        }
-        Self {
-            shape,
-            width,
-            plateau,
-        }
-    }
+pub enum Envelope {
+    Plateau(Duration),
+    Shape {
+        shape: Shape,
+        width: Duration,
+        plateau: Duration,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -127,7 +111,7 @@ impl<'a> Sampler<'a> {
         &mut self,
         name: ChannelId,
         waveform: ArrayViewMut2<'a, f64>,
-        sample_rate: Frequency,
+        sample_rate: SampleRate,
         delay: Time,
         align_level: i32,
     ) {
@@ -197,7 +181,7 @@ impl<'a> Sampler<'a> {
 #[derive(Debug)]
 struct Channel<'a> {
     waveform: ArrayViewMut2<'a, f64>,
-    sample_rate: Frequency,
+    sample_rate: SampleRate,
     align_level: i32,
     delay: Time,
 }
@@ -254,7 +238,7 @@ impl ListBuilder {
             global_freq,
             local_freq,
         };
-        let amp = amplitude.value() * phase.phaser();
+        let amp = amplitude.value() * phase.phasor();
         let drag = amp * Complex64::i() * drag_coef;
         let amplitude = PulseAmplitude { amp, drag };
         self.items.entry(bin).or_default().push((time, amplitude));
@@ -292,8 +276,8 @@ fn mix_add_envelope(
     phase0: Phase,
     dphase: Phase,
 ) {
-    let mut carrier = phase0.phaser();
-    let dcarrier = dphase.phaser();
+    let mut carrier = phase0.phasor();
+    let dcarrier = dphase.phasor();
     let slope_iter = (0..envelope.len()).map(|i| {
         let left = if i > 0 { envelope[i - 1] } else { 0.0 };
         let right = if i < envelope.len() - 1 {
@@ -319,8 +303,8 @@ fn mix_add_plateau(
     phase: Phase,
     dphase: Phase,
 ) {
-    let mut carrier = phase.phaser() * amplitude;
-    let dcarrier = dphase.phaser();
+    let mut carrier = phase.phasor() * amplitude;
+    let dcarrier = dphase.phasor();
     for mut y in waveform.columns_mut() {
         y[0] += carrier.re;
         if let Some(y1) = y.get_mut(1) {
@@ -330,54 +314,97 @@ fn mix_add_plateau(
     }
 }
 
-#[cached(size = 1024)]
-fn get_envelope(
-    shape: Shape,
-    width: Time,
-    plateau: Time,
-    index_offset: AlignedIndex,
-    sample_rate: Frequency,
-) -> Arc<Vec<f64>> {
-    fn time_to_index(t: f64, sr: f64) -> usize {
-        assert!(t >= 0.0, "Time must be non-negative.");
-        assert!(sr > 0.0, "Sample rate should be positive.");
-        #[expect(clippy::cast_sign_loss, reason = "Asserted non-negative.")]
-        #[expect(clippy::cast_possible_truncation, reason = "Index is small.")]
-        let res = (t * sr).ceil() as usize;
-        res
+mod index {
+    use typed_floats::tf64::{PositiveFinite, StrictlyPositiveFinite};
+
+    /// Fractional number of samples.
+    ///
+    /// Valid range: \[0, +∞\)
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    pub struct Duration(pub PositiveFinite);
+
+    impl Duration {
+        pub fn value(self) -> f64 {
+            self.0.into()
+        }
     }
 
-    let width = width.value();
-    let plateau = plateau.value();
-    let index_offset = index_offset.value();
-    let sample_rate = sample_rate.value();
-    let dt = 1.0 / sample_rate;
-    let t_offset = index_offset * dt;
-    let t1 = width / 2.0 - t_offset;
-    let t2 = width / 2.0 + plateau - t_offset;
-    let t3 = width + plateau - t_offset;
-    let length = time_to_index(t3, sample_rate);
-    let plateau_start_index = time_to_index(t1, sample_rate);
-    let plateau_end_index = time_to_index(t2, sample_rate);
-    let mut envelope = vec![0.0; length];
-    let x0 = -t1 / width;
-    let dx = dt / width;
-    if plateau == 0.0 {
-        shape.sample_array(x0, dx, &mut envelope);
-    } else {
-        shape.sample_array(x0, dx, &mut envelope[..plateau_start_index]);
-        envelope[plateau_start_index..plateau_end_index].fill(1.0);
-        #[expect(clippy::cast_precision_loss, reason = "Index is small.")]
-        let x2 = (plateau_end_index as f64).mul_add(dt, -t2) / width;
-        shape.sample_array(x2, dx, &mut envelope[plateau_end_index..]);
+    /// Fractional number of samples.
+    ///
+    /// Valid range: \(0, +∞\)
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    pub struct NonZeroDuration(pub StrictlyPositiveFinite);
+
+    impl NonZeroDuration {
+        pub fn value(self) -> f64 {
+            self.0.into()
+        }
     }
-    Arc::new(envelope)
+
+    /// Offset of the index.
+    ///
+    /// Valid range: \[0, 1\)
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    pub struct Offset(PositiveFinite);
+
+    impl Offset {
+        pub fn value(self) -> f64 {
+            self.0.into()
+        }
+    }
+}
+
+mod envelope {
+    use std::sync::Arc;
+
+    use cached::proc_macro::cached;
+
+    use crate::shape::Shape;
+
+    use super::index::{Duration, NonZeroDuration, Offset};
+
+    #[cached(size = 1024)]
+    fn get_envelope(
+        shape: Shape,
+        width: NonZeroDuration,
+        plateau: Duration,
+        offset: Offset,
+    ) -> Arc<Vec<f64>> {
+        fn ceil_rem(x: f64) -> (usize, f64) {
+            let c = x.ceil();
+            let r = c - x;
+            (
+                num::cast(c).expect("Should be guaranteed by input type."),
+                r,
+            )
+        }
+
+        let width = width.value();
+        let plateau = plateau.value();
+        let offset = offset.value();
+        let (i1, _) = ceil_rem(0.5 * width - offset);
+        let (i2, r2) = ceil_rem(0.5 * width + plateau - offset);
+        let (i3, _) = ceil_rem(width + plateau - offset);
+
+        let mut envelope = vec![0.0; i3];
+        let dx = width.recip();
+        let x0 = offset * dx - 0.5;
+        if plateau == 0.0 {
+            shape.sample_array(x0, dx, &mut envelope);
+        } else {
+            shape.sample_array(x0, dx, &mut envelope[..i1]);
+            envelope[i1..i2].fill(1.0);
+            let x2 = r2 * dx;
+            shape.sample_array(x2, dx, &mut envelope[i2..]);
+        }
+        Arc::new(envelope)
+    }
 }
 
 fn merge_and_sample<'a>(
     lists: impl IntoIterator<Item = (f64, &'a List)>,
     waveform: ArrayViewMut2<'_, f64>,
-    sample_rate: Frequency,
+    sample_rate: SampleRate,
     delay: Time,
     align_level: i32,
     time_tolerance: Time,
@@ -421,8 +448,8 @@ fn merge_and_sample<'a>(
 fn sample_pulse_list<PL, L>(
     list: PL,
     mut waveform: ArrayViewMut2<'_, f64>,
-    sample_rate: Frequency,
-    delay: Time,
+    sample_rate: SampleRate,
+    delay: Duration,
     align_level: i32,
 ) -> Result<()>
 where
