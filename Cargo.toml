@@ -24,7 +24,7 @@ keywords.workspace = true
 categories.workspace = true
 
 [workspace.dependencies]
-anyhow = "1.0.93"
+anyhow = "1.0.94"
 bspline = "1.1.0"
 cached = "0.54.0"
 float-cmp = "0.10.0"
@@ -34,15 +34,15 @@ ndarray = { version = "0.16.1", features = ["rayon"] }
 num = "0.4.3"
 numpy = "0.23.0"
 ordered-float = "4.5.0"
-pulp = "0.19.7"
-pyo3 = { version = "0.23.2", features = [
+pulp = "0.20.1"
+pyo3 = { version = "0.23.3", features = [
   "hashbrown",
   "anyhow",
   "generate-import-lib",
   "abi3-py39",
 ] }
 rayon = "1.10.0"
-thiserror = "2.0.3"
+thiserror = "2.0.4"
 # Testing
 mockall = "0.13.1"
 test-case = "3.3.1"
