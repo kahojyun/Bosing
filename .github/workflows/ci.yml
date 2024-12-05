@@ -21,6 +21,7 @@ permissions:
 
 env:
   CARGO_TERM_COLOR: always
+  CI_MATURIN_VERSION: "1.7.6"
 
 jobs:
   # Should run on every push and PR
@@ -113,6 +114,7 @@ jobs:
       - name: Build wheels
         uses: PyO3/maturin-action@v1
         with:
+          maturin-version: ${{ CI_MATURIN_VERSION }}
           target: ${{ matrix.platform.target }}
           args: --release --out dist --find-interpreter
           sccache: "true"
@@ -144,6 +146,7 @@ jobs:
       - name: Build wheels
         uses: PyO3/maturin-action@v1
         with:
+          maturin-version: ${{ CI_MATURIN_VERSION }}
           target: ${{ matrix.platform.target }}
           args: --release --out dist --find-interpreter
           sccache: "true"
@@ -174,6 +177,7 @@ jobs:
       - name: Build wheels
         uses: PyO3/maturin-action@v1
         with:
+          maturin-version: ${{ CI_MATURIN_VERSION }}
           target: ${{ matrix.platform.target }}
           args: --release --out dist --find-interpreter
           sccache: "true"
