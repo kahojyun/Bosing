@@ -14,7 +14,7 @@ on:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ startsWith(github.ref, 'refs/pull/') }}
 
 permissions:
   contents: read
@@ -27,7 +27,7 @@ jobs:
   # Should run on every push and PR
   test:
     name: Test
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     env:
       UV_NO_SYNC: 1
     steps:
@@ -41,7 +41,7 @@ jobs:
       - name: Cargo clippy
         run: cargo clippy --workspace --all-targets -- -D warnings
       - name: Install uv
-        uses: astral-sh/setup-uv@v3
+        uses: astral-sh/setup-uv@v4
       - name: Sync project
         run: uv sync --locked --no-dev --group ci
       - name: Pytest
@@ -64,7 +64,7 @@ jobs:
   # Should run on every push and PR, but only run semantic-release on push
   release:
     name: Run semantic-release
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     needs: test
     permissions:
       contents: write
@@ -93,128 +93,54 @@ jobs:
       version: ${{ steps.semantic-release.outputs.release-version || format('0.0.0-dev+{0}', github.sha) }}
       published: ${{ steps.semantic-release.outputs.new-release-published || 'false' }}
 
-  linux:
-    runs-on: ${{ matrix.platform.runner }}
+  build:
+    runs-on: ${{ matrix.os.runner }}
     needs: release
     strategy:
       matrix:
-        platform:
-          - runner: ubuntu-latest
-            target: x86_64
-          - runner: ubuntu-latest
-            target: aarch64
+        os:
+          - runner: ubuntu-22.04
+            name: linux
+          - runner: windows-2022
+            name: windows
+          - runner: macos-14
+            name: macos
+        target: [x86_64, aarch64]
+        command: [build]
+        include:
+          - args: --release --out dist --find-interpreter
+            sccache: true
+          - command: sdist
+            os:
+              runner: ubuntu-22.04
+            args: --out dist
+            sccache: false
     steps:
       - uses: actions/checkout@v4
       - name: Replace version in Cargo.toml
         shell: pwsh
         run: (Get-Content -Path Cargo.toml) -replace '^version = "0.0.0-dev"$', 'version = "${{ needs.release.outputs.version }}"' | Set-Content -Path Cargo.toml
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.x"
       - name: Build wheels
         uses: PyO3/maturin-action@v1
         with:
           maturin-version: ${{ env.CI_MATURIN_VERSION }}
-          target: ${{ matrix.platform.target }}
-          args: --release --out dist --find-interpreter
-          sccache: "true"
+          command: ${{ matrix.command }}
+          target: ${{ matrix.target }}
+          args: ${{ matrix.args }}
+          sccache: ${{ matrix.sccache }}
           manylinux: auto
       - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:
-          name: wheels-linux-${{ matrix.platform.target }}
-          path: dist
-
-  windows:
-    runs-on: ${{ matrix.platform.runner }}
-    needs: release
-    strategy:
-      matrix:
-        platform:
-          - runner: windows-latest
-            target: x64
-          - runner: windows-latest
-            target: aarch64
-    steps:
-      - uses: actions/checkout@v4
-      - name: Replace version in Cargo.toml
-        shell: pwsh
-        run: (Get-Content -Path Cargo.toml) -replace '^version = "0.0.0-dev"$', 'version = "${{ needs.release.outputs.version }}"' | Set-Content -Path Cargo.toml
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.x"
-      - name: Build wheels
-        uses: PyO3/maturin-action@v1
-        with:
-          maturin-version: ${{ env.CI_MATURIN_VERSION }}
-          target: ${{ matrix.platform.target }}
-          args: --release --out dist --find-interpreter
-          sccache: "true"
-      - name: Upload wheels
-        uses: actions/upload-artifact@v4
-        with:
-          name: wheels-windows-${{ matrix.platform.target }}
-          path: dist
-
-  macos:
-    runs-on: ${{ matrix.platform.runner }}
-    needs: release
-    strategy:
-      matrix:
-        platform:
-          - runner: macos-latest
-            target: x86_64
-          - runner: macos-14
-            target: aarch64
-    steps:
-      - uses: actions/checkout@v4
-      - name: Replace version in Cargo.toml
-        shell: pwsh
-        run: (Get-Content -Path Cargo.toml) -replace '^version = "0.0.0-dev"$', 'version = "${{ needs.release.outputs.version }}"' | Set-Content -Path Cargo.toml
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.x"
-      - name: Build wheels
-        uses: PyO3/maturin-action@v1
-        with:
-          maturin-version: ${{ env.CI_MATURIN_VERSION }}
-          target: ${{ matrix.platform.target }}
-          args: --release --out dist --find-interpreter
-          sccache: "true"
-      - name: Upload wheels
-        uses: actions/upload-artifact@v4
-        with:
-          name: wheels-macos-${{ matrix.platform.target }}
-          path: dist
-
-  sdist:
-    runs-on: ubuntu-latest
-    needs: release
-    steps:
-      - uses: actions/checkout@v4
-      - name: Replace version in Cargo.toml
-        shell: pwsh
-        run: (Get-Content -Path Cargo.toml) -replace '^version = "0.0.0-dev"$', 'version = "${{ needs.release.outputs.version }}"' | Set-Content -Path Cargo.toml
-      - name: Build sdist
-        uses: PyO3/maturin-action@v1
-        with:
-          command: sdist
-          args: --out dist
-      - name: Upload sdist
-        uses: actions/upload-artifact@v4
-        with:
-          name: wheels-sdist
+          name: wheels-${{ matrix.command == 'sdist' && 'sdist' || format('{0}-{1}', matrix.os.name, matrix.target) }}
           path: dist
 
   # For branch protection rules
   check:
     if: always()
     needs:
-      - linux
-      - windows
-      - macos
-      - sdist
-    runs-on: ubuntu-latest
+      - build
+    runs-on: ubuntu-22.04
     steps:
       - name: Decide whether the needed jobs succeeded or failed
         uses: re-actors/alls-green@release/v1
@@ -228,7 +154,7 @@ jobs:
       - check
       - release
     if: needs.release.outputs.published == 'true' && github.event_name == 'push'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     environment: pypi
     permissions:
       id-token: write
