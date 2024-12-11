@@ -109,8 +109,7 @@ jobs:
         command: [build]
         include:
           - command: sdist
-            os:
-              - runner: ubuntu-22.04
+            os.runner: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
       - name: Replace version in Cargo.toml
