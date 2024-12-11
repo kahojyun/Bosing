@@ -106,6 +106,11 @@ jobs:
           - runner: macos-14
             name: macos
         target: [x86_64, aarch64]
+        command: [build]
+        include:
+          - command: sdist
+            os:
+              - runner: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
       - name: Replace version in Cargo.toml
@@ -115,6 +120,7 @@ jobs:
         uses: PyO3/maturin-action@v1
         with:
           maturin-version: ${{ env.CI_MATURIN_VERSION }}
+          command: ${{ matrix.command }}
           target: ${{ matrix.target }}
           args: --release --out dist --find-interpreter
           sccache: "true"
@@ -122,27 +128,7 @@ jobs:
       - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:
-          name: wheels-${{ matrix.os.name }}-${{ matrix.target }}
-          path: dist
-
-  sdist:
-    runs-on: ubuntu-22.04
-    needs: release
-    steps:
-      - uses: actions/checkout@v4
-      - name: Replace version in Cargo.toml
-        shell: pwsh
-        run: (Get-Content -Path Cargo.toml) -replace '^version = "0.0.0-dev"$', 'version = "${{ needs.release.outputs.version }}"' | Set-Content -Path Cargo.toml
-      - name: Build sdist
-        uses: PyO3/maturin-action@v1
-        with:
-          maturin-version: ${{ env.CI_MATURIN_VERSION }}
-          command: sdist
-          args: --out dist
-      - name: Upload sdist
-        uses: actions/upload-artifact@v4
-        with:
-          name: wheels-sdist
+          name: wheels-${{ matrix.command == 'sdist' && 'sdist' || format('{0}-{1}', matrix.os.name, matrix.target) }}
           path: dist
 
   # For branch protection rules
@@ -150,7 +136,6 @@ jobs:
     if: always()
     needs:
       - build
-      - sdist
     runs-on: ubuntu-22.04
     steps:
       - name: Decide whether the needed jobs succeeded or failed
