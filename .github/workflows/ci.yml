@@ -14,7 +14,7 @@ on:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ startsWith(github.ref, 'refs/pull/') }}
 
 permissions:
   contents: read
@@ -93,98 +93,36 @@ jobs:
       version: ${{ steps.semantic-release.outputs.release-version || format('0.0.0-dev+{0}', github.sha) }}
       published: ${{ steps.semantic-release.outputs.new-release-published || 'false' }}
 
-  linux:
-    runs-on: ${{ matrix.platform.runner }}
+  build:
+    runs-on: ${{ matrix.os.runner }}
     needs: release
     strategy:
       matrix:
-        platform:
+        os:
           - runner: ubuntu-latest
-            target: x86_64
-          - runner: ubuntu-latest
-            target: aarch64
+            name: linux
+          - runner: windows-latest
+            name: windows
+          - runner: macos-latest
+            name: macos
+        target: [x86_64, aarch64]
     steps:
       - uses: actions/checkout@v4
       - name: Replace version in Cargo.toml
         shell: pwsh
         run: (Get-Content -Path Cargo.toml) -replace '^version = "0.0.0-dev"$', 'version = "${{ needs.release.outputs.version }}"' | Set-Content -Path Cargo.toml
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.x"
       - name: Build wheels
         uses: PyO3/maturin-action@v1
         with:
           maturin-version: ${{ env.CI_MATURIN_VERSION }}
-          target: ${{ matrix.platform.target }}
+          target: ${{ matrix.target }}
           args: --release --out dist --find-interpreter
           sccache: "true"
           manylinux: auto
       - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:
-          name: wheels-linux-${{ matrix.platform.target }}
-          path: dist
-
-  windows:
-    runs-on: ${{ matrix.platform.runner }}
-    needs: release
-    strategy:
-      matrix:
-        platform:
-          - runner: windows-latest
-            target: x64
-          - runner: windows-latest
-            target: aarch64
-    steps:
-      - uses: actions/checkout@v4
-      - name: Replace version in Cargo.toml
-        shell: pwsh
-        run: (Get-Content -Path Cargo.toml) -replace '^version = "0.0.0-dev"$', 'version = "${{ needs.release.outputs.version }}"' | Set-Content -Path Cargo.toml
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.x"
-      - name: Build wheels
-        uses: PyO3/maturin-action@v1
-        with:
-          maturin-version: ${{ env.CI_MATURIN_VERSION }}
-          target: ${{ matrix.platform.target }}
-          args: --release --out dist --find-interpreter
-          sccache: "true"
-      - name: Upload wheels
-        uses: actions/upload-artifact@v4
-        with:
-          name: wheels-windows-${{ matrix.platform.target }}
-          path: dist
-
-  macos:
-    runs-on: ${{ matrix.platform.runner }}
-    needs: release
-    strategy:
-      matrix:
-        platform:
-          - runner: macos-latest
-            target: x86_64
-          - runner: macos-14
-            target: aarch64
-    steps:
-      - uses: actions/checkout@v4
-      - name: Replace version in Cargo.toml
-        shell: pwsh
-        run: (Get-Content -Path Cargo.toml) -replace '^version = "0.0.0-dev"$', 'version = "${{ needs.release.outputs.version }}"' | Set-Content -Path Cargo.toml
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.x"
-      - name: Build wheels
-        uses: PyO3/maturin-action@v1
-        with:
-          maturin-version: ${{ env.CI_MATURIN_VERSION }}
-          target: ${{ matrix.platform.target }}
-          args: --release --out dist --find-interpreter
-          sccache: "true"
-      - name: Upload wheels
-        uses: actions/upload-artifact@v4
-        with:
-          name: wheels-macos-${{ matrix.platform.target }}
+          name: wheels-${{ matrix.os.name }}-${{ matrix.target }}
           path: dist
 
   sdist:
@@ -198,6 +136,7 @@ jobs:
       - name: Build sdist
         uses: PyO3/maturin-action@v1
         with:
+          maturin-version: ${{ env.CI_MATURIN_VERSION }}
           command: sdist
           args: --out dist
       - name: Upload sdist
@@ -210,9 +149,7 @@ jobs:
   check:
     if: always()
     needs:
-      - linux
-      - windows
-      - macos
+      - build
       - sdist
     runs-on: ubuntu-latest
     steps:
