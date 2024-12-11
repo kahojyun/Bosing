@@ -22,15 +22,12 @@ permissions:
 env:
   CARGO_TERM_COLOR: always
   CI_MATURIN_VERSION: "1.7.6"
-  LINUX_RUNNER": ubuntu-22.04
-  MACOS_RUNNER: macos-14
-  WINDOWS_RUNNER: windows-2022
 
 jobs:
   # Should run on every push and PR
   test:
     name: Test
-    runs-on: ${{ env.LINUX_RUNNER }}
+    runs-on: ubuntu-22.04
     env:
       UV_NO_SYNC: 1
     steps:
@@ -67,7 +64,7 @@ jobs:
   # Should run on every push and PR, but only run semantic-release on push
   release:
     name: Run semantic-release
-    runs-on: ${{ env.LINUX_RUNNER }}
+    runs-on: ubuntu-22.04
     needs: test
     permissions:
       contents: write
@@ -102,11 +99,11 @@ jobs:
     strategy:
       matrix:
         os:
-          - runner: ${{ env.LINUX_RUNNER }}
+          - runner: ubuntu-22.04
             name: linux
-          - runner: ${{ env.WINDOWS_RUNNER }}
+          - runner: windows-2022
             name: windows
-          - runner: ${{ env.MACOS_RUNNER }}
+          - runner: macos-14
             name: macos
         target: [x86_64, aarch64]
     steps:
@@ -129,7 +126,7 @@ jobs:
           path: dist
 
   sdist:
-    runs-on: ${{ env.LINUX_RUNNER }}
+    runs-on: ubuntu-22.04
     needs: release
     steps:
       - uses: actions/checkout@v4
@@ -154,7 +151,7 @@ jobs:
     needs:
       - build
       - sdist
-    runs-on: ${{ env.LINUX_RUNNER }}
+    runs-on: ubuntu-22.04
     steps:
       - name: Decide whether the needed jobs succeeded or failed
         uses: re-actors/alls-green@release/v1
@@ -168,7 +165,7 @@ jobs:
       - check
       - release
     if: needs.release.outputs.published == 'true' && github.event_name == 'push'
-    runs-on: ${{ env.LINUX_RUNNER }}
+    runs-on: ubuntu-22.04
     environment: pypi
     permissions:
       id-token: write
