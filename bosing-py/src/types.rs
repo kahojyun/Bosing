@@ -6,6 +6,7 @@ use bosing::quant;
 use pyo3::{
     exceptions::PyValueError,
     prelude::*,
+    pybacked::PyBackedStr,
     types::{PyFloat, PyString},
 };
 
@@ -85,8 +86,8 @@ macro_rules! wrap_id {
 
         impl FromPyObject<'_> for $wrapper {
             fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<Self> {
-                let s = ob.extract::<String>()?;
-                Ok(Self(<$inner>::new(s)))
+                let s = ob.extract::<PyBackedStr>()?;
+                Ok(Self(<$inner>::new(&*s)))
             }
         }
 

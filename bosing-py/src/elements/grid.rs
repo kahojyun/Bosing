@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use bosing::schedule;
-use pyo3::{exceptions::PyValueError, prelude::*};
+use pyo3::{exceptions::PyValueError, prelude::*, pybacked::PyBackedStr};
 
 use crate::{push_repr, types::Time};
 
@@ -329,7 +329,7 @@ impl Length {
         if let Ok(v) = obj.extract::<f64>() {
             return Py::new(py, Self::fixed(v)?);
         }
-        if let Ok(s) = obj.extract::<String>() {
+        if let Ok(s) = obj.extract::<PyBackedStr>() {
             return Py::new(py, Self(s.parse()?));
         }
         Err(PyValueError::new_err(
