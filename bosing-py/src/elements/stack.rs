@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use bosing::schedule;
-use pyo3::{exceptions::PyValueError, prelude::*};
+use pyo3::{exceptions::PyValueError, prelude::*, pybacked::PyBackedStr};
 
 use crate::{push_repr, types::Time};
 
@@ -199,8 +199,8 @@ impl Direction {
         if let Ok(slf) = obj.extract() {
             return Ok(slf);
         }
-        if let Ok(s) = obj.extract::<String>() {
-            let direction = match s.as_str() {
+        if let Ok(s) = obj.extract::<PyBackedStr>() {
+            let direction = match &*s {
                 "backward" => Some(Self::Backward),
                 "forward" => Some(Self::Forward),
                 _ => None,

@@ -7,7 +7,7 @@ use std::{borrow::Borrow as _, fmt::Debug, sync::Arc};
 use bosing::schedule::{
     self, ElementCommon, ElementCommonBuilder, ElementRef, ElementVariant, Measure as _,
 };
-use pyo3::{exceptions::PyValueError, prelude::*, types::DerefToPyAny};
+use pyo3::{exceptions::PyValueError, prelude::*, pybacked::PyBackedStr, types::DerefToPyAny};
 
 use crate::{
     push_repr,
@@ -68,8 +68,8 @@ impl Alignment {
         if let Ok(slf) = obj.extract() {
             return Ok(slf);
         }
-        if let Ok(s) = obj.extract::<String>() {
-            let alignment = match s.as_str() {
+        if let Ok(s) = obj.extract::<PyBackedStr>() {
+            let alignment = match &*s {
                 "end" => Some(Self::End),
                 "start" => Some(Self::Start),
                 "center" => Some(Self::Center),
