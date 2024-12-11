@@ -109,12 +109,12 @@ jobs:
         command: [build]
         include:
           - args: --release --out dist --find-interpreter
-            sccahe: true
+            sccache: true
           - command: sdist
             os:
               runner: ubuntu-22.04
             args: --out dist
-            scache: false
+            sccache: false
     steps:
       - uses: actions/checkout@v4
       - name: Replace version in Cargo.toml
