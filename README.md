@@ -17,7 +17,7 @@ Docs are hosted on [Read the Docs](http://bosing.readthedocs.io/)
 
 ## Usage
 
-Examples can be found in `examples`.
+Examples can be found in `python/examples`.
 
 ```python
 import matplotlib.pyplot as plt
@@ -46,7 +46,7 @@ plt.show()
 
 ## Performance
 
-`examples/schedule_stress.py` (0.15 s) vs `benches/naive.py` (1.4 s)
+`python/examples/schedule_stress.py` (0.15 s) vs `python/benches/naive.py` (1.4 s)
 
 CPU: AMD Ryzen 5 5600
 

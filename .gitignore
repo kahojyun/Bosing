@@ -1,5 +1,4 @@
-.lazy.lua
-/target
+target/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -12,20 +11,6 @@ __pycache__/
 # Distribution / packaging
 .venv/
 dist/
-
-# Unit test / coverage reports
-htmlcov/
-.tox/
-.coverage
-.cache
-nosetests.xml
-coverage.xml
-
-.DS_Store
-
-# Sphinx documentation
-/docs/_build/
-/docs/generated/
 
 # PyCharm
 .idea/

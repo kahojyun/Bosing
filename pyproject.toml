@@ -24,7 +24,7 @@ Issues = "https://github.com/kahojyun/Bosing/issues"
 Source = "https://github.com/kahojyun/Bosing"
 
 [tool.maturin]
-python-source = "python"
+python-source = "python/src"
 module-name = "bosing._bosing"
 manifest-path = "bosing-py/Cargo.toml"
 features = ["pyo3/extension-module"]
@@ -69,39 +69,18 @@ test = "task test_py && task test_rs"
 test_py = "pytest"
 test_rs = "cargo test --workspace"
 stubtest = "stubtest bosing --allowlist stubtest-allowlist.txt"
-makedocs = "sphinx-build -M html docs docs/_build"
-cleandocs = "sphinx-build -M clean docs docs/_build && rm -r docs/generated"
+makedocs = "sphinx-build -M html python/docs python/docs/_build"
+cleandocs = "sphinx-build -M clean python/docs python/docs/_build && rm -r python/docs/generated"
 
-[tool.ruff.lint]
-select = ["ALL"]
-ignore = [
-  # https://docs.astral.sh/ruff/formatter/#conflicting-lint-rules
-  "COM812", # Missing trailing comma
-  "ISC001", # implicit string concatenation
-]
-[tool.ruff.lint.per-file-ignores]
-"{examples,benches}/*.py" = [
-  "T201", # Use of print
-]
-"tests/*.py" = [
-  "S101", # Use of assert
-]
-"!python/*.py" = [
-  "I002",   # Missing required imports
-  "D",      # Dosctring
-  "INP001", # Implicit namespace package
-]
-[tool.ruff.lint.pydocstyle]
-convention = "google"
-[tool.ruff.lint.isort]
-known-first-party = ["bosing"]
-required-imports = ["from __future__ import annotations"]
+[tool.pytest.ini_options]
+testpaths = ["python/tests"]
+addopts = "--import-mode=importlib"
 
 [tool.basedpyright]
-include = ["examples", "tests", "docs", "benches", "python"]
-exclude = ["**/node_modules", "**/__pycache__", "docs/_build"]
+include = ["python"]
+exclude = ["**/node_modules", "**/__pycache__", "**/docs/_build"]
 [[tool.basedpyright.executionEnvironments]]
-root = "examples"
+root = "python/examples"
 reportAny = "none"
 reportMissingTypeStubs = "none"
 reportUnknownArgumentType = "none"

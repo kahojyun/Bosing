@@ -1,0 +1,24 @@
+[lint]
+select = ["ALL"]
+ignore = [
+  # https://docs.astral.sh/ruff/formatter/#conflicting-lint-rules
+  "COM812", # Missing trailing comma
+  "ISC001", # implicit string concatenation
+]
+[lint.per-file-ignores]
+"{examples,benches}/**/*.py" = [
+  "T201", # Use of print
+]
+"tests/**/*.py" = [
+  "S101", # Use of assert
+]
+"!src/**/*.py" = [
+  "I002",   # Missing required imports
+  "D",      # Dosctring
+  "INP001", # Implicit namespace package
+]
+[lint.pydocstyle]
+convention = "google"
+[lint.isort]
+known-first-party = ["bosing"]
+required-imports = ["from __future__ import annotations"]
