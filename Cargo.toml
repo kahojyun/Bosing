@@ -33,7 +33,7 @@ itertools = "0.13.0"
 ndarray = { version = "0.16.1", features = ["rayon"] }
 num = "0.4.3"
 numpy = "0.23.0"
-ordered-float = "4.5.0"
+ordered-float = "4.6.0"
 pulp = "0.20.1"
 pyo3 = { version = "0.23.3", features = [
   "hashbrown",
