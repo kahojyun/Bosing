@@ -24,7 +24,7 @@ keywords.workspace = true
 categories.workspace = true
 
 [workspace.dependencies]
-anyhow = "1.0.94"
+anyhow = "1.0.95"
 bspline = "1.1.0"
 cached = "0.54.0"
 float-cmp = "0.10.0"
