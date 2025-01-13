@@ -30,23 +30,16 @@ manifest-path = "bosing-py/Cargo.toml"
 features = ["pyo3/extension-module"]
 
 [dependency-groups]
-dev = [
-  "ipython>=8.18.1",
-  "pyside6>=6.3",
-  { include-group = "docs" },
-  { include-group = "ci" },
-]
+dev = ["taskipy>=1.13.0", "scipy>=1.9.3"]
 ci = [
-  { include-group = "task" },
-  { include-group = "lint" },
-  { include-group = "test" },
-  { include-group = "examples" },
+  "basedpyright>=1.22.0",
+  "mypy>=1.11.2",
+  "ruff>=0.6.7",
+  "rich>=13.9.2",
+  "pytest>=8.3.3",
 ]
-docs = ["furo>=2024.8.6", "sphinx>=7.4.7", { include-group = "examples" }]
-task = ["taskipy>=1.13.0"]
-lint = ["basedpyright>=1.22.0", "mypy>=1.11.2", "ruff>=0.6.7"]
-test = ["rich>=13.9.2", "pytest>=8.3.3"]
-examples = ["scipy>=1.9.3"]
+docs = ["furo>=2024.8.6", "sphinx>=7.4.7"]
+extra = ["ipython>=8.18.1", "pyside6>=6.3"]
 
 [tool.uv]
 cache-keys = [
