@@ -89,48 +89,21 @@ ci = [
     { name = "pytest" },
     { name = "rich" },
     { name = "ruff" },
-    { name = "scipy", version = "1.13.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
-    { name = "scipy", version = "1.15.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
-    { name = "taskipy" },
 ]
 dev = [
-    { name = "basedpyright" },
-    { name = "furo" },
-    { name = "ipython", version = "8.18.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
-    { name = "ipython", version = "8.31.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
-    { name = "mypy" },
-    { name = "pyside6" },
-    { name = "pytest" },
-    { name = "rich" },
-    { name = "ruff" },
     { name = "scipy", version = "1.13.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
     { name = "scipy", version = "1.15.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
-    { name = "sphinx", version = "7.4.7", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
-    { name = "sphinx", version = "8.1.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
     { name = "taskipy" },
 ]
 docs = [
     { name = "furo" },
-    { name = "scipy", version = "1.13.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
-    { name = "scipy", version = "1.15.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
     { name = "sphinx", version = "7.4.7", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
     { name = "sphinx", version = "8.1.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
 ]
-examples = [
-    { name = "scipy", version = "1.13.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
-    { name = "scipy", version = "1.15.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
-]
-lint = [
-    { name = "basedpyright" },
-    { name = "mypy" },
-    { name = "ruff" },
-]
-task = [
-    { name = "taskipy" },
-]
-test = [
-    { name = "pytest" },
-    { name = "rich" },
+extra = [
+    { name = "ipython", version = "8.18.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "ipython", version = "8.31.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "pyside6" },
 ]
 
 [package.metadata]
@@ -146,37 +119,18 @@ ci = [
     { name = "pytest", specifier = ">=8.3.3" },
     { name = "rich", specifier = ">=13.9.2" },
     { name = "ruff", specifier = ">=0.6.7" },
-    { name = "scipy", specifier = ">=1.9.3" },
-    { name = "taskipy", specifier = ">=1.13.0" },
 ]
 dev = [
-    { name = "basedpyright", specifier = ">=1.22.0" },
-    { name = "furo", specifier = ">=2024.8.6" },
-    { name = "ipython", specifier = ">=8.18.1" },
-    { name = "mypy", specifier = ">=1.11.2" },
-    { name = "pyside6", specifier = ">=6.3" },
-    { name = "pytest", specifier = ">=8.3.3" },
-    { name = "rich", specifier = ">=13.9.2" },
-    { name = "ruff", specifier = ">=0.6.7" },
     { name = "scipy", specifier = ">=1.9.3" },
-    { name = "sphinx", specifier = ">=7.4.7" },
     { name = "taskipy", specifier = ">=1.13.0" },
 ]
 docs = [
     { name = "furo", specifier = ">=2024.8.6" },
-    { name = "scipy", specifier = ">=1.9.3" },
     { name = "sphinx", specifier = ">=7.4.7" },
 ]
-examples = [{ name = "scipy", specifier = ">=1.9.3" }]
-lint = [
-    { name = "basedpyright", specifier = ">=1.22.0" },
-    { name = "mypy", specifier = ">=1.11.2" },
-    { name = "ruff", specifier = ">=0.6.7" },
-]
-task = [{ name = "taskipy", specifier = ">=1.13.0" }]
-test = [
-    { name = "pytest", specifier = ">=8.3.3" },
-    { name = "rich", specifier = ">=13.9.2" },
+extra = [
+    { name = "ipython", specifier = ">=8.18.1" },
+    { name = "pyside6", specifier = ">=6.3" },
 ]
 
 [[package]]

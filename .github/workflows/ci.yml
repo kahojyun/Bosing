@@ -13,23 +13,20 @@ on:
       - beta
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ startsWith(github.ref, 'refs/pull/') }}
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
 
 env:
   CARGO_TERM_COLOR: always
-  CI_MATURIN_VERSION: "1.8.1"
 
 jobs:
   # Should run on every push and PR
   test:
     name: Test
     runs-on: ubuntu-24.04
-    env:
-      UV_NO_SYNC: 1
     steps:
       - uses: actions/checkout@v4
       - name: Cargo build
@@ -43,7 +40,7 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v5
       - name: Sync project
-        run: uv sync --locked --no-dev --group ci
+        run: uv sync --locked --group ci
       - name: Pytest
         run: uv run pytest
       - name: Ruff format
@@ -56,7 +53,7 @@ jobs:
         run: uv run task stubtest
       - name: Pytest with lowest direct dependencies
         run: |
-          uv sync --no-dev --group test --resolution lowest-direct
+          uv sync --group test --resolution lowest-direct
           uv run pytest
       - name: Check cargo dependencies
         uses: EmbarkStudios/cargo-deny-action@v2
@@ -108,8 +105,8 @@ jobs:
         target: [x86_64, aarch64]
         command: [build]
         include:
-          - args: --release --out dist --find-interpreter
-            sccache: true
+          - args: --release --out dist
+            sccache: ${{ !needs.release.outputs.published }}
           - command: sdist
             os:
               runner: ubuntu-24.04
@@ -123,7 +120,6 @@ jobs:
       - name: Build wheels
         uses: PyO3/maturin-action@v1
         with:
-          maturin-version: ${{ env.CI_MATURIN_VERSION }}
           command: ${{ matrix.command }}
           target: ${{ matrix.target }}
           args: ${{ matrix.args }}
