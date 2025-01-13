@@ -102,7 +102,7 @@ jobs:
         command: [build]
         include:
           - args: --release --out dist
-            sccache: ${{ !needs.release.outputs.published }}
+            sccache: ${{ needs.release.outputs.published == 'false' }}
           - command: sdist
             os:
               runner: ubuntu-24.04
