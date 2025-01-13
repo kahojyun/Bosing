@@ -100,7 +100,7 @@ def gen_n(n: int) -> None:
     _ = generate_waveforms(channels, shapes, schedule, crosstalk=(ct_matrix, ct_names))
 
     t1 = time.perf_counter()
-    print(f"Time: {t1-t0:.3f}s")
+    print(f"Time: {t1 - t0:.3f}s")
 
 
 def main() -> None:

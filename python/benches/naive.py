@@ -105,7 +105,7 @@ def gen_n(n: int) -> None:
         waveforms[f"u{i}"] = ct_output[i]
 
     t1 = time.perf_counter()
-    print(f"Time: {t1-t0:.3f}s")
+    print(f"Time: {t1 - t0:.3f}s")
 
 
 def main() -> None:
