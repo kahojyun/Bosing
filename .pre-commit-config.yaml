@@ -1,0 +1,44 @@
+# See https://pre-commit.com for more information
+# See https://pre-commit.com/hooks.html for more hooks
+ci:
+  skip:
+    - uv-lock
+    - cargo-fmt
+    - cargo-deny
+repos:
+- repo: https://github.com/pre-commit/pre-commit-hooks
+  rev: v5.0.0
+  hooks:
+  - id: trailing-whitespace
+  - id: end-of-file-fixer
+  - id: check-yaml
+  - id: check-toml
+  - id: check-added-large-files
+- repo: https://github.com/crate-ci/typos
+  rev: v1.29.4
+  hooks:
+    - id: typos
+- repo: https://github.com/astral-sh/uv-pre-commit
+  rev: 0.5.22
+  hooks:
+    - id: uv-lock
+- repo: https://github.com/astral-sh/ruff-pre-commit
+  rev: v0.9.2
+  hooks:
+    - id: ruff
+      args: [ --fix ]
+    - id: ruff-format
+# Copied from maturin repo
+- repo: local
+  hooks:
+    - id: cargo-fmt  # rustup component add rustfmt
+      name: cargo fmt
+      entry: cargo fmt --all --
+      language: system
+      types: [rust]
+      pass_filenames: false
+    - id: cargo-deny  # cargo install --locked cargo-deny
+      name: cargo deny
+      entry: cargo deny --all-features check --
+      language: system
+      pass_filenames: false
