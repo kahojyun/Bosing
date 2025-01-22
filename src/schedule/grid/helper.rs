@@ -29,7 +29,7 @@ impl<'a> Helper<'a> {
         let column_sizes = columns
             .iter()
             .map(|c| match c {
-                &Length::Fixed(v) => Time::new(v).expect("Should be checked in GridLenth"),
+                &Length::Fixed(v) => Time::new(v).expect("Should be checked in GridLength"),
                 _ => Time::ZERO,
             })
             .collect();
