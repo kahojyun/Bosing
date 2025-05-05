@@ -34,7 +34,7 @@ ndarray = { version = "0.16.1", features = ["rayon"] }
 num = "0.4.3"
 numpy = "0.23.0"
 ordered-float = "4.6.0"
-pulp = "0.21.4"
+pulp = "0.21.5"
 pyo3 = { version = "0.23.4", features = [
   "hashbrown",
   "anyhow",
