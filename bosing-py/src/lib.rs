@@ -1,4 +1,5 @@
 //! Python bindings for the bosing library.
+#![allow(clippy::doc_markdown)]
 mod elements;
 mod extract;
 mod macros;

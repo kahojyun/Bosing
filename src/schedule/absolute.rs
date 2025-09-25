@@ -29,7 +29,7 @@ impl Entry {
 
     pub fn with_time(mut self, time: Time) -> Result<Self> {
         if !time.value().is_finite() {
-            bail!("Invalid time {:?}", time);
+            bail!("Invalid time {time:?}");
         }
         self.time = time;
         Ok(self)

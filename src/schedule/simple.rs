@@ -41,7 +41,7 @@ pub struct Barrier {
 impl ShiftPhase {
     pub fn new(channel_id: ChannelId, phase: Phase) -> Result<Self> {
         if !phase.value().is_finite() {
-            bail!("Invalid phase {:?}", phase);
+            bail!("Invalid phase {phase:?}");
         }
         Ok(Self {
             channel_ids: [channel_id],
@@ -63,7 +63,7 @@ impl ShiftPhase {
 impl SetPhase {
     pub fn new(channel_id: ChannelId, phase: Phase) -> Result<Self> {
         if !phase.value().is_finite() {
-            bail!("Invalid phase {:?}", phase);
+            bail!("Invalid phase {phase:?}");
         }
         Ok(Self {
             channel_ids: [channel_id],
@@ -85,7 +85,7 @@ impl SetPhase {
 impl ShiftFreq {
     pub fn new(channel_id: ChannelId, frequency: Frequency) -> Result<Self> {
         if !frequency.value().is_finite() {
-            bail!("Invalid frequency {:?}", frequency);
+            bail!("Invalid frequency {frequency:?}");
         }
         Ok(Self {
             channel_ids: [channel_id],
@@ -107,7 +107,7 @@ impl ShiftFreq {
 impl SetFreq {
     pub fn new(channel_id: ChannelId, frequency: Frequency) -> Result<Self> {
         if !frequency.value().is_finite() {
-            bail!("Invalid frequency {:?}", frequency);
+            bail!("Invalid frequency {frequency:?}");
         }
         Ok(Self {
             channel_ids: [channel_id],

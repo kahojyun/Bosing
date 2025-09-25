@@ -52,7 +52,7 @@ impl<'a> Helper<'a> {
                     d.insert(ch.clone(), new_duration);
                 }
             }
-        };
+        }
     }
 
     pub(super) fn into_max_usage(self) -> Time {

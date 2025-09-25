@@ -71,7 +71,7 @@ impl FromStr for Length {
         if let Ok(v) = s.parse() {
             return Self::fixed(v);
         }
-        Err(anyhow::anyhow!("Invalid string: {}", s))
+        Err(anyhow::anyhow!("Invalid string: {s}"))
     }
 }
 
