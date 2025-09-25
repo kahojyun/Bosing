@@ -454,16 +454,16 @@ pub fn generate_waveforms_with_states(
     )?;
     let waveforms = sample_waveform(py, &channels, pulse_lists, crosstalk, time_tolerance)?;
     Ok((
-        py.allow_threads(|| {
+        py.detach(|| {
             waveforms
                 .into_par_iter()
                 .map(|(n, w)| {
-                    Python::with_gil(|py| {
+                    Python::attach(|py| {
                         let w = w.bind(py);
                         let mut w = w.readwrite();
                         let mut w = w.as_array_mut();
                         let c = &channels[&n];
-                        py.allow_threads(|| post_process(&mut w, c));
+                        py.detach(|| post_process(&mut w, c));
                     });
                     (n, w)
                 })
@@ -501,7 +501,7 @@ fn build_pulse_lists(
     }
     let schedule = &schedule.get().0;
     let (states, pulselists) = py
-        .allow_threads(|| {
+        .detach(|| {
             executor.execute(schedule)?;
             let states = executor.states();
             let pulselists = executor.into_result();
@@ -549,7 +549,7 @@ fn sample_waveform(
         let names = names.into_iter().map(Into::into).collect();
         sampler.set_crosstalk(crosstalk.as_array(), names);
     }
-    py.allow_threads(|| sampler.sample(time_tolerance.into()))?;
+    py.detach(|| sampler.sample(time_tolerance.into()))?;
     Ok(waveforms)
 }
 

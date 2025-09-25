@@ -4,7 +4,7 @@ use bosing::{
     util::{pre_order_iter, IterVariant},
 };
 use itertools::Itertools as _;
-use pyo3::{prelude::*, sync::GILOnceCell, types::PyList};
+use pyo3::{prelude::*, sync::PyOnceLock, types::PyList};
 
 use crate::types::{ChannelId, Label, Time};
 
@@ -30,11 +30,11 @@ pub enum ItemKind {
 pub fn element(
     py: Python<'_>,
     root: ElementRef,
-    ax: Option<PyObject>,
+    ax: Option<Py<PyAny>>,
     channels: Option<Vec<ChannelId>>,
     max_depth: usize,
     show_label: bool,
-) -> PyResult<PyObject> {
+) -> PyResult<Py<PyAny>> {
     let channels = channels.map_or_else(
         || PyList::new(py, root.channels().iter().cloned().map(ChannelId::from)),
         |channels| PyList::new(py, channels),
@@ -65,7 +65,7 @@ impl ItemKind {
 #[pyclass(module = "bosing._bosing", name = "PlotArgs", frozen, get_all)]
 #[derive(Debug)]
 pub struct Args {
-    ax: Option<PyObject>,
+    ax: Option<Py<PyAny>>,
     blocks: Py<PlotIter>,
     channels: Py<PyList>,
     max_depth: usize,
@@ -101,13 +101,13 @@ pub struct Item {
 
 fn call_plot(
     py: Python<'_>,
-    ax: Option<PyObject>,
+    ax: Option<Py<PyAny>>,
     blocks: PlotIter,
     channels: Bound<'_, PyList>,
     max_depth: usize,
     show_label: bool,
-) -> PyResult<PyObject> {
-    static PLOT: GILOnceCell<PyObject> = GILOnceCell::new();
+) -> PyResult<Py<PyAny>> {
+    static PLOT: PyOnceLock<Py<PyAny>> = PyOnceLock::new();
     let plot = PLOT.get_or_try_init(py, || {
         py.import(BOSING_PLOT_MODULE)?
             .getattr(BOSING_PLOT_PLOT)

@@ -8,12 +8,12 @@ use pyo3::{
 // TODO: check if derive IntoPyObject works
 #[derive(Debug, IntoPyObject)]
 pub enum Arg {
-    Positional(PyObject),
-    Keyword(Py<PyString>, PyObject),
-    KeyWithDefault(Py<PyString>, PyObject, PyObject),
+    Positional(Py<PyAny>),
+    Keyword(Py<PyString>, Py<PyAny>),
+    KeyWithDefault(Py<PyString>, Py<PyAny>, Py<PyAny>),
 }
 
-fn into_pyobject<'py, T: IntoPyObjectExt<'py>>(value: T, py: Python<'py>) -> PyObject {
+fn into_pyobject<'py, T: IntoPyObjectExt<'py>>(value: T, py: Python<'py>) -> Py<PyAny> {
     value
         .into_py_any(py)
         .expect("failed to convert to PyObject")

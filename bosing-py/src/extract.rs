@@ -2,7 +2,7 @@ use std::convert::Infallible;
 
 use ndarray::{prelude::*, ArrayView};
 use numpy::{prelude::*, Ix1, Ix2, PyArray};
-use pyo3::{exceptions::PyTypeError, prelude::*, sync::GILOnceCell};
+use pyo3::{exceptions::PyTypeError, prelude::*, sync::PyOnceLock};
 
 macro_rules! define_wrapper {
     ($name:ident, $t:ty, $d:ty, $err_msg:expr $(, $check:expr)*) => {
@@ -86,10 +86,10 @@ define_wrapper!(
 );
 
 fn np_as_array<'py>(ob: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyAny>> {
-    static AS_ARRAY: GILOnceCell<PyObject> = GILOnceCell::new();
+    static AS_ARRAY: PyOnceLock<Py<PyAny>> = PyOnceLock::new();
     let py = ob.py();
     let as_array = AS_ARRAY
-        .get_or_try_init(py, || -> PyResult<PyObject> {
+        .get_or_try_init(py, || -> PyResult<Py<PyAny>> {
             Ok(py.import("numpy")?.getattr("asarray")?.into())
         })?
         .bind(py);
