@@ -1,4 +1,3 @@
-# ruff: noqa: PLR0913
 from collections.abc import Iterable, Iterator, Mapping, Sequence
 from typing import ClassVar, Literal, final
 

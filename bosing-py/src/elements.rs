@@ -254,11 +254,11 @@ impl Element {
     fn plot(
         &self,
         py: Python<'_>,
-        ax: Option<PyObject>,
+        ax: Option<Py<PyAny>>,
         channels: Option<Vec<ChannelId>>,
         max_depth: usize,
         show_label: bool,
-    ) -> PyResult<PyObject> {
+    ) -> PyResult<Py<PyAny>> {
         plot::element(py, self.0.clone(), ax, channels, max_depth, show_label)
     }
 }

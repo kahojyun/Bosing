@@ -1,12 +1,7 @@
-from typing import TYPE_CHECKING
-
 import numpy as np
 from rich.pretty import pretty_repr
 
 import bosing
-
-if TYPE_CHECKING:
-    from numpy.typing import NDArray
 
 
 def test_basic() -> None:
@@ -20,10 +15,10 @@ def test_basic() -> None:
     assert "xy0" in result
     w = result["xy0"]
     assert w.shape == (2, length)
-    w: NDArray[np.float64] = w[0] + 1j * w[1]
-    assert w[0] == 0
-    assert w[-1] == 0
-    assert np.any(w != 0)  # pyright: ignore[reportAny]
+    wc = np.asarray(w[0] + 1j * w[1], dtype=np.complex128)
+    assert wc[0] == 0
+    assert wc[-1] == 0
+    assert np.any(wc != 0)  # pyright: ignore[reportAny]
 
 
 def test_mixing() -> None:
@@ -45,15 +40,15 @@ def test_mixing() -> None:
     channels = {"xy": bosing.Channel(freq, sample_rate, length)}
     result = bosing.generate_waveforms(channels, shapes, schedule)
     w1 = result["xy"]
-    w1: NDArray[np.float64] = w1[0] + 1j * w1[1]
+    wc1 = np.asarray(w1[0] + 1j * w1[1], dtype=np.complex128)
 
     channels = {"xy": bosing.Channel(0, sample_rate, length)}
     result = bosing.generate_waveforms(channels, shapes, schedule)
     w2 = result["xy"]
-    w2: NDArray[np.float64] = w2[0] + 1j * w2[1]
-    w2 = w2 * np.exp(1j * (2 * np.pi * freq * np.arange(length) / sample_rate))
+    wc2 = np.asarray(w2[0] + 1j * w2[1], dtype=np.complex128)
+    wc2 = wc2 * np.exp(1j * (2 * np.pi * freq * np.arange(length) / sample_rate))
 
-    assert np.allclose(w1, w2)
+    assert np.allclose(wc1, wc2)
 
 
 def test_states() -> None:

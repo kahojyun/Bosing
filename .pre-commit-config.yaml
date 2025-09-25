@@ -7,7 +7,7 @@ ci:
     - cargo-deny
 repos:
 - repo: https://github.com/pre-commit/pre-commit-hooks
-  rev: v5.0.0
+  rev: 3e8a8703264a2f4a69428a0aa4dcb512790b2c8c  # frozen: v6.0.0
   hooks:
   - id: trailing-whitespace
   - id: end-of-file-fixer
@@ -15,15 +15,15 @@ repos:
   - id: check-toml
   - id: check-added-large-files
 - repo: https://github.com/crate-ci/typos
-  rev: v1.29.4
+  rev: edb4e206047e89b93ebe08f1a2ccc3d581a70cc7  # frozen: v1
   hooks:
     - id: typos
 - repo: https://github.com/astral-sh/uv-pre-commit
-  rev: 0.5.22
+  rev: 9e8320f8d22dfa502984f75bb72d6bba825e570c  # frozen: 0.8.22
   hooks:
     - id: uv-lock
 - repo: https://github.com/astral-sh/ruff-pre-commit
-  rev: v0.9.2
+  rev: a113f03edeabb71305f025e6e14bd2cd68660e29  # frozen: v0.13.1
   hooks:
     - id: ruff
       args: [ --fix ]

@@ -207,7 +207,7 @@ macro_rules! impl_quant {
             type Output = Self;
 
             fn mul(self, rhs: f64) -> Self::Output {
-                Self(self.0 * rhs)
+                Self(NotNan::new(self.0.into_inner() * rhs).expect("result should not be NaN"))
             }
         }
 
@@ -223,7 +223,7 @@ macro_rules! impl_quant {
             type Output = Self;
 
             fn div(self, rhs: f64) -> Self::Output {
-                Self(self.0 / rhs)
+                Self(NotNan::new(self.0.into_inner() / rhs).expect("result should not be NaN"))
             }
         }
 

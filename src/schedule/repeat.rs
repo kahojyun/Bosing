@@ -26,7 +26,7 @@ impl Repeat {
 
     pub fn with_spacing(mut self, spacing: Time) -> Result<Self> {
         if !spacing.value().is_finite() {
-            bail!("Invalid spacing {:?}", spacing);
+            bail!("Invalid spacing {spacing:?}");
         }
         self.spacing = spacing;
         self.measure_result.take();

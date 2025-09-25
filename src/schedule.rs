@@ -250,18 +250,24 @@ impl ElementCommonBuilder {
     pub fn validate(&self) -> Result<()> {
         let v = &self.0;
         if !(v.margin.0.value().is_finite() && v.margin.1.value().is_finite()) {
-            bail!("Invalid margin {:?}", v.margin);
+            bail!("Invalid margin {margin:?}", margin = v.margin);
         }
         if let Some(v) = v.duration {
             if !(v.value().is_finite() && v >= Time::ZERO) {
-                bail!("Invalid duration {:?}", v);
+                bail!("Invalid duration {v:?}");
             }
         }
         if !(v.min_duration.value().is_finite() && v.min_duration >= Time::ZERO) {
-            bail!("Invalid min_duration {:?}", v.min_duration);
+            bail!(
+                "Invalid min_duration {min_duration:?}",
+                min_duration = v.min_duration
+            );
         }
         if v.max_duration < Time::ZERO {
-            bail!("Invalid max_duration {:?}", v.max_duration);
+            bail!(
+                "Invalid max_duration {max_duration:?}",
+                max_duration = v.max_duration
+            );
         }
         Ok(())
     }
