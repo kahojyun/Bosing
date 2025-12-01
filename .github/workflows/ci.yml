@@ -28,7 +28,7 @@ jobs:
     name: Test
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - name: Cargo build
         run: cargo build --workspace --verbose --locked
       - name: Cargo test
@@ -65,7 +65,7 @@ jobs:
       pull-requests: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
       - name: Semantic Release
@@ -109,7 +109,7 @@ jobs:
             args: --out dist
             sccache: false
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - name: Replace version in Cargo.toml
         shell: pwsh
         run: (Get-Content -Path Cargo.toml) -replace '^version = "0.0.0-dev"$', 'version = "${{ needs.release.outputs.version }}"' | Set-Content -Path Cargo.toml
