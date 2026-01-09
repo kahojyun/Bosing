@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use bosing::schedule;
-use pyo3::{exceptions::PyValueError, prelude::*, pybacked::PyBackedStr};
+use pyo3::{Borrowed, exceptions::PyValueError, prelude::*, pybacked::PyBackedStr};
 
 use crate::{push_repr, types::Time};
 
@@ -172,7 +172,7 @@ impl Grid {
                     .expect("Should be checked in GridEntry::new")
             })
             .collect();
-        let rust_base = &slf.downcast::<Element>()?.get().0;
+        let rust_base = &slf.cast::<Element>()?.get().0;
         let common = rust_base.common.clone();
         let variant = Self::variant(slf).clone().with_children(rust_children);
         Py::new(
@@ -358,7 +358,7 @@ impl Rich for Length {
 }
 
 fn extract_grid_length(obj: &Bound<'_, PyAny>) -> PyResult<Length> {
-    Length::convert(obj).and_then(|x| x.extract(obj.py()))
+    Length::convert(obj).and_then(|x| x.extract(obj.py()).map_err(Into::into))
 }
 
 impl From<Length> for schedule::GridLength {
@@ -470,11 +470,14 @@ impl Rich for Entry {
     }
 }
 
-impl<'py> FromPyObject<'py> for Entry {
-    fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
-        let py = ob.py();
-        let ob = ob.downcast_exact::<Self>()?.get();
-        Ok(ob.clone_ref(py))
+impl<'a, 'py> FromPyObject<'a, 'py> for Entry {
+    type Error = PyErr;
+
+    fn extract(obj: Borrowed<'a, 'py, PyAny>) -> Result<Self, Self::Error> {
+        let py = obj.py();
+        let obj = obj.cast_exact::<Self>()?;
+        let obj = obj.get();
+        Ok(obj.clone_ref(py))
     }
 }
 

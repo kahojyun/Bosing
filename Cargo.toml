@@ -29,14 +29,14 @@ anyhow = "1.0.100"
 bspline = "1.1.0"
 cached = "0.56.0"
 float-cmp = "0.10.0"
-hashbrown = { version = "0.15.5", features = ["rayon"] }
+hashbrown = { version = "0.16.1", features = ["rayon"] }
 itertools = "0.14.0"
-ndarray = { version = "0.16.1", features = ["rayon"] }
+ndarray = { version = "0.17.1", features = ["rayon"] }
 num = "0.4.3"
-numpy = "0.26.0"
+numpy = "0.27.1"
 ordered-float = "5.1.0"
 pulp = "0.22.2"
-pyo3 = { version = "0.26.0", features = [
+pyo3 = { version = "0.27.2", features = [
     "hashbrown",
     "anyhow",
     "generate-import-lib",

@@ -272,7 +272,7 @@ where
     fn repr(slf: &Bound<'_, Self>) -> Vec<Arg>;
 
     fn inner<'a>(slf: &'a Bound<'_, Self>) -> &'a ElementRef {
-        slf.downcast::<Element>()
+        slf.cast::<Element>()
             .expect("Self should be a subclass of Element")
             .get()
             .0
@@ -303,7 +303,7 @@ where
         label: Option<Label>,
     ) -> PyResult<Element> {
         fn extract_alignment(obj: &Bound<'_, PyAny>) -> PyResult<Alignment> {
-            Alignment::convert(obj).and_then(|x| x.extract(obj.py()))
+            Alignment::convert(obj).and_then(|x| x.extract(obj.py()).map_err(Into::into))
         }
 
         fn extract_margin(obj: &Bound<'_, PyAny>) -> PyResult<(Time, Time)> {

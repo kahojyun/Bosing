@@ -18,10 +18,10 @@ pub struct Shape;
 
 impl Shape {
     pub(super) fn get_rust_shape(slf: &Bound<'_, Self>) -> PyResult<shape::Shape> {
-        if slf.downcast::<Hann>().is_ok() {
+        if slf.cast::<Hann>().is_ok() {
             return Ok(shape::Shape::new_hann());
         }
-        if let Ok(interp) = slf.downcast::<Interp>() {
+        if let Ok(interp) = slf.cast::<Interp>() {
             let interp = interp.get();
             return Ok(shape::Shape::new_interp(
                 interp.knots.clone(),

@@ -4,6 +4,7 @@ use std::{convert::Infallible, fmt};
 
 use bosing::quant;
 use pyo3::{
+    Borrowed,
     exceptions::PyValueError,
     prelude::*,
     pybacked::PyBackedStr,
@@ -25,8 +26,10 @@ macro_rules! wrap_value {
             }
         }
 
-        impl FromPyObject<'_> for $wrapper {
-            fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<Self> {
+        impl<'a, 'py> FromPyObject<'a, 'py> for $wrapper {
+            type Error = PyErr;
+
+            fn extract(ob: Borrowed<'a, 'py, PyAny>) -> Result<Self, Self::Error> {
                 let value = ob.extract::<f64>()?;
                 <$inner>::new(value)
                     .map_err(|e| PyValueError::new_err(format!("Invalid value. Error: {e}")))
@@ -84,8 +87,10 @@ macro_rules! wrap_id {
         #[repr(transparent)]
         pub struct $wrapper(pub $inner);
 
-        impl FromPyObject<'_> for $wrapper {
-            fn extract_bound(ob: &Bound<'_, PyAny>) -> PyResult<Self> {
+        impl<'a, 'py> FromPyObject<'a, 'py> for $wrapper {
+            type Error = PyErr;
+
+            fn extract(ob: Borrowed<'a, 'py, PyAny>) -> Result<Self, Self::Error> {
                 let s = ob.extract::<PyBackedStr>()?;
                 Ok(Self(<$inner>::new(&*s)))
             }

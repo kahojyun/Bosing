@@ -115,7 +115,7 @@ impl Stack {
     fn with_children(slf: &Bound<'_, Self>, children: Vec<Py<Element>>) -> PyResult<Py<Self>> {
         let py = slf.py();
         let rust_children = children.iter().map(|x| x.get().0.clone()).collect();
-        let rust_base = &slf.downcast::<Element>()?.get().0;
+        let rust_base = &slf.cast::<Element>()?.get().0;
         let common = rust_base.common.clone();
         let variant = Self::variant(slf).clone().with_children(rust_children);
         Py::new(
@@ -218,5 +218,5 @@ impl Direction {
 }
 
 fn extract_direction(obj: &Bound<'_, PyAny>) -> PyResult<Direction> {
-    Direction::convert(obj).and_then(|x| x.extract(obj.py()))
+    Direction::convert(obj).and_then(|x| x.extract(obj.py()).map_err(Into::into))
 }

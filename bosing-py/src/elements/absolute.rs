@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use bosing::schedule;
-use pyo3::{exceptions::PyValueError, prelude::*};
+use pyo3::{Borrowed, exceptions::PyValueError, prelude::*};
 
 use crate::{push_repr, types::Time};
 
@@ -133,7 +133,7 @@ impl Absolute {
                 Ok(schedule::AbsoluteEntry::new(element).with_time(x.time.into())?)
             })
             .collect::<PyResult<_>>()?;
-        let rust_base = &slf.downcast::<Element>()?.get().0;
+        let rust_base = &slf.cast::<Element>()?.get().0;
         let common = rust_base.common.clone();
         let variant = Self::variant(slf).clone().with_children(rust_children);
         Py::new(
@@ -246,11 +246,14 @@ impl Rich for Entry {
     }
 }
 
-impl<'py> FromPyObject<'py> for Entry {
-    fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
-        let py = ob.py();
-        let ob = ob.downcast_exact::<Self>()?.get();
-        Ok(ob.clone_ref(py))
+impl<'a, 'py> FromPyObject<'a, 'py> for Entry {
+    type Error = PyErr;
+
+    fn extract(obj: Borrowed<'a, 'py, PyAny>) -> Result<Self, Self::Error> {
+        let py = obj.py();
+        let obj = obj.cast_exact::<Self>()?;
+        let obj = obj.get();
+        Ok(obj.clone_ref(py))
     }
 }
 

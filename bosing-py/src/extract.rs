@@ -2,7 +2,7 @@ use std::convert::Infallible;
 
 use ndarray::{ArrayView, prelude::*};
 use numpy::{Ix1, Ix2, PyArray, prelude::*};
-use pyo3::{exceptions::PyTypeError, prelude::*, sync::PyOnceLock};
+use pyo3::{Borrowed, exceptions::PyTypeError, prelude::*, sync::PyOnceLock};
 
 macro_rules! define_wrapper {
     ($name:ident, $t:ty, $d:ty, $err_msg:expr $(, $check:expr)*) => {
@@ -15,13 +15,15 @@ macro_rules! define_wrapper {
             }
         }
 
-        impl<'py> FromPyObject<'py> for $name {
-            fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
+        impl<'a, 'py> FromPyObject<'a, 'py> for $name {
+            type Error = PyErr;
+
+            fn extract(obj: Borrowed<'a, 'py, PyAny>) -> Result<Self, Self::Error> {
                 let err_msg = $err_msg;
                 let arr =
-                    np_as_array(ob).map_err(|e| PyTypeError::new_err((err_msg, e)))?;
+                    np_as_array_from_borrowed(obj).map_err(|e| PyTypeError::new_err((err_msg, e)))?;
                 let arr = arr
-                    .downcast_into::<PyArray<$t, $d>>()
+                    .cast_into::<PyArray<$t, $d>>()
                     .map_err(|_| PyTypeError::new_err(err_msg))?;
                 $(
                 if !$check(&arr) {
@@ -85,7 +87,7 @@ define_wrapper!(
     "fir should be convertible to a 1d f64 numpy array."
 );
 
-fn np_as_array<'py>(ob: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyAny>> {
+fn np_as_array_from_borrowed<'a, 'py>(ob: Borrowed<'a, 'py, PyAny>) -> PyResult<Bound<'py, PyAny>> {
     static AS_ARRAY: PyOnceLock<Py<PyAny>> = PyOnceLock::new();
     let py = ob.py();
     let as_array = AS_ARRAY
