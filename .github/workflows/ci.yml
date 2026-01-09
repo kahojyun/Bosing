@@ -28,7 +28,7 @@ jobs:
     name: Test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - name: Cargo build
         run: cargo build --workspace --verbose --locked
       - name: Cargo test
@@ -42,7 +42,7 @@ jobs:
         with:
           python-version-file: ".python-version"
       - name: Install uv
-        uses: astral-sh/setup-uv@v6
+        uses: astral-sh/setup-uv@v7
       - name: Sync project
         run: uv sync --locked --group ci
       - name: Pytest
@@ -69,11 +69,11 @@ jobs:
       pull-requests: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
       - name: Semantic Release
-        uses: docker://ghcr.io/codfish/semantic-release-action@sha256:71048986f7e28f024cbad0ef106a7ef20b9b0d322f3a8aa51d89f1c424e75061 # v3.3.0
+        uses: docker://ghcr.io/codfish/semantic-release-action@sha256:327a3ce08284f9dd9b83b607e3f668dae90139e68ce90780b0a43a09d577dc3a # v4.0.1
         # Only run on push events
         if: github.event_name == 'push'
         id: semantic-release
@@ -113,7 +113,7 @@ jobs:
             args: --out dist
             sccache: false
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - name: Replace version in Cargo.toml
         shell: pwsh
         run: (Get-Content -Path Cargo.toml) -replace '^version = "0.0.0-dev"$', 'version = "${{ needs.release.outputs.version }}"' | Set-Content -Path Cargo.toml
@@ -130,7 +130,7 @@ jobs:
           sccache: ${{ matrix.sccache }}
           manylinux: auto
       - name: Upload wheels
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: wheels-${{ matrix.command == 'sdist' && 'sdist' || format('{0}-{1}', matrix.os.name, matrix.target) }}
           path: dist
@@ -160,7 +160,7 @@ jobs:
       id-token: write
       attestations: write
     steps:
-      - uses: actions/download-artifact@v5
+      - uses: actions/download-artifact@v7
       - name: Generate artifact attestation
         uses: actions/attest-build-provenance@v3
         with:
