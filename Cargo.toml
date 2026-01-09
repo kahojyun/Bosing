@@ -34,8 +34,8 @@ itertools = "0.14.0"
 ndarray = { version = "0.16.1", features = ["rayon"] }
 num = "0.4.3"
 numpy = "0.26.0"
-ordered-float = "5.0.0"
-pulp = "0.21.5"
+ordered-float = "5.1.0"
+pulp = "0.22.2"
 pyo3 = { version = "0.26.0", features = [
     "hashbrown",
     "anyhow",
@@ -43,9 +43,9 @@ pyo3 = { version = "0.26.0", features = [
     "abi3-py310",
 ] }
 rayon = "1.11.0"
-thiserror = "2.0.16"
+thiserror = "2.0.17"
 # Testing
-mockall = "0.13.1"
+mockall = "0.14.0"
 test-case = "3.3.1"
 
 [dependencies]
