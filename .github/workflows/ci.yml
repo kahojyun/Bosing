@@ -37,6 +37,10 @@ jobs:
         run: cargo fmt --all --check
       - name: Cargo clippy
         run: cargo clippy --workspace --all-targets -- -D warnings
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version-file: ".python-version"
       - name: Install uv
         uses: astral-sh/setup-uv@v6
       - name: Sync project
@@ -113,6 +117,10 @@ jobs:
       - name: Replace version in Cargo.toml
         shell: pwsh
         run: (Get-Content -Path Cargo.toml) -replace '^version = "0.0.0-dev"$', 'version = "${{ needs.release.outputs.version }}"' | Set-Content -Path Cargo.toml
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version-file: ".python-version"
       - name: Build wheels
         uses: PyO3/maturin-action@v1
         with:

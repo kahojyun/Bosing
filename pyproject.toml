@@ -6,7 +6,7 @@ build-backend = "maturin"
 name = "bosing"
 dynamic = ["version", "authors", "description", "license", "keywords"]
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Programming Language :: Rust",
