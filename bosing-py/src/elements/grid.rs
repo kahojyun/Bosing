@@ -52,7 +52,7 @@ use super::{Arg, Element, ElementSubclass, Label, Rich};
 ///             element4,
 ///             columns=['auto', '1*', '2'],
 ///         )
-#[pyclass(module="bosing", extends=Element, frozen)]
+#[pyclass(module="bosing._bosing", extends=Element, frozen)]
 #[derive(Debug)]
 pub struct Grid {
     children: Vec<Entry>,

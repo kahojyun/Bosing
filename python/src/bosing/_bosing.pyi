@@ -4,7 +4,7 @@ from typing import ClassVar, Literal, TypeAlias, final
 import numpy as np
 import numpy.typing as npt
 from matplotlib.axes import Axes
-from typing_extensions import Self
+from typing_extensions import Self, disjoint_base
 
 __all__ = [
     "Absolute",
@@ -112,6 +112,7 @@ class Interp(Shape):
     @property
     def degree(self) -> float: ...
 
+@disjoint_base
 class Element:
     @property
     def margin(self) -> tuple[float, float]: ...
@@ -353,7 +354,7 @@ class Stack(Element):
     def __new__(
         cls,
         *children: Element,
-        direction: Literal["forward", "backward"] | Direction = ...,
+        direction: Literal["forward", "backward"] | Direction | None = ...,
         margin: float | tuple[float, float] | None = ...,
         alignment: Literal["end", "start", "center", "stretch"]
         | Alignment

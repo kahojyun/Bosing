@@ -30,7 +30,7 @@ use super::{Arg, Element, ElementSubclass, Label, Rich};
 ///             (1.0, element2),
 ///             AbsoluteEntry(2.0, element3),
 ///         )
-#[pyclass(module="bosing",extends=Element, frozen)]
+#[pyclass(module="bosing._bosing",extends=Element, frozen)]
 #[derive(Debug)]
 pub struct Absolute {
     children: Vec<Entry>,

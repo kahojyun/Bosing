@@ -424,7 +424,7 @@ where
 ///         ``0``.
 ///     flexible (bool): Whether the pulse has flexible plateau length. Defaults
 ///         to ``False``.
-#[pyclass(module="bosing",extends=Element, frozen)]
+#[pyclass(module="bosing._bosing",extends=Element, frozen)]
 #[derive(Debug, Clone)]
 pub struct Play;
 
@@ -581,7 +581,7 @@ impl Play {
 /// Args:
 ///     channel_id (str): Target channel ID.
 ///     phase (float): Phase shift in **cycles**.
-#[pyclass(module="bosing",extends=Element, frozen)]
+#[pyclass(module="bosing._bosing",extends=Element, frozen)]
 #[derive(Debug, Clone)]
 pub struct ShiftPhase;
 
@@ -680,7 +680,7 @@ impl ShiftPhase {
 /// Args:
 ///     channel_id (str): Target channel ID.
 ///     phase (float): Target phase value in **cycles**.
-#[pyclass(module="bosing",extends=Element, frozen)]
+#[pyclass(module="bosing._bosing",extends=Element, frozen)]
 #[derive(Debug, Clone)]
 pub struct SetPhase;
 
@@ -767,7 +767,7 @@ impl SetPhase {
 /// Args:
 ///     channel_id (str): Target channel ID.
 ///     frequency (float): Delta frequency.
-#[pyclass(module="bosing",extends=Element, frozen)]
+#[pyclass(module="bosing._bosing",extends=Element, frozen)]
 #[derive(Debug, Clone)]
 pub struct ShiftFreq;
 
@@ -855,7 +855,7 @@ impl ShiftFreq {
 /// Args:
 ///     channel_id (str): Target channel ID.
 ///     frequency (float): Target frequency.
-#[pyclass(module="bosing",extends=Element, frozen)]
+#[pyclass(module="bosing._bosing",extends=Element, frozen)]
 #[derive(Debug, Clone)]
 pub struct SetFreq;
 
@@ -945,7 +945,7 @@ impl SetFreq {
 /// Args:
 ///     channel_id1 (str): Target channel ID 1.
 ///     channel_id2 (str): Target channel ID 2.
-#[pyclass(module="bosing",extends=Element, frozen)]
+#[pyclass(module="bosing._bosing",extends=Element, frozen)]
 #[derive(Debug, Clone)]
 pub struct SwapPhase;
 
@@ -1034,7 +1034,7 @@ impl SwapPhase {
 ///
 /// Args:
 ///     *channel_ids (str): Channel IDs. Defaults to empty.
-#[pyclass(module="bosing",extends=Element, frozen)]
+#[pyclass(module="bosing._bosing",extends=Element, frozen)]
 #[derive(Debug, Clone)]
 pub struct Barrier;
 
@@ -1119,7 +1119,7 @@ impl Barrier {
 ///     child (Element): Child element to repeat.
 ///     count (int): Number of repetitions.
 ///     spacing (float): Spacing between repetitions. Defaults to ``0``.
-#[pyclass(module="bosing",extends=Element, get_all, frozen)]
+#[pyclass(module="bosing._bosing",extends=Element, get_all, frozen)]
 #[derive(Debug)]
 pub struct Repeat {
     child: Py<Element>,

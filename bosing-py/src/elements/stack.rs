@@ -18,7 +18,7 @@ use super::{Arg, Element, ElementSubclass, Label, Rich as _};
 /// Args:
 ///     *children (Element): Child elements.
 ///     direction (str | Direction): Layout order. Defaults to ``'backward'``.
-#[pyclass(module="bosing",extends=Element, get_all, frozen)]
+#[pyclass(module="bosing._bosing",extends=Element, get_all, frozen)]
 #[derive(Debug)]
 pub struct Stack {
     children: Vec<Py<Element>>,
