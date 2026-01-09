@@ -105,7 +105,7 @@ jobs:
         target: [x86_64, aarch64]
         command: [build]
         include:
-          - args: --release --out dist
+          - args: --release --out dist -i 3.10 3.13t 3.14t
             sccache: ${{ needs.release.outputs.published == 'false' }}
           - command: sdist
             os:
@@ -117,10 +117,6 @@ jobs:
       - name: Replace version in Cargo.toml
         shell: pwsh
         run: (Get-Content -Path Cargo.toml) -replace '^version = "0.0.0-dev"$', 'version = "${{ needs.release.outputs.version }}"' | Set-Content -Path Cargo.toml
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version-file: ".python-version"
       - name: Build wheels
         uses: PyO3/maturin-action@v1
         with:
