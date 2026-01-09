@@ -3,7 +3,8 @@ members = ["bosing-py"]
 
 [workspace.package]
 version = "0.0.0-dev"
-rust-version = "1.82"
+rust-version = "1.85"
+edition = "2024"
 license = "MIT"
 authors = ["Jiahao Yuan <kahojyun@icloud.com>"]
 description = "Waveform generator for pulse sequences in quantum computing"
@@ -13,7 +14,7 @@ categories = ["science"]
 
 [package]
 name = "bosing"
-edition = "2021"
+edition.workspace = true
 version.workspace = true
 rust-version.workspace = true
 license.workspace = true
