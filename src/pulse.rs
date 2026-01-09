@@ -6,12 +6,12 @@ use std::{
     sync::Arc,
 };
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use cached::proc_macro::cached;
 use float_cmp::approx_eq;
 use hashbrown::HashMap;
-use itertools::{izip, Itertools};
-use ndarray::{azip, s, ArrayView1, ArrayView2, ArrayViewMut2, Axis};
+use itertools::{Itertools, izip};
+use ndarray::{ArrayView1, ArrayView2, ArrayViewMut2, Axis, azip, s};
 use num::Complex;
 use rayon::prelude::*;
 
@@ -440,7 +440,10 @@ where
             let i_frac_start = AlignedIndex::new(t_start, sample_rate, align_level)
                 .expect("Reasonable align_level should not fail.");
             if i_frac_start.value() < 0.0 {
-                bail!("The start time of a pulse is negative, try adjusting channel delay or schedule. start time: {time}", time = t_start.value());
+                bail!(
+                    "The start time of a pulse is negative, try adjusting channel delay or schedule. start time: {time}",
+                    time = t_start.value()
+                );
             }
             let i_start = i_frac_start
                 .ceil_to_usize()
@@ -453,7 +456,10 @@ where
                 + local_freq * index_offset.value() * dt;
             let dphase = total_freq * dt;
             if i_start >= waveform.shape()[1] {
-                bail!("The start index of a pulse is out of bounds, try adjusting channel delay, length or schedule. start index: {i_start}, start time: {time}", time = t_start.value());
+                bail!(
+                    "The start index of a pulse is out of bounds, try adjusting channel delay, length or schedule. start index: {i_start}, start time: {time}",
+                    time = t_start.value()
+                );
             }
             let mut waveform = waveform.slice_mut(s![.., i_start..]);
             if let Some(shape) = &envelope.shape {
@@ -468,7 +474,9 @@ where
                 if waveform.shape()[1] < envelope.len() {
                     #[expect(clippy::cast_precision_loss, reason = "Index is small.")]
                     let end_time = (envelope.len() as f64).mul_add(dt.value(), t_start.value());
-                    bail!("The pulse end time is out of bounds, try adjusting channel delay, length or schedule. end time: {end_time}");
+                    bail!(
+                        "The pulse end time is out of bounds, try adjusting channel delay, length or schedule. end time: {end_time}"
+                    );
                 }
                 mix_add_envelope(waveform, &envelope, amp, drag, phase0, dphase);
             } else {
@@ -477,7 +485,10 @@ where
                 #[expect(clippy::cast_possible_truncation, reason = "Index is small.")]
                 let i_plateau = (plateau.value() * sample_rate.value()).ceil() as usize;
                 if waveform.shape()[1] < i_plateau {
-                    bail!("The pulse end time is out of bounds, try adjusting channel delay, length or schedule. end time: {end_time}", end_time = t_start.value() + plateau.value());
+                    bail!(
+                        "The pulse end time is out of bounds, try adjusting channel delay, length or schedule. end time: {end_time}",
+                        end_time = t_start.value() + plateau.value()
+                    );
                 }
                 let waveform = waveform.slice_mut(s![.., ..i_plateau]);
                 mix_add_plateau(waveform, amp, phase0, dphase);

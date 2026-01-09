@@ -1,10 +1,10 @@
 use std::sync::OnceLock;
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 
 use crate::quant::{ChannelId, Time};
 
-use super::{merge_channel_ids, Arrange, Arranged, ElementRef, Measure, TimeRange};
+use super::{Arrange, Arranged, ElementRef, Measure, TimeRange, merge_channel_ids};
 
 #[derive(Debug, Clone)]
 pub struct Entry {

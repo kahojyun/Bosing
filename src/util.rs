@@ -35,15 +35,17 @@ where
 {
     let mut stack = Vec::with_capacity(16);
     stack.extend(children(root.clone()));
-    iter::once(root).chain(iter::from_fn(move || loop {
-        let current_iter = stack.last_mut()?;
-        match current_iter.next() {
-            Some(i) => {
-                stack.extend(children(i.clone()));
-                return Some(i);
-            }
-            None => {
-                stack.pop();
+    iter::once(root).chain(iter::from_fn(move || {
+        loop {
+            let current_iter = stack.last_mut()?;
+            match current_iter.next() {
+                Some(i) => {
+                    stack.extend(children(i.clone()));
+                    return Some(i);
+                }
+                None => {
+                    stack.pop();
+                }
             }
         }
     }))

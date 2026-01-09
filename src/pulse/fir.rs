@@ -54,16 +54,12 @@ pub fn filter_inplace(waveform: ArrayViewMut2<'_, f64>, taps: ArrayView1<'_, f64
 #[inline]
 const fn align_ceil(x: usize, n: usize) -> usize {
     let r = x % n;
-    if r == 0 {
-        x
-    } else {
-        x + n - r
-    }
+    if r == 0 { x } else { x + n - r }
 }
 
 #[cfg(test)]
 mod tests {
-    use ndarray::{array, stack, Array2};
+    use ndarray::{Array2, array, stack};
 
     use super::*;
 

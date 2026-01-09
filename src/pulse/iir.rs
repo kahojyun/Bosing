@@ -259,7 +259,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use ndarray::{array, stack, Array2, Axis};
+    use ndarray::{Array2, Axis, array, stack};
 
     use super::*;
 

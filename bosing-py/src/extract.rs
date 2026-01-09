@@ -1,7 +1,7 @@
 use std::convert::Infallible;
 
-use ndarray::{prelude::*, ArrayView};
-use numpy::{prelude::*, Ix1, Ix2, PyArray};
+use ndarray::{ArrayView, prelude::*};
+use numpy::{Ix1, Ix2, PyArray, prelude::*};
 use pyo3::{exceptions::PyTypeError, prelude::*, sync::PyOnceLock};
 
 macro_rules! define_wrapper {

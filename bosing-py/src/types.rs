@@ -97,7 +97,7 @@ macro_rules! wrap_id {
             type Error = Infallible;
 
             fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-                self.0 .0.into_pyobject(py)
+                self.0.0.into_pyobject(py)
             }
         }
 
@@ -107,7 +107,7 @@ macro_rules! wrap_id {
             type Error = Infallible;
 
             fn into_pyobject(self, py: Python<'py>) -> Result<Self::Output, Self::Error> {
-                self.0 .0.into_pyobject(py)
+                self.0.0.into_pyobject(py)
             }
         }
 

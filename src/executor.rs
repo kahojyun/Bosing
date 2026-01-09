@@ -9,7 +9,7 @@ use crate::{
         ShiftFreq, ShiftPhase, SwapPhase, TimeRange,
     },
     shape::Shape,
-    util::{pre_order_iter, IterVariant},
+    util::{IterVariant, pre_order_iter},
 };
 
 #[derive(Debug, Clone)]

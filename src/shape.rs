@@ -1,6 +1,6 @@
 use std::{hash::Hash, sync::Arc};
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use bspline::BSpline;
 use cached::proc_macro::cached;
 use ordered_float::NotNan;
