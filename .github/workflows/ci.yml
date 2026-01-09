@@ -26,7 +26,7 @@ jobs:
   # Should run on every push and PR
   test:
     name: Test
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
       - name: Cargo build
@@ -61,7 +61,7 @@ jobs:
   # Should run on every push and PR, but only run semantic-release on push
   release:
     name: Run semantic-release
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     needs: test
     permissions:
       contents: write
@@ -96,11 +96,11 @@ jobs:
     strategy:
       matrix:
         os:
-          - runner: ubuntu-24.04
+          - runner: ubuntu-latest
             name: linux
-          - runner: windows-2022
+          - runner: windows-latest
             name: windows
-          - runner: macos-14
+          - runner: macos-latest
             name: macos
         target: [x86_64, aarch64]
         command: [build]
@@ -109,7 +109,7 @@ jobs:
             sccache: ${{ needs.release.outputs.published == 'false' }}
           - command: sdist
             os:
-              runner: ubuntu-24.04
+              runner: ubuntu-latest
             args: --out dist
             sccache: false
     steps:
@@ -140,7 +140,7 @@ jobs:
     if: always()
     needs:
       - build
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     steps:
       - name: Decide whether the needed jobs succeeded or failed
         uses: re-actors/alls-green@release/v1
@@ -154,7 +154,7 @@ jobs:
       - check
       - release
     if: needs.release.outputs.published == 'true' && github.event_name == 'push'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     environment: pypi
     permissions:
       id-token: write
