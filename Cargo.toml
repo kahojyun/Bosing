@@ -3,7 +3,8 @@ members = ["bosing-py"]
 
 [workspace.package]
 version = "0.0.0-dev"
-rust-version = "1.82"
+rust-version = "1.85"
+edition = "2024"
 license = "MIT"
 authors = ["Jiahao Yuan <kahojyun@icloud.com>"]
 description = "Waveform generator for pulse sequences in quantum computing"
@@ -13,7 +14,7 @@ categories = ["science"]
 
 [package]
 name = "bosing"
-edition = "2021"
+edition.workspace = true
 version.workspace = true
 rust-version.workspace = true
 license.workspace = true
@@ -28,23 +29,23 @@ anyhow = "1.0.100"
 bspline = "1.1.0"
 cached = "0.56.0"
 float-cmp = "0.10.0"
-hashbrown = { version = "0.15.5", features = ["rayon"] }
+hashbrown = { version = "0.16.1", features = ["rayon"] }
 itertools = "0.14.0"
-ndarray = { version = "0.16.1", features = ["rayon"] }
+ndarray = { version = "0.17.1", features = ["rayon"] }
 num = "0.4.3"
-numpy = "0.26.0"
-ordered-float = "5.0.0"
-pulp = "0.21.5"
-pyo3 = { version = "0.26.0", features = [
-  "hashbrown",
-  "anyhow",
-  "generate-import-lib",
-  "abi3-py39",
+numpy = "0.27.1"
+ordered-float = "5.1.0"
+pulp = "0.22.2"
+pyo3 = { version = "0.27.2", features = [
+    "hashbrown",
+    "anyhow",
+    "generate-import-lib",
+    "abi3-py310",
 ] }
 rayon = "1.11.0"
-thiserror = "2.0.16"
+thiserror = "2.0.17"
 # Testing
-mockall = "0.13.1"
+mockall = "0.14.0"
 test-case = "3.3.1"
 
 [dependencies]
@@ -74,6 +75,7 @@ nursery = { level = "warn", priority = -1 }
 allow_attributes = "warn"
 todo = "warn"
 unwrap_used = "warn"
+needless_pass_by_value = "allow"
 
 [lints]
 workspace = true

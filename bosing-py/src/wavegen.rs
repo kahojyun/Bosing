@@ -1,13 +1,13 @@
 use bosing::{
     executor::{self, Executor},
     pulse::{
-        apply_fir_inplace, apply_iir_inplace, apply_iq_inplace, apply_offset_inplace, List, Sampler,
+        List, Sampler, apply_fir_inplace, apply_iir_inplace, apply_iq_inplace, apply_offset_inplace,
     },
     quant,
 };
 use hashbrown::HashMap;
 use ndarray::ArrayViewMut2;
-use numpy::{prelude::*, AllowTypeChange, PyArray2, PyArrayLike2};
+use numpy::{AllowTypeChange, PyArray2, PyArrayLike2, prelude::*};
 use pyo3::{
     exceptions::{PyRuntimeError, PyValueError},
     prelude::*,

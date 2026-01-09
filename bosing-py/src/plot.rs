@@ -1,7 +1,7 @@
 use bosing::{
     quant,
     schedule::{Arrange as _, Arranged, ElementRef, ElementVariant, Measure, TimeRange},
-    util::{pre_order_iter, IterVariant},
+    util::{IterVariant, pre_order_iter},
 };
 use itertools::Itertools as _;
 use pyo3::{prelude::*, sync::PyOnceLock, types::PyList};

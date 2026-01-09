@@ -14,9 +14,9 @@ from bosing._bosing import ItemKind
 
 if TYPE_CHECKING:
     from collections.abc import Iterator, Sequence
+    from typing import TypeAlias
 
     from matplotlib.axes import Axes
-    from typing_extensions import TypeAlias
 
     from bosing._bosing import PlotArgs, PlotItem
 

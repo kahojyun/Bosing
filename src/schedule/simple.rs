@@ -1,4 +1,4 @@
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 
 use crate::quant::{ChannelId, Frequency, Phase, Time};
 

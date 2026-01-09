@@ -2,11 +2,11 @@ mod helper;
 
 use std::{str::FromStr, sync::OnceLock};
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 
 use crate::quant::{ChannelId, Time};
 
-use super::{merge_channel_ids, Alignment, Arrange, Arranged, ElementRef, Measure, TimeRange};
+use super::{Alignment, Arrange, Arranged, ElementRef, Measure, TimeRange, merge_channel_ids};
 
 use self::helper::Helper;
 

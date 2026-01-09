@@ -16,7 +16,7 @@ def get_biquad(
     tau: Sequence[float],
     fs: float,
 ) -> npt.NDArray[np.float64]:
-    z = [-1 / (t * (1 + a)) for (a, t) in zip(amp, tau)]
+    z = [-1 / (t * (1 + a)) for (a, t) in zip(amp, tau, strict=True)]
     p = [-1 / t for t in tau]
     k = np.prod([1 + a for a in amp])
     z, p, k = signal.bilinear_zpk(z, p, k, fs)

@@ -7,7 +7,7 @@ mod stack;
 
 use std::sync::Arc;
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use hashbrown::HashSet;
 #[cfg(test)]
 use mockall::automock;
@@ -212,32 +212,32 @@ impl ElementCommonBuilder {
         Self::default()
     }
 
-    pub fn margin(&mut self, margin: (Time, Time)) -> &mut Self {
+    pub const fn margin(&mut self, margin: (Time, Time)) -> &mut Self {
         self.0.margin = margin;
         self
     }
 
-    pub fn alignment(&mut self, alignment: Alignment) -> &mut Self {
+    pub const fn alignment(&mut self, alignment: Alignment) -> &mut Self {
         self.0.alignment = alignment;
         self
     }
 
-    pub fn phantom(&mut self, phantom: bool) -> &mut Self {
+    pub const fn phantom(&mut self, phantom: bool) -> &mut Self {
         self.0.phantom = phantom;
         self
     }
 
-    pub fn duration(&mut self, duration: Option<Time>) -> &mut Self {
+    pub const fn duration(&mut self, duration: Option<Time>) -> &mut Self {
         self.0.duration = duration;
         self
     }
 
-    pub fn max_duration(&mut self, max_duration: Time) -> &mut Self {
+    pub const fn max_duration(&mut self, max_duration: Time) -> &mut Self {
         self.0.max_duration = max_duration;
         self
     }
 
-    pub fn min_duration(&mut self, min_duration: Time) -> &mut Self {
+    pub const fn min_duration(&mut self, min_duration: Time) -> &mut Self {
         self.0.min_duration = min_duration;
         self
     }

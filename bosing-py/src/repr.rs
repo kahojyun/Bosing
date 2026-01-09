@@ -1,8 +1,8 @@
 use itertools::Itertools as _;
 use pyo3::{
+    IntoPyObjectExt,
     prelude::*,
     types::{DerefToPyAny, PyString},
-    IntoPyObjectExt,
 };
 
 // TODO: check if derive IntoPyObject works
