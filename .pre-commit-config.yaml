@@ -15,15 +15,15 @@ repos:
   - id: check-toml
   - id: check-added-large-files
 - repo: https://github.com/crate-ci/typos
-  rev: edb4e206047e89b93ebe08f1a2ccc3d581a70cc7  # frozen: v1
+  rev: 90356c2064dddca5f04a5ee3deaecb1784ba692d  # frozen: v1
   hooks:
     - id: typos
 - repo: https://github.com/astral-sh/uv-pre-commit
-  rev: 9e8320f8d22dfa502984f75bb72d6bba825e570c  # frozen: 0.8.22
+  rev: 358ed3edbafb488413578da33f146c2be3ae2551  # frozen: 0.9.22
   hooks:
     - id: uv-lock
 - repo: https://github.com/astral-sh/ruff-pre-commit
-  rev: a113f03edeabb71305f025e6e14bd2cd68660e29  # frozen: v0.13.1
+  rev: 6ce4b4fc349b8881cbce40207dac3bf78824a88e  # frozen: v0.14.11
   hooks:
     - id: ruff
       args: [ --fix ]
