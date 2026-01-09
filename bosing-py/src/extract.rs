@@ -87,7 +87,7 @@ define_wrapper!(
     "fir should be convertible to a 1d f64 numpy array."
 );
 
-fn np_as_array_from_borrowed<'a, 'py>(ob: Borrowed<'a, 'py, PyAny>) -> PyResult<Bound<'py, PyAny>> {
+fn np_as_array_from_borrowed<'py>(ob: Borrowed<'_, 'py, PyAny>) -> PyResult<Bound<'py, PyAny>> {
     static AS_ARRAY: PyOnceLock<Py<PyAny>> = PyOnceLock::new();
     let py = ob.py();
     let as_array = AS_ARRAY

@@ -75,6 +75,7 @@ nursery = { level = "warn", priority = -1 }
 allow_attributes = "warn"
 todo = "warn"
 unwrap_used = "warn"
+needless_pass_by_value = "allow"
 
 [lints]
 workspace = true
