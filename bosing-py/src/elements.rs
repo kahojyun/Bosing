@@ -34,7 +34,7 @@ pub use self::{
 /// - :attr:`Alignment.Start`
 /// - :attr:`Alignment.Center`
 /// - :attr:`Alignment.Stretch`: Stretch the element to fill the parent.
-#[pyclass(module = "bosing", frozen, eq)]
+#[pyclass(module = "bosing._bosing", frozen, eq)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Alignment {
     End,
@@ -185,7 +185,7 @@ impl From<schedule::Alignment> for Alignment {
 ///         ``inf``.
 ///     min_duration (float): Minimum duration of the element. Defaults to ``0``.
 ///     label (str | None): Label of the element. Defaults to ``None``.
-#[pyclass(module = "bosing", subclass, frozen)]
+#[pyclass(module = "bosing._bosing", subclass, frozen)]
 #[derive(Debug, Clone)]
 pub struct Element(pub(super) ElementRef);
 

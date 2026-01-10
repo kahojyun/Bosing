@@ -55,7 +55,7 @@ use crate::{
 ///     filter_offset (bool): Whether to apply filter to the offset. Defaults to
 ///         ``False``.
 ///     is_real (bool): Whether the channel is real. Defaults to ``False``.
-#[pyclass(module = "bosing", get_all, frozen)]
+#[pyclass(module = "bosing._bosing", get_all, frozen)]
 #[derive(Debug, Clone)]
 pub struct Channel {
     base_freq: Frequency,
@@ -176,7 +176,7 @@ impl Rich for Channel {
 ///     base_freq (float): Base frequency of the oscillator.
 ///     delta_freq (float): Frequency shift of the oscillator.
 ///     phase (float): Phase of the oscillator in **cycles**.
-#[pyclass(module = "bosing")]
+#[pyclass(module = "bosing._bosing")]
 #[derive(Debug, Clone, Copy)]
 pub struct OscState(executor::OscState);
 

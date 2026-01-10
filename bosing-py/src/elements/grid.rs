@@ -215,7 +215,7 @@ impl Grid {
 /// - Seconds: Fixed length in seconds.
 /// - Auto: Auto length.
 /// - Star: Ratio of the remaining duration.
-#[pyclass(module = "bosing", name = "GridLengthUnit", frozen, eq)]
+#[pyclass(module = "bosing._bosing", name = "GridLengthUnit", frozen, eq)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LengthUnit {
     Seconds,
@@ -228,7 +228,7 @@ pub enum LengthUnit {
 /// :class:`GridLength` is used to specify the length of a grid column. The
 /// length can be specified in seconds, as a fraction of the remaining duration,
 /// or automatically.
-#[pyclass(module = "bosing", name = "GridLength", frozen)]
+#[pyclass(module = "bosing._bosing", name = "GridLength", frozen)]
 #[derive(Debug, Clone)]
 pub struct Length(schedule::GridLength);
 
@@ -379,7 +379,7 @@ impl From<schedule::GridLength> for Length {
 ///     element (Element): Child element.
 ///     column (int): Column index.
 ///     span (int): Column span.
-#[pyclass(module = "bosing", name = "GridEntry", get_all, frozen)]
+#[pyclass(module = "bosing._bosing", name = "GridEntry", get_all, frozen)]
 #[derive(Debug, IntoPyObjectRef)]
 pub struct Entry {
     element: Py<Element>,

@@ -152,7 +152,7 @@ impl Stack {
 /// - :attr:`Direction.Forward`:
 ///     Process children in original order and schedule them as early as
 ///     possible.
-#[pyclass(module = "bosing", frozen, eq)]
+#[pyclass(module = "bosing._bosing", frozen, eq)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Direction {
     Backward,
