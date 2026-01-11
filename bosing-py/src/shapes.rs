@@ -12,7 +12,7 @@ use pyo3::{exceptions::PyTypeError, prelude::*};
 ///
 /// - :class:`Hann`: Hann window.
 /// - :class:`Interp`: Interpolated shape.
-#[pyclass(module = "bosing", subclass, frozen)]
+#[pyclass(module = "bosing._bosing", subclass, frozen)]
 #[derive(Debug, Clone)]
 pub struct Shape;
 

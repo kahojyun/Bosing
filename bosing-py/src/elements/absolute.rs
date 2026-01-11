@@ -167,7 +167,7 @@ impl Absolute {
 /// Args:
 ///     time (float): Time relative to the start of the parent element.
 ///     element (Element): Child element.
-#[pyclass(module = "bosing", name = "AbsoluteEntry", get_all, frozen)]
+#[pyclass(module = "bosing._bosing", name = "AbsoluteEntry", get_all, frozen)]
 #[derive(Debug, IntoPyObjectRef)]
 pub struct Entry {
     time: Time,
