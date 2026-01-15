@@ -8,7 +8,7 @@ use bosing::{
 };
 use hashbrown::HashMap;
 use ndarray::ArrayViewMut2;
-use numpy::{AllowTypeChange, PyArray2, PyArrayLike2, prelude::*};
+use numpy::{AllowTypeChange, PyArray1, PyArray2, PyArrayLike2, prelude::*};
 use pyo3::{
     exceptions::{PyRuntimeError, PyValueError},
     prelude::*,
@@ -290,7 +290,17 @@ type ChannelStates = HashMap<ChannelId, Py<OscState>>;
 type ChannelPulses = HashMap<quant::ChannelId, List>;
 type CrosstalkMatrix<'a> = (PyArrayLike2<'a, f64, AllowTypeChange>, Vec<ChannelId>);
 
-type ChannelInstructions = HashMap<ChannelId, Vec<(usize, usize, f64, f64, f64)>>;
+#[pyclass(module = "bosing._bosing", frozen, get_all)]
+#[derive(Debug, Clone)]
+pub struct Instruction {
+    pub i_start: usize,
+    pub env_id: usize,
+    pub amplitude: f64,
+    pub freq: f64,
+    pub phase: f64,
+}
+
+type ChannelInstructions = HashMap<ChannelId, Vec<Instruction>>;
 
 fn default_time_tolerance() -> Time {
     Time::new(1e-12).expect("Should be valid static value.")
@@ -433,7 +443,7 @@ fn build_envelopes_and_instructions(
             PyRuntimeError::new_err(format!("No pulse list for channel: {channel_id}"))
         })?;
 
-        let mut channel_insts: Vec<(usize, usize, f64, f64, f64)> = Vec::new();
+        let mut channel_insts: Vec<Instruction> = Vec::new();
 
         for (bin, items) in list.iter() {
             for &(time, amp) in items {
@@ -508,11 +518,17 @@ fn build_envelopes_and_instructions(
                 let phase_amp = phase_cycles_from_complex(amp_re, amp_im);
                 let phase = phase0.value() + phase_amp;
 
-                channel_insts.push((i_start, env_id, amplitude, total_freq.value(), phase));
+                channel_insts.push(Instruction {
+                    i_start,
+                    env_id,
+                    amplitude,
+                    freq: total_freq.value(),
+                    phase,
+                });
             }
         }
 
-        channel_insts.sort_unstable_by_key(|(i_start, ..)| *i_start);
+        channel_insts.sort_unstable_by_key(|inst| inst.i_start);
         instructions.insert(channel_id.clone(), channel_insts);
     }
 
@@ -627,7 +643,7 @@ states=None,
 #[expect(clippy::too_many_arguments, clippy::missing_errors_doc)]
 #[expect(clippy::needless_pass_by_value, reason = "PyO3 extractor")]
 pub fn generate_envelopes_and_instructions(
-    _py: Python<'_>,
+    py: Python<'_>,
     channels: HashMap<ChannelId, Channel>,
     shapes: HashMap<ShapeId, Py<Shape>>,
     schedule: &Bound<'_, Element>,
@@ -635,7 +651,7 @@ pub fn generate_envelopes_and_instructions(
     amp_tolerance: Amplitude,
     allow_oversize: bool,
     states: Option<ChannelStates>,
-) -> PyResult<(Vec<Vec<f64>>, ChannelInstructions)> {
+) -> PyResult<(Vec<Py<PyArray1<f64>>>, ChannelInstructions)> {
     let (pulse_lists, _) = build_pulse_lists(
         schedule,
         &channels,
@@ -645,7 +661,12 @@ pub fn generate_envelopes_and_instructions(
         allow_oversize,
         states.as_ref(),
     )?;
-    build_envelopes_and_instructions(&channels, &pulse_lists)
+    let (envelopes, instructions) = build_envelopes_and_instructions(&channels, &pulse_lists)?;
+    let envelopes = envelopes
+        .into_iter()
+        .map(|samples| PyArray1::from_vec(py, samples).unbind())
+        .collect();
+    Ok((envelopes, instructions))
 }
 
 fn build_pulse_lists(

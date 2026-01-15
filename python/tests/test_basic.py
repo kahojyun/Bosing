@@ -147,9 +147,9 @@ def test_generate_envelopes_and_instructions() -> None:
     assert "xy" in instructions
     assert len(instructions["xy"]) >= 1
 
-    for i_start, env_id, amplitude, freq, phase in instructions["xy"]:
-        assert 0 <= i_start < length
-        assert 0 <= env_id < len(envelopes)
-        assert amplitude >= 0
-        assert np.isfinite(freq)
-        assert np.isfinite(phase)
+    for inst in instructions["xy"]:
+        assert 0 <= inst.i_start < length
+        assert 0 <= inst.env_id < len(envelopes)
+        assert inst.amplitude >= 0
+        assert np.isfinite(inst.freq)
+        assert np.isfinite(inst.phase)

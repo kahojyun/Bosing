@@ -19,6 +19,7 @@ __all__ = [
     "GridLength",
     "GridLengthUnit",
     "Hann",
+    "Instruction",
     "Interp",
     "ItemKind",
     "OscState",
@@ -530,6 +531,19 @@ class ItemKind:
     Absolute: ClassVar[ItemKind]
     Grid: ClassVar[ItemKind]
 
+@final
+class Instruction:
+    @property
+    def i_start(self) -> int: ...
+    @property
+    def env_id(self) -> int: ...
+    @property
+    def amplitude(self) -> float: ...
+    @property
+    def freq(self) -> float: ...
+    @property
+    def phase(self) -> float: ...
+
 def generate_waveforms(
     channels: Mapping[str, Channel],
     shapes: Mapping[str, Shape],
@@ -549,9 +563,7 @@ def generate_envelopes_and_instructions(
     amp_tolerance: float = ...,
     allow_oversize: bool = ...,
     states: Mapping[str, OscState] | None = ...,
-) -> tuple[
-    list[list[float]], dict[str, list[tuple[int, int, float, float, float]]]
-]: ...
+) -> tuple[list[npt.NDArray[np.float64]], dict[str, list[Instruction]]]: ...
 def generate_waveforms_with_states(
     channels: Mapping[str, Channel],
     shapes: Mapping[str, Shape],
