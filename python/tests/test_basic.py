@@ -1,7 +1,32 @@
 import numpy as np
+import numpy.typing as npt
 from rich.pretty import pretty_repr
 
 import bosing
+
+
+def _waveforms_from_instructions(
+    channels: dict[str, bosing.Channel],
+    envelopes: list[npt.NDArray[np.float64]],
+    instructions: dict[str, list[bosing.Instruction]],
+) -> dict[str, npt.NDArray[np.float64]]:
+    result: dict[str, npt.NDArray[np.float64]] = {}
+    for name, channel in channels.items():
+        n_rows = 1 if channel.is_real else 2
+        waveform = np.zeros((n_rows, channel.length), dtype=np.float64)
+        dt = 1.0 / channel.sample_rate
+        for inst in instructions[name]:
+            env = envelopes[inst.env_id]
+            end = inst.i_start + env.shape[0]
+            indices = np.arange(env.shape[0], dtype=np.float64)
+            phase = inst.phase + inst.freq * (indices * dt)
+            carrier = np.exp(1j * (2 * np.pi * phase))
+            samples = inst.amplitude * env * carrier
+            waveform[0, inst.i_start : end] += samples.real
+            if not channel.is_real:
+                waveform[1, inst.i_start : end] += samples.imag
+        result[name] = waveform
+    return result
 
 
 def test_basic() -> None:
@@ -153,3 +178,31 @@ def test_generate_envelopes_and_instructions() -> None:
         assert inst.amplitude >= 0
         assert np.isfinite(inst.freq)
         assert np.isfinite(inst.phase)
+
+    waveforms_from_inst = _waveforms_from_instructions(
+        channels,
+        [np.asarray(env) for env in envelopes],
+        instructions,
+    )
+    waveforms = bosing.generate_waveforms(channels, shapes, schedule)
+    assert np.allclose(waveforms_from_inst["xy"], waveforms["xy"], atol=1e-12)
+
+    states = {"xy": bosing.OscState(30e6, 5e6, 0.2)}
+    envelopes, instructions = bosing.generate_envelopes_and_instructions(
+        channels,
+        shapes,
+        schedule,
+        states=states,
+    )
+    waveforms_from_inst = _waveforms_from_instructions(
+        channels,
+        [np.asarray(env) for env in envelopes],
+        instructions,
+    )
+    waveforms, _ = bosing.generate_waveforms_with_states(
+        channels,
+        shapes,
+        schedule,
+        states=states,
+    )
+    assert np.allclose(waveforms_from_inst["xy"], waveforms["xy"], atol=1e-12)
