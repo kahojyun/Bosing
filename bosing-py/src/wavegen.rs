@@ -629,6 +629,38 @@ pub fn generate_waveforms_with_states(
     ))
 }
 
+/// Generate envelopes and compact pulse instructions from a schedule.
+///
+/// This API is useful if you want to generate or post-process waveforms outside of bosing.
+/// It returns a deduplicated list of envelope samples and per-channel instructions referencing
+/// them by `env_id`.
+///
+/// Returns:
+///     tuple[list[numpy.ndarray], dict[str, list[Instruction]]]:
+///
+///     - The first item is a list of 1D `float64` NumPy arrays. Each array is an envelope
+///       sampled on the channel sample grid.
+///     - The second item is a dict mapping channel id to a list of `Instruction`.
+///
+/// Example:
+///     .. code-block:: python
+///
+///         import numpy as np
+///         from bosing import Barrier, Channel, Hann, Play, Stack, generate_envelopes_and_instructions
+///
+///         length = 1000
+///         channels = {"xy": Channel(30e6, 2e9, length)}
+///         shapes = {"hann": Hann()}
+///         schedule = Stack(duration=500e-9).with_children(
+///             Play(channel_id="xy", shape_id="hann", amplitude=0.3, width=100e-9, plateau=200e-9),
+///             Barrier(duration=10e-9),
+///         )
+///
+///         envelopes, instructions = generate_envelopes_and_instructions(channels, shapes, schedule)
+///         inst0 = instructions["xy"][0]
+///         env0 = envelopes[inst0.env_id]
+///         assert env0.dtype == np.float64
+///         assert inst0.i_start >= 0
 #[pyfunction]
 #[pyo3(signature = (
 channels,

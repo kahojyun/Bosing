@@ -22,8 +22,8 @@ pub mod _bosing {
         plot::{Args, Item, ItemKind},
         shapes::{Hann, Interp, Shape},
         wavegen::{
-            Channel, OscState, generate_envelopes_and_instructions, generate_waveforms,
-            generate_waveforms_with_states,
+            Channel, Instruction, OscState, generate_envelopes_and_instructions,
+            generate_waveforms, generate_waveforms_with_states,
         },
     };
 }
