@@ -41,3 +41,10 @@
 
 .. plot:: ../examples/plot.py
     :include-source:
+
+
+生成包络与指令
+--------------
+
+.. plot:: ../examples/envelopes_instructions.py
+    :include-source:

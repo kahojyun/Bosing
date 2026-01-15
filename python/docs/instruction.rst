@@ -24,6 +24,49 @@
     交换两个通道的相位
 
 
+生成包络与指令
+--------------
+
+除了直接生成波形 :func:`generate_waveforms` 之外, ``bosing`` 还提供
+:func:`generate_envelopes_and_instructions` 用于输出更底层、便于外部处理的结果。
+
+该函数返回两部分:
+
+- **envelopes**: ``list[numpy.ndarray]``
+    去重后的包络采样（1D, ``float64``）。
+- **instructions**: ``dict[str, list[Instruction]]``
+    每个通道对应一组 :class:`Instruction`。每条指令通过 ``env_id`` 引用
+    ``envelopes[env_id]``。
+
+对于每条 :class:`Instruction`:
+
+- ``i_start``: 包络写入波形的起始采样点索引
+- ``env_id``: 引用的包络编号
+- ``amplitude``: 该脉冲的幅度（非负）
+- ``freq``: 该脉冲的频率（cycles/s）
+- ``phase``: 该脉冲的相位（cycles）
+
+示例:
+
+.. code-block:: python
+
+    import numpy as np
+    from bosing import Barrier, Channel, Hann, Play, Stack, generate_envelopes_and_instructions
+
+    length = 1000
+    channels = {"xy": Channel(30e6, 2e9, length)}
+    shapes = {"hann": Hann()}
+    schedule = Stack(duration=500e-9).with_children(
+        Play(channel_id="xy", shape_id="hann", amplitude=0.3, width=100e-9, plateau=200e-9),
+        Barrier(duration=10e-9),
+    )
+
+    envelopes, instructions = generate_envelopes_and_instructions(channels, shapes, schedule)
+    inst0 = instructions["xy"][0]
+    env0 = envelopes[inst0.env_id]
+    assert env0.dtype == np.float64
+    assert 0 <= inst0.i_start < length
+
 
 相位计算
 --------

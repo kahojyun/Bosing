@@ -44,6 +44,28 @@ plt.legend()
 plt.show()
 ```
 
+If you want to post-process waveforms outside of bosing, you can generate a deduplicated
+list of envelopes and compact pulse instructions:
+
+```python
+import numpy as np
+
+from bosing import Barrier, Channel, Hann, Play, Stack, generate_envelopes_and_instructions
+
+length = 1000
+channels = {"xy": Channel(30e6, 2e9, length)}
+shapes = {"hann": Hann()}
+schedule = Stack(duration=500e-9).with_children(
+    Play(channel_id="xy", shape_id="hann", amplitude=0.3, width=100e-9, plateau=200e-9),
+    Barrier(duration=10e-9),
+)
+
+envelopes, instructions = generate_envelopes_and_instructions(channels, shapes, schedule)
+inst0 = instructions["xy"][0]
+env0 = envelopes[inst0.env_id]
+assert env0.dtype == np.float64
+```
+
 ## Performance
 
 `python/examples/schedule_stress.py` (0.15 s) vs `python/benches/naive.py` (1.4 s)
@@ -54,9 +76,9 @@ CPU: AMD Ryzen 5 5600
 
 ### Prerequisites
 
-* Rustup for rust toolchain management.
-* [maturin](https://github.com/PyO3/maturin) 1.7+.
-* [uv](https://github.com/astral-sh/uv) for python project management.
+- Rustup for rust toolchain management.
+- [maturin](https://github.com/PyO3/maturin) 1.7+.
+- [uv](https://github.com/astral-sh/uv) for python project management.
 
 ```bash
 git clone https://github.com/kahojyun/Bosing.git

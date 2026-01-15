@@ -49,21 +49,75 @@ impl Envelope {
             plateau,
         }
     }
+
+    #[must_use]
+    pub const fn width(&self) -> Time {
+        self.width
+    }
+
+    #[must_use]
+    pub const fn plateau(&self) -> Time {
+        self.plateau
+    }
+
+    #[must_use]
+    pub const fn shape(&self) -> Option<&Shape> {
+        self.shape.as_ref()
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-struct ListBin {
+pub struct ListBin {
     envelope: Envelope,
     global_freq: Frequency,
     local_freq: Frequency,
 }
 
+impl ListBin {
+    #[must_use]
+    pub const fn envelope(&self) -> &Envelope {
+        &self.envelope
+    }
+
+    #[must_use]
+    pub const fn global_freq(&self) -> Frequency {
+        self.global_freq
+    }
+
+    #[must_use]
+    pub const fn local_freq(&self) -> Frequency {
+        self.local_freq
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
-struct PulseAmplitude {
+pub struct PulseAmplitude {
     // Amplitude of the pulse
     amp: Complex64,
     // Drag amplitude of the pulse (but not multiplied by sample rate yet)
     drag: Complex64,
+}
+
+impl PulseAmplitude {
+    #[must_use]
+    pub const fn amp_re(&self) -> f64 {
+        self.amp.re
+    }
+
+    #[must_use]
+    pub const fn amp_im(&self) -> f64 {
+        self.amp.im
+    }
+
+    #[must_use]
+    pub const fn drag_re(&self) -> f64 {
+        self.drag.re
+    }
+
+    #[must_use]
+    pub const fn drag_im(&self) -> f64 {
+        self.drag.im
+    }
 }
 
 impl Add for PulseAmplitude {
@@ -91,6 +145,14 @@ impl Mul<f64> for PulseAmplitude {
 #[derive(Debug, Clone)]
 pub struct List {
     items: HashMap<ListBin, Vec<(Time, PulseAmplitude)>>,
+}
+
+impl List {
+    pub fn iter(&self) -> impl Iterator<Item = (&ListBin, &[(Time, PulseAmplitude)])> {
+        self.items
+            .iter()
+            .map(|(bin, items)| (bin, items.as_slice()))
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -330,8 +392,19 @@ fn mix_add_plateau(
     }
 }
 
+#[must_use]
+pub fn get_envelope(
+    shape: Shape,
+    width: Time,
+    plateau: Time,
+    index_offset: AlignedIndex,
+    sample_rate: Frequency,
+) -> Arc<Vec<f64>> {
+    get_envelope_cached(shape, width, plateau, index_offset, sample_rate)
+}
+
 #[cached(size = 1024)]
-fn get_envelope(
+fn get_envelope_cached(
     shape: Shape,
     width: Time,
     plateau: Time,

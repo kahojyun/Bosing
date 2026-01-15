@@ -1,13 +1,14 @@
 use bosing::{
     executor::{self, Executor},
     pulse::{
-        List, Sampler, apply_fir_inplace, apply_iir_inplace, apply_iq_inplace, apply_offset_inplace,
+        List, Sampler, apply_fir_inplace, apply_iir_inplace, apply_iq_inplace,
+        apply_offset_inplace, get_envelope,
     },
     quant,
 };
 use hashbrown::HashMap;
 use ndarray::ArrayViewMut2;
-use numpy::{AllowTypeChange, PyArray2, PyArrayLike2, prelude::*};
+use numpy::{AllowTypeChange, PyArray1, PyArray2, PyArrayLike2, prelude::*};
 use pyo3::{
     exceptions::{PyRuntimeError, PyValueError},
     prelude::*,
@@ -289,6 +290,18 @@ type ChannelStates = HashMap<ChannelId, Py<OscState>>;
 type ChannelPulses = HashMap<quant::ChannelId, List>;
 type CrosstalkMatrix<'a> = (PyArrayLike2<'a, f64, AllowTypeChange>, Vec<ChannelId>);
 
+#[pyclass(module = "bosing._bosing", frozen, get_all)]
+#[derive(Debug, Clone)]
+pub struct Instruction {
+    pub i_start: usize,
+    pub env_id: usize,
+    pub amplitude: f64,
+    pub freq: f64,
+    pub phase: f64,
+}
+
+type ChannelInstructions = HashMap<ChannelId, Vec<Instruction>>;
+
 fn default_time_tolerance() -> Time {
     Time::new(1e-12).expect("Should be valid static value.")
 }
@@ -377,6 +390,149 @@ pub fn generate_waveforms(
         None,
     )?;
     Ok(waveforms)
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+struct EnvelopeKey {
+    envelope: bosing::pulse::Envelope,
+    sample_rate: quant::Frequency,
+    index_offset: Option<quant::AlignedIndex>,
+}
+
+fn phase_cycles_from_complex(re: f64, im: f64) -> f64 {
+    let phase_rad = im.atan2(re);
+    phase_rad / std::f64::consts::TAU
+}
+
+fn envelope_to_samples(
+    envelope: &bosing::pulse::Envelope,
+    sample_rate: quant::Frequency,
+    index_offset: quant::AlignedIndex,
+) -> Vec<f64> {
+    envelope.shape().map_or_else(
+        || {
+            #[expect(clippy::cast_sign_loss, reason = "Plateau is positive.")]
+            #[expect(clippy::cast_possible_truncation, reason = "Index is small.")]
+            let len = (envelope.plateau().value() * sample_rate.value()).ceil() as usize;
+            vec![1.0; len]
+        },
+        |shape| {
+            let env = get_envelope(
+                shape.clone(),
+                envelope.width(),
+                envelope.plateau(),
+                index_offset,
+                sample_rate,
+            );
+            (*env).clone()
+        },
+    )
+}
+
+fn build_envelopes_and_instructions(
+    channels: &HashMap<ChannelId, Channel>,
+    pulse_lists: &ChannelPulses,
+) -> PyResult<(Vec<Vec<f64>>, ChannelInstructions)> {
+    let mut envelopes: Vec<Vec<f64>> = Vec::new();
+    let mut envelope_lookup: HashMap<EnvelopeKey, usize> = HashMap::new();
+    let mut instructions: ChannelInstructions = HashMap::new();
+
+    for (channel_id, channel) in channels {
+        let channel_id_quant: quant::ChannelId = channel_id.clone().into();
+        let list = pulse_lists.get(&channel_id_quant).ok_or_else(|| {
+            PyRuntimeError::new_err(format!("No pulse list for channel: {channel_id}"))
+        })?;
+
+        let mut channel_insts: Vec<Instruction> = Vec::new();
+
+        for (bin, items) in list.iter() {
+            for &(time, amp) in items {
+                if amp.drag_re() != 0.0 || amp.drag_im() != 0.0 {
+                    return Err(PyValueError::new_err(
+                        "Drag is not supported in instruction output mode.",
+                    ));
+                }
+
+                let delay: quant::Time = channel.delay.into();
+                let t_start: quant::Time = time + delay;
+                let i_frac_start = quant::AlignedIndex::new(
+                    t_start,
+                    channel.sample_rate.into(),
+                    channel.align_level,
+                )
+                .map_err(|e| PyValueError::new_err(format!("Invalid aligned index. Error: {e}")))?;
+
+                if i_frac_start.value() < 0.0 {
+                    return Err(PyValueError::new_err(
+                        "The start time of a pulse is negative, try adjusting channel delay or schedule.",
+                    ));
+                }
+
+                let i_start = i_frac_start
+                    .ceil_to_usize()
+                    .ok_or_else(|| PyValueError::new_err("Invalid start index."))?;
+
+                if i_start >= channel.length {
+                    return Err(PyValueError::new_err(
+                        "The start index of a pulse is out of bounds, try adjusting channel delay, length or schedule.",
+                    ));
+                }
+
+                let index_offset = i_frac_start.index_offset();
+                let total_freq = bin.global_freq() + bin.local_freq();
+                let sample_rate: quant::Frequency = channel.sample_rate.into();
+                let dt = sample_rate.dt();
+
+                #[expect(
+                    clippy::cast_precision_loss,
+                    reason = "Index is bounded by channel length in practical use."
+                )]
+                let t_index: quant::Time = dt * (i_start as f64);
+                let t_local: quant::Time = dt * index_offset.value();
+
+                let phase0: quant::Phase =
+                    bin.global_freq() * (t_index - delay) + bin.local_freq() * t_local;
+
+                let envelope_key = EnvelopeKey {
+                    envelope: bin.envelope().clone(),
+                    sample_rate,
+                    index_offset: bin.envelope().shape().map(|_| index_offset),
+                };
+
+                let env_id = *envelope_lookup
+                    .entry(envelope_key.clone())
+                    .or_insert_with(|| {
+                        let samples = envelope_to_samples(
+                            &envelope_key.envelope,
+                            envelope_key.sample_rate,
+                            index_offset,
+                        );
+                        let id = envelopes.len();
+                        envelopes.push(samples);
+                        id
+                    });
+
+                let amp_re = amp.amp_re();
+                let amp_im = amp.amp_im();
+                let amplitude = amp_re.hypot(amp_im);
+                let phase_amp = phase_cycles_from_complex(amp_re, amp_im);
+                let phase = phase0.value() + phase_amp;
+
+                channel_insts.push(Instruction {
+                    i_start,
+                    env_id,
+                    amplitude,
+                    freq: total_freq.value(),
+                    phase,
+                });
+            }
+        }
+
+        channel_insts.sort_unstable_by_key(|inst| inst.i_start);
+        instructions.insert(channel_id.clone(), channel_insts);
+    }
+
+    Ok((envelopes, instructions))
 }
 
 /// Generate waveforms from a schedule with initial states.
@@ -471,6 +627,78 @@ pub fn generate_waveforms_with_states(
         }),
         new_states,
     ))
+}
+
+/// Generate envelopes and compact pulse instructions from a schedule.
+///
+/// This API is useful if you want to generate or post-process waveforms outside of bosing.
+/// It returns a deduplicated list of envelope samples and per-channel instructions referencing
+/// them by `env_id`.
+///
+/// Returns:
+///     tuple[list[numpy.ndarray], dict[str, list[Instruction]]]:
+///
+///     - The first item is a list of 1D `float64` NumPy arrays. Each array is an envelope
+///       sampled on the channel sample grid.
+///     - The second item is a dict mapping channel id to a list of `Instruction`.
+///
+/// Example:
+///     .. code-block:: python
+///
+///         import numpy as np
+///         from bosing import Barrier, Channel, Hann, Play, Stack, generate_envelopes_and_instructions
+///
+///         length = 1000
+///         channels = {"xy": Channel(30e6, 2e9, length)}
+///         shapes = {"hann": Hann()}
+///         schedule = Stack(duration=500e-9).with_children(
+///             Play(channel_id="xy", shape_id="hann", amplitude=0.3, width=100e-9, plateau=200e-9),
+///             Barrier(duration=10e-9),
+///         )
+///
+///         envelopes, instructions = generate_envelopes_and_instructions(channels, shapes, schedule)
+///         inst0 = instructions["xy"][0]
+///         env0 = envelopes[inst0.env_id]
+///         assert env0.dtype == np.float64
+///         assert inst0.i_start >= 0
+#[pyfunction]
+#[pyo3(signature = (
+channels,
+shapes,
+schedule,
+*,
+time_tolerance=default_time_tolerance(),
+amp_tolerance=default_amp_tolerance(),
+allow_oversize=false,
+states=None,
+))]
+#[expect(clippy::too_many_arguments, clippy::missing_errors_doc)]
+#[expect(clippy::needless_pass_by_value, reason = "PyO3 extractor")]
+pub fn generate_envelopes_and_instructions(
+    py: Python<'_>,
+    channels: HashMap<ChannelId, Channel>,
+    shapes: HashMap<ShapeId, Py<Shape>>,
+    schedule: &Bound<'_, Element>,
+    time_tolerance: Time,
+    amp_tolerance: Amplitude,
+    allow_oversize: bool,
+    states: Option<ChannelStates>,
+) -> PyResult<(Vec<Py<PyArray1<f64>>>, ChannelInstructions)> {
+    let (pulse_lists, _) = build_pulse_lists(
+        schedule,
+        &channels,
+        &shapes,
+        time_tolerance,
+        amp_tolerance,
+        allow_oversize,
+        states.as_ref(),
+    )?;
+    let (envelopes, instructions) = build_envelopes_and_instructions(&channels, &pulse_lists)?;
+    let envelopes = envelopes
+        .into_iter()
+        .map(|samples| PyArray1::from_vec(py, samples).unbind())
+        .collect();
+    Ok((envelopes, instructions))
 }
 
 fn build_pulse_lists(
