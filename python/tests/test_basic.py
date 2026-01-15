@@ -121,3 +121,35 @@ def test_repr() -> None:
     assert (
         repr(c) == "Channel(2000000000.0, 2000000000.0, 1000, fir=array([1., 2., 3.]))"
     )
+
+
+def test_generate_envelopes_and_instructions() -> None:
+    length = 1000
+    channels = {"xy": bosing.Channel(30e6, 2e9, length)}
+    shapes = {"hann": bosing.Hann()}
+    schedule = bosing.Stack(duration=500e-9).with_children(
+        bosing.Play(
+            channel_id="xy",
+            shape_id="hann",
+            amplitude=0.3,
+            width=100e-9,
+            plateau=200e-9,
+        ),
+        bosing.Barrier(duration=10e-9),
+    )
+
+    envelopes, instructions = bosing.generate_envelopes_and_instructions(
+        channels,
+        shapes,
+        schedule,
+    )
+    assert len(envelopes) >= 1
+    assert "xy" in instructions
+    assert len(instructions["xy"]) >= 1
+
+    for i_start, env_id, amplitude, freq, phase in instructions["xy"]:
+        assert 0 <= i_start < length
+        assert 0 <= env_id < len(envelopes)
+        assert amplitude >= 0
+        assert np.isfinite(freq)
+        assert np.isfinite(phase)

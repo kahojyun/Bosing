@@ -33,6 +33,7 @@ __all__ = [
     "ShiftPhase",
     "Stack",
     "SwapPhase",
+    "generate_envelopes_and_instructions",
     "generate_waveforms",
     "generate_waveforms_with_states",
 ]
@@ -539,6 +540,18 @@ def generate_waveforms(
     allow_oversize: bool = ...,
     crosstalk: tuple[npt.ArrayLike, Sequence[str]] | None = ...,
 ) -> dict[str, npt.NDArray[np.float64]]: ...
+def generate_envelopes_and_instructions(
+    channels: Mapping[str, Channel],
+    shapes: Mapping[str, Shape],
+    schedule: Element,
+    *,
+    time_tolerance: float = ...,
+    amp_tolerance: float = ...,
+    allow_oversize: bool = ...,
+    states: Mapping[str, OscState] | None = ...,
+) -> tuple[
+    list[list[float]], dict[str, list[tuple[int, int, float, float, float]]]
+]: ...
 def generate_waveforms_with_states(
     channels: Mapping[str, Channel],
     shapes: Mapping[str, Shape],

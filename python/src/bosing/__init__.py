@@ -32,6 +32,7 @@ from ._bosing import (
     ShiftPhase,
     Stack,
     SwapPhase,
+    generate_envelopes_and_instructions,
     generate_waveforms,
     generate_waveforms_with_states,
 )
@@ -60,6 +61,7 @@ __all__ = [
     "ShiftPhase",
     "Stack",
     "SwapPhase",
+    "generate_envelopes_and_instructions",
     "generate_waveforms",
     "generate_waveforms_with_states",
 ]
