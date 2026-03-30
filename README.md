@@ -89,3 +89,22 @@ uv run task format # format rust and python code
 uv run task lint # lint rust and python code
 uv run task test # run cargo test and pytest
 ```
+
+## Releases
+
+Releases are managed with knope.
+
+Contributors should add a `.changeset/*.md` file for user-visible changes. Each file starts
+with YAML front matter that declares the default bump level, followed by the release note text:
+
+```md
+---
+default: patch
+---
+
+Brief description of the change.
+```
+
+Maintainers do not cut releases manually. A push to `main` with pending `.changeset` entries
+opens a release PR automatically. Merging that PR creates the git tag, GitHub release, and PyPI
+publish.

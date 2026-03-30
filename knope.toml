@@ -1,0 +1,58 @@
+[package]
+versioned_files = [
+  "Cargo.toml",
+  { path = "Cargo.lock", dependency = "bosing" },
+  { path = "Cargo.lock", dependency = "bosing-py" },
+]
+changelog = "CHANGELOG.md"
+
+[github]
+owner = "kahojyun"
+repo = "Bosing"
+
+[[workflows]]
+name = "plan-release"
+
+[[workflows.steps]]
+type = "PrepareRelease"
+allow_empty = true
+
+[[workflows]]
+name = "prepare-release"
+
+[[workflows.steps]]
+type = "Command"
+command = "git switch --force-create release"
+
+[[workflows.steps]]
+type = "PrepareRelease"
+
+[[workflows.steps]]
+type = "Command"
+command = "git commit -m 'chore: prepare release $version'"
+
+[[workflows.steps]]
+type = "Command"
+command = "git push --force --set-upstream origin release"
+
+[[workflows.steps]]
+type = "CreatePullRequest"
+base = "main"
+title.template = "chore: prepare release $version"
+body.template = """
+This PR was created by Knope. Merging it will create a new release.
+
+$changelog
+"""
+
+[[workflows]]
+name = "release"
+
+[[workflows.steps]]
+type = "Release"
+
+[[workflows]]
+name = "document-change"
+
+[[workflows.steps]]
+type = "CreateChangeFile"

@@ -6,6 +6,8 @@ on:
       - main
       - alpha
       - beta
+    tags:
+      - "**"
   pull_request:
     branches:
       - main
@@ -21,6 +23,7 @@ permissions:
 
 env:
   CARGO_TERM_COLOR: always
+  KNOPE_VERSION: 0.22.4
 
 jobs:
   # Should run on every push and PR
@@ -43,6 +46,12 @@ jobs:
           python-version-file: ".python-version"
       - name: Install uv
         uses: astral-sh/setup-uv@v7
+      - name: Install Knope
+        uses: knope-dev/action@v2.1.2
+        with:
+          version: ${{ env.KNOPE_VERSION }}
+      - name: Validate Knope release config
+        run: knope --validate
       - name: Sync project
         run: uv sync --locked --group ci
       - name: Pytest
@@ -58,41 +67,9 @@ jobs:
       - name: Check cargo dependencies
         uses: EmbarkStudios/cargo-deny-action@v2
 
-  # Should run on every push and PR, but only run semantic-release on push
-  release:
-    name: Run semantic-release
-    runs-on: ubuntu-latest
-    needs: test
-    permissions:
-      contents: write
-      issues: write
-      pull-requests: write
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-      - name: Semantic Release
-        uses: docker://ghcr.io/codfish/semantic-release-action@sha256:327a3ce08284f9dd9b83b607e3f668dae90139e68ce90780b0a43a09d577dc3a # v4.0.1
-        # Only run on push events
-        if: github.event_name == 'push'
-        id: semantic-release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          plugins: |
-            [
-              "@semantic-release/commit-analyzer",
-              "@semantic-release/release-notes-generator",
-              "@semantic-release/github",
-            ]
-    outputs:
-      version: ${{ steps.semantic-release.outputs.release-version || format('0.0.0-dev+{0}', github.sha) }}
-      published: ${{ steps.semantic-release.outputs.new-release-published || 'false' }}
-
   build:
     runs-on: ${{ matrix.os.runner }}
-    needs: release
+    needs: test
     strategy:
       matrix:
         os:
@@ -106,24 +83,19 @@ jobs:
         command: [build]
         include:
           - args: --release --out dist -i 3.10 3.13t 3.14t
-            sccache: ${{ needs.release.outputs.published == 'false' }}
           - command: sdist
             os:
               runner: ubuntu-latest
             args: --out dist
-            sccache: false
     steps:
       - uses: actions/checkout@v6
-      - name: Replace version in Cargo.toml
-        shell: pwsh
-        run: (Get-Content -Path Cargo.toml) -replace '^version = "0.0.0-dev"$', 'version = "${{ needs.release.outputs.version }}"' | Set-Content -Path Cargo.toml
       - name: Build wheels
         uses: PyO3/maturin-action@v1
         with:
           command: ${{ matrix.command }}
           target: ${{ matrix.target }}
           args: ${{ matrix.args }}
-          sccache: ${{ matrix.sccache }}
+          sccache: ${{ matrix.command == 'build' && !startsWith(github.ref, 'refs/tags/') }}
           manylinux: auto
       - name: Upload wheels
         uses: actions/upload-artifact@v7
@@ -135,6 +107,7 @@ jobs:
   check:
     if: always()
     needs:
+      - test
       - build
     runs-on: ubuntu-latest
     steps:
@@ -143,15 +116,16 @@ jobs:
         with:
           jobs: ${{ toJSON(needs) }}
 
-  # Should run only on push
+  # Should run only on tags
   publish:
     name: Publish to PyPI
     needs:
       - check
-      - release
-    if: needs.release.outputs.published == 'true' && github.event_name == 'push'
+    if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
-    environment: pypi
+    environment:
+      name: pypi
+      url: https://pypi.org/p/bosing
     permissions:
       id-token: write
       attestations: write

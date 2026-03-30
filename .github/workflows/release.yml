@@ -1,0 +1,40 @@
+name: Release
+
+on:
+  pull_request:
+    types:
+      - closed
+    branches:
+      - main
+
+env:
+  CARGO_TERM_COLOR: always
+  KNOPE_VERSION: 0.22.4
+
+jobs:
+  release:
+    if: ${{ github.head_ref == 'release' && github.event.pull_request.merged == true }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    environment: release
+    steps:
+      - name: Generate GitHub token
+        uses: actions/create-github-app-token@v3
+        id: generate-token
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          token: ${{ steps.generate-token.outputs.token }}
+      - name: Install Knope
+        uses: knope-dev/action@v2.1.2
+        with:
+          version: ${{ env.KNOPE_VERSION }}
+      - name: Create GitHub release
+        env:
+          GITHUB_TOKEN: ${{ steps.generate-token.outputs.token }}
+        run: knope release
