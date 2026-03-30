@@ -115,7 +115,7 @@ requires-dist = [
 ci = [
     { name = "basedpyright", specifier = ">=1.22.0" },
     { name = "mypy", specifier = ">=1.11.2" },
-    { name = "pytest", specifier = ">=8.3.3" },
+    { name = "pytest", specifier = ">=9.0.0" },
     { name = "rich", specifier = ">=13.9.2" },
     { name = "ruff", specifier = ">=0.6.7" },
 ]

@@ -6,39 +6,44 @@ ci:
     - cargo-fmt
     - cargo-deny
 repos:
-- repo: https://github.com/pre-commit/pre-commit-hooks
-  rev: 3e8a8703264a2f4a69428a0aa4dcb512790b2c8c  # frozen: v6.0.0
-  hooks:
-  - id: trailing-whitespace
-  - id: end-of-file-fixer
-  - id: check-yaml
-  - id: check-toml
-  - id: check-added-large-files
-- repo: https://github.com/crate-ci/typos
-  rev: 90356c2064dddca5f04a5ee3deaecb1784ba692d  # frozen: v1
-  hooks:
-    - id: typos
-- repo: https://github.com/astral-sh/uv-pre-commit
-  rev: 358ed3edbafb488413578da33f146c2be3ae2551  # frozen: 0.9.22
-  hooks:
-    - id: uv-lock
-- repo: https://github.com/astral-sh/ruff-pre-commit
-  rev: 6ce4b4fc349b8881cbce40207dac3bf78824a88e  # frozen: v0.14.11
-  hooks:
-    - id: ruff
-      args: [ --fix ]
-    - id: ruff-format
-# Copied from maturin repo
-- repo: local
-  hooks:
-    - id: cargo-fmt  # rustup component add rustfmt
-      name: cargo fmt
-      entry: cargo fmt --all --
-      language: system
-      types: [rust]
-      pass_filenames: false
-    - id: cargo-deny  # cargo install --locked cargo-deny
-      name: cargo deny
-      entry: cargo deny --all-features check --
-      language: system
-      pass_filenames: false
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: 3e8a8703264a2f4a69428a0aa4dcb512790b2c8c # frozen: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+  - repo: https://github.com/tombi-toml/tombi-pre-commit
+    rev: d22bfb61c88eb765ec84ed19d501d623809e162f # frozen: v0.9.9
+    hooks:
+      - id: tombi-format
+        exclude: (Cargo|uv)\.lock
+        args: ["--offline"]
+  - repo: https://github.com/crate-ci/typos
+    rev: 90356c2064dddca5f04a5ee3deaecb1784ba692d # frozen: v1
+    hooks:
+      - id: typos
+  - repo: https://github.com/astral-sh/uv-pre-commit
+    rev: 358ed3edbafb488413578da33f146c2be3ae2551 # frozen: 0.9.22
+    hooks:
+      - id: uv-lock
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: 6ce4b4fc349b8881cbce40207dac3bf78824a88e # frozen: v0.14.11
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format
+  # Copied from maturin repo
+  - repo: local
+    hooks:
+      - id: cargo-fmt # rustup component add rustfmt
+        name: cargo fmt
+        entry: cargo fmt --all --
+        language: system
+        types: [rust]
+        pass_filenames: false
+      - id: cargo-deny # cargo install --locked cargo-deny
+        name: cargo deny
+        entry: cargo deny --all-features check --
+        language: system
+        pass_filenames: false

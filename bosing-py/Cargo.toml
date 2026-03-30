@@ -1,12 +1,11 @@
 [package]
 name = "bosing-py"
-edition.workspace = true
 version.workspace = true
+edition.workspace = true
 rust-version.workspace = true
-license.workspace = true
-authors.workspace = true
 description.workspace = true
 repository.workspace = true
+license.workspace = true
 keywords.workspace = true
 categories.workspace = true
 publish = false
@@ -15,14 +14,14 @@ publish = false
 doctest = false
 
 [dependencies]
-bosing = { path = ".." }
-pyo3.workspace = true
-numpy.workspace = true
-ndarray.workspace = true
-itertools.workspace = true
-hashbrown.workspace = true
-rayon.workspace = true
 anyhow.workspace = true
+bosing = { path = ".." }
+hashbrown.workspace = true
+itertools.workspace = true
+ndarray.workspace = true
+numpy.workspace = true
+pyo3.workspace = true
+rayon.workspace = true
 
 [lints]
 workspace = true

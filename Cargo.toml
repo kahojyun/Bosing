@@ -1,7 +1,6 @@
 [package]
 name = "bosing"
 version.workspace = true
-authors.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 description.workspace = true
@@ -15,7 +14,6 @@ members = ["bosing-py"]
 
 [workspace.package]
 version = "2.7.0"
-authors = ["Jiahao Yuan <kahojyun@icloud.com>"]
 edition = "2024"
 rust-version = "1.85"
 description = "Waveform generator for pulse sequences in quantum computing"
@@ -31,7 +29,6 @@ cached = "0.56.0"
 float-cmp = "0.10.0"
 hashbrown = { version = "0.16.1", features = ["rayon"] }
 itertools = "0.14.0"
-# Testing
 mockall = "0.14.0"
 ndarray = { version = "0.17.1", features = ["rayon"] }
 num = "0.4.3"
