@@ -1,77 +1,45 @@
-[build-system]
-requires = ["maturin>=1.8,<2.0"]
-build-backend = "maturin"
-
 [project]
 name = "bosing"
-dynamic = ["version", "authors", "description", "license", "keywords"]
 readme = "README.md"
 requires-python = ">=3.10"
+authors = [{ name = "Jiahao Yuan", email = "kahojyun@icloud.com" }]
 classifiers = [
-    "Development Status :: 3 - Alpha",
-    "Programming Language :: Rust",
-    "Programming Language :: Python :: Implementation :: CPython",
-    "Programming Language :: Python :: Implementation :: PyPy",
-    "Intended Audience :: Science/Research",
-    "Topic :: Scientific/Engineering",
-    "License :: OSI Approved :: MIT License",
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Science/Research",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: Implementation :: CPython",
+  "Programming Language :: Python :: Implementation :: PyPy",
+  "Programming Language :: Rust",
+  "Topic :: Scientific/Engineering",
 ]
 dependencies = ["matplotlib>=3.5.0", "numpy>=1.19.3"]
+dynamic = ["description", "keywords", "license", "version"]
 
 [project.urls]
 Documentation = "https://bosing.readthedocs.io"
 Issues = "https://github.com/kahojyun/Bosing/issues"
 Source = "https://github.com/kahojyun/Bosing"
 
-[tool.maturin]
-python-source = "python/src"
-module-name = "bosing._bosing"
-manifest-path = "bosing-py/Cargo.toml"
-features = ["pyo3/extension-module"]
-
 [dependency-groups]
-dev = ["taskipy>=1.13.0", "scipy>=1.9.3"]
+dev = ["scipy>=1.9.3", "taskipy>=1.13.0"]
 ci = [
-    "basedpyright>=1.22.0",
-    "mypy>=1.11.2",
-    "ruff>=0.6.7",
-    "rich>=13.9.2",
-    "pytest>=8.3.3",
+  "basedpyright>=1.22.0",
+  "mypy>=1.11.2",
+  "pytest>=9.0.0",
+  "rich>=13.9.2",
+  "ruff>=0.6.7",
 ]
 docs = ["furo>=2024.8.6", "sphinx>=7.4.7"]
 extra = ["ipython>=8.18.1", "pyside6>=6.3"]
 
-[tool.uv]
-cache-keys = [
-    { file = "src/**/*.rs" },
-    { file = "bosing-py/**/*.rs" },
-    { file = "pyproject.toml" },
-    { file = "Cargo.toml" },
-    { file = "Cargo.lock" },
-    { file = "rust-toolchain.toml" },
-]
-
-[tool.taskipy.tasks]
-format = "task format_py && task format_rs"
-format_py = "ruff format"
-format_rs = "cargo fmt --all"
-lint = "task lint_py && task lint_rs"
-lint_py = "ruff check && basedpyright"
-lint_rs = "cargo clippy --workspace --all-targets"
-test = "task test_py && task test_rs"
-test_py = "pytest"
-test_rs = "cargo test --workspace"
-stubtest = "stubtest bosing._bosing --allowlist stubtest-allowlist.txt"
-makedocs = "sphinx-build -M html python/docs python/docs/_build"
-cleandocs = "sphinx-build -M clean python/docs python/docs/_build && rm -r python/docs/generated"
-
-[tool.pytest.ini_options]
-testpaths = ["python/tests"]
-addopts = "--import-mode=importlib"
+[build-system]
+requires = ["maturin>=1.8,<2.0"]
+build-backend = "maturin"
 
 [tool.basedpyright]
 include = ["python"]
 exclude = ["**/node_modules", "**/__pycache__", "**/docs/_build"]
+
 [[tool.basedpyright.executionEnvironments]]
 root = "python/examples"
 reportAny = "none"
@@ -82,3 +50,38 @@ reportUnknownMemberType = "none"
 reportUnknownParameterType = "none"
 reportUnusedCallResult = "none"
 reportMissingTypeArgument = "none"
+
+[tool.maturin]
+features = ["pyo3/extension-module"]
+manifest-path = "bosing-py/Cargo.toml"
+module-name = "bosing._bosing"
+python-source = "python/src"
+
+[tool.pytest]
+addopts = ["--import-mode=importlib"]
+minversion = "9.0"
+testpaths = ["python/tests"]
+
+[tool.taskipy.tasks]
+cleandocs = "sphinx-build -M clean python/docs python/docs/_build && rm -r python/docs/generated"
+format = "task format_py && task format_rs"
+format_py = "ruff format"
+format_rs = "cargo fmt --all"
+lint = "task lint_py && task lint_rs"
+lint_py = "ruff check && basedpyright"
+lint_rs = "cargo clippy --workspace --all-targets"
+makedocs = "sphinx-build -M html python/docs python/docs/_build"
+stubtest = "stubtest bosing._bosing --allowlist stubtest-allowlist.txt"
+test = "task test_py && task test_rs"
+test_py = "pytest"
+test_rs = "cargo test --workspace"
+
+[tool.uv]
+cache-keys = [
+  { file = "src/**/*.rs" },
+  { file = "bosing-py/**/*.rs" },
+  { file = "pyproject.toml" },
+  { file = "Cargo.toml" },
+  { file = "Cargo.lock" },
+  { file = "rust-toolchain.toml" },
+]
