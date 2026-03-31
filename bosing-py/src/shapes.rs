@@ -12,7 +12,7 @@ use pyo3::{exceptions::PyTypeError, prelude::*};
 ///
 /// - :class:`Hann`: Hann window.
 /// - :class:`Interp`: Interpolated shape.
-#[pyclass(module = "bosing._bosing", subclass, frozen)]
+#[pyclass(module = "bosing._bosing", subclass, frozen, from_py_object)]
 #[derive(Debug, Clone)]
 pub struct Shape;
 
@@ -34,7 +34,7 @@ impl Shape {
 }
 
 /// A Hann shape.
-#[pyclass(module="bosing._bosing",extends=Shape, frozen)]
+#[pyclass(module="bosing._bosing",extends=Shape, frozen, from_py_object)]
 #[derive(Debug, Clone)]
 pub struct Hann;
 
@@ -72,7 +72,7 @@ impl Hann {
 ///         x = (x - x[0]) / (x[-1] - x[0]) - 0.5 # Normalize x to [-0.5, 0.5]
 ///         spline = make_interp_spline(x, y, k=3)
 ///         interp = Interp(spline.t, spline.c, spline.k)
-#[pyclass(module="bosing._bosing",extends=Shape, get_all, frozen)]
+#[pyclass(module="bosing._bosing",extends=Shape, get_all, frozen, from_py_object)]
 #[derive(Debug, Clone)]
 pub struct Interp {
     knots: Vec<f64>,

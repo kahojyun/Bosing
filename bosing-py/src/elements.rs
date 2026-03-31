@@ -34,7 +34,7 @@ pub use self::{
 /// - :attr:`Alignment.Start`
 /// - :attr:`Alignment.Center`
 /// - :attr:`Alignment.Stretch`: Stretch the element to fill the parent.
-#[pyclass(module = "bosing._bosing", frozen, eq)]
+#[pyclass(module = "bosing._bosing", frozen, eq, from_py_object)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Alignment {
     End,
@@ -185,7 +185,7 @@ impl From<schedule::Alignment> for Alignment {
 ///         ``inf``.
 ///     min_duration (float): Minimum duration of the element. Defaults to ``0``.
 ///     label (str | None): Label of the element. Defaults to ``None``.
-#[pyclass(module = "bosing._bosing", subclass, frozen)]
+#[pyclass(module = "bosing._bosing", subclass, frozen, from_py_object)]
 #[derive(Debug, Clone)]
 pub struct Element(pub(super) ElementRef);
 
@@ -424,7 +424,7 @@ where
 ///         ``0``.
 ///     flexible (bool): Whether the pulse has flexible plateau length. Defaults
 ///         to ``False``.
-#[pyclass(module="bosing._bosing",extends=Element, frozen)]
+#[pyclass(module="bosing._bosing",extends=Element, frozen, from_py_object)]
 #[derive(Debug, Clone)]
 pub struct Play;
 
@@ -581,7 +581,7 @@ impl Play {
 /// Args:
 ///     channel_id (str): Target channel ID.
 ///     phase (float): Phase shift in **cycles**.
-#[pyclass(module="bosing._bosing",extends=Element, frozen)]
+#[pyclass(module="bosing._bosing",extends=Element, frozen, from_py_object)]
 #[derive(Debug, Clone)]
 pub struct ShiftPhase;
 
@@ -680,7 +680,7 @@ impl ShiftPhase {
 /// Args:
 ///     channel_id (str): Target channel ID.
 ///     phase (float): Target phase value in **cycles**.
-#[pyclass(module="bosing._bosing",extends=Element, frozen)]
+#[pyclass(module="bosing._bosing",extends=Element, frozen, from_py_object)]
 #[derive(Debug, Clone)]
 pub struct SetPhase;
 
@@ -767,7 +767,7 @@ impl SetPhase {
 /// Args:
 ///     channel_id (str): Target channel ID.
 ///     frequency (float): Delta frequency.
-#[pyclass(module="bosing._bosing",extends=Element, frozen)]
+#[pyclass(module="bosing._bosing",extends=Element, frozen, from_py_object)]
 #[derive(Debug, Clone)]
 pub struct ShiftFreq;
 
@@ -855,7 +855,7 @@ impl ShiftFreq {
 /// Args:
 ///     channel_id (str): Target channel ID.
 ///     frequency (float): Target frequency.
-#[pyclass(module="bosing._bosing",extends=Element, frozen)]
+#[pyclass(module="bosing._bosing",extends=Element, frozen, from_py_object)]
 #[derive(Debug, Clone)]
 pub struct SetFreq;
 
@@ -945,7 +945,7 @@ impl SetFreq {
 /// Args:
 ///     channel_id1 (str): Target channel ID 1.
 ///     channel_id2 (str): Target channel ID 2.
-#[pyclass(module="bosing._bosing",extends=Element, frozen)]
+#[pyclass(module="bosing._bosing",extends=Element, frozen, from_py_object)]
 #[derive(Debug, Clone)]
 pub struct SwapPhase;
 
@@ -1034,7 +1034,7 @@ impl SwapPhase {
 ///
 /// Args:
 ///     *channel_ids (str): Channel IDs. Defaults to empty.
-#[pyclass(module="bosing._bosing",extends=Element, frozen)]
+#[pyclass(module="bosing._bosing",extends=Element, frozen, from_py_object)]
 #[derive(Debug, Clone)]
 pub struct Barrier;
 
