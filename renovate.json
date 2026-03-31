@@ -1,4 +1,17 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["config:best-practices"]
+  "extends": [
+    "config:best-practices",
+    ":automergePatch",
+    ":automergeStableNonMajor",
+    ":approveMajorUpdates",
+    "customManagers:githubActionsVersions"
+  ],
+  "packageRules": [
+    {
+      "matchPackageNames": ["pyo3", "numpy"],
+      "matchCategories": ["rust"],
+      "groupName": "PyO3 stack"
+    }
+  ]
 }
