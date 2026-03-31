@@ -22,20 +22,20 @@ jobs:
       cancel-in-progress: false
     steps:
       - name: Generate GitHub token
-        uses: actions/create-github-app-token@v3
+        uses: actions/create-github-app-token@f8d387b68d61c58ab83c6c016672934102569859 # v3
         id: generate-token
         with:
           app-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           fetch-depth: 0
           token: ${{ steps.generate-token.outputs.token }}
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
       - name: Install Knope
-        uses: knope-dev/action@v2.1.2
+        uses: knope-dev/action@19617851f9f13ab2f27a05989c55efb18aca3675 # v2.1.2
         with:
           version: ${{ env.KNOPE_VERSION }}
       - name: Configure Git
