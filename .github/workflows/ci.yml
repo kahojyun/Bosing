@@ -23,6 +23,7 @@ permissions:
 
 env:
   CARGO_TERM_COLOR: always
+  # renovate: datasource=github-releases depName=knope-dev/knope
   KNOPE_VERSION: 0.22.4
 
 jobs:
