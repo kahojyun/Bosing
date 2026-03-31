@@ -215,7 +215,13 @@ impl Grid {
 /// - Seconds: Fixed length in seconds.
 /// - Auto: Auto length.
 /// - Star: Ratio of the remaining duration.
-#[pyclass(module = "bosing._bosing", name = "GridLengthUnit", frozen, eq)]
+#[pyclass(
+    module = "bosing._bosing",
+    name = "GridLengthUnit",
+    frozen,
+    eq,
+    from_py_object
+)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LengthUnit {
     Seconds,
@@ -228,7 +234,7 @@ pub enum LengthUnit {
 /// :class:`GridLength` is used to specify the length of a grid column. The
 /// length can be specified in seconds, as a fraction of the remaining duration,
 /// or automatically.
-#[pyclass(module = "bosing._bosing", name = "GridLength", frozen)]
+#[pyclass(module = "bosing._bosing", name = "GridLength", frozen, from_py_object)]
 #[derive(Debug, Clone)]
 pub struct Length(schedule::GridLength);
 

@@ -11,7 +11,7 @@ use crate::types::{ChannelId, Label, Time};
 const BOSING_PLOT_MODULE: &str = "bosing._plot";
 const BOSING_PLOT_PLOT: &str = "plot";
 
-#[pyclass(module = "bosing._bosing", frozen, eq, hash)]
+#[pyclass(module = "bosing._bosing", frozen, eq, hash, from_py_object)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ItemKind {
     Play,
