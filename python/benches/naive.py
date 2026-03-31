@@ -1,7 +1,3 @@
-# pyright: reportMissingTypeStubs=false
-# pyright: reportUnknownVariableType=false
-# pyright: reportUnknownMemberType=false
-# pyright: reportUnknownArgumentType=false
 import time
 from collections.abc import Sequence
 from math import ceil, floor
@@ -18,9 +14,12 @@ def get_biquad(
 ) -> npt.NDArray[np.float64]:
     z = [-1 / (t * (1 + a)) for (a, t) in zip(amp, tau, strict=True)]
     p = [-1 / t for t in tau]
-    k = np.prod([1 + a for a in amp])
+    k = float(np.prod([1 + a for a in amp]))
     z, p, k = signal.bilinear_zpk(z, p, k, fs)
-    return signal.zpk2sos(p, z, 1 / k)
+    zeros = np.asarray(np.real_if_close(z), dtype=np.float64)
+    poles = np.asarray(np.real_if_close(p), dtype=np.float64)
+    gain = float(np.real_if_close(k))
+    return signal.zpk2sos(poles, zeros, 1 / gain)
 
 
 def get_slice(t0: float, width: float, sr: float) -> slice:
@@ -65,7 +64,8 @@ def gen_n(n: int) -> None:
     fir = [1, 0.1, 0.01, 0.001]
     length = 100000
 
-    waveforms = {}
+    waveforms: dict[str, npt.NDArray[np.float64] | npt.NDArray[np.complex128]] = {}
+    u_waveforms: list[npt.NDArray[np.float64]] = []
     t_axis = np.arange(length) / sample_rate
     width = 50e-9
     gap = 10e-9
@@ -96,10 +96,11 @@ def gen_n(n: int) -> None:
         w = signal.sosfilt(iir, w)
         w = signal.convolve(w, fir)[: len(w)]
         waveforms[f"u{i}"] = w
+        u_waveforms.append(w)
 
     ct_matrix = np.eye(nu, dtype=np.float64)
     ct_matrix += 0.1
-    ct_input = [waveforms[f"u{i}"] for i in range(nu)]
+    ct_input = u_waveforms
     ct_output = ct_matrix @ ct_input
     for i in range(nu):
         waveforms[f"u{i}"] = ct_output[i]
