@@ -32,10 +32,10 @@ itertools = "0.14.0"
 mockall = "0.14.0"
 ndarray = { version = "0.17.1", features = ["rayon"] }
 num = "0.4.3"
-numpy = "0.27.1"
+numpy = "0.28.0"
 ordered-float = "5.1.0"
 pulp = "0.22.2"
-pyo3 = { version = "0.27.2", features = [
+pyo3 = { version = "0.28.0", features = [
   "abi3-py310",
   "anyhow",
   "generate-import-lib",
