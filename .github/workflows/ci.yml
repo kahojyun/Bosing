@@ -31,7 +31,7 @@ jobs:
     name: Test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - name: Cargo build
         run: cargo build --workspace --verbose --locked
       - name: Cargo test
@@ -41,13 +41,13 @@ jobs:
       - name: Cargo clippy
         run: cargo clippy --workspace --all-targets -- -D warnings
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
         with:
           python-version-file: ".python-version"
       - name: Install uv
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
       - name: Install Knope
-        uses: knope-dev/action@v2.1.2
+        uses: knope-dev/action@19617851f9f13ab2f27a05989c55efb18aca3675 # v2.1.2
         with:
           version: ${{ env.KNOPE_VERSION }}
       - name: Validate Knope release config
@@ -65,7 +65,7 @@ jobs:
       - name: Stubtest
         run: uv run task stubtest
       - name: Check cargo dependencies
-        uses: EmbarkStudios/cargo-deny-action@v2
+        uses: EmbarkStudios/cargo-deny-action@3fd3802e88374d3fe9159b834c7714ec57d6c979 # v2
 
   build:
     runs-on: ${{ matrix.os.runner }}
@@ -88,9 +88,9 @@ jobs:
               runner: ubuntu-latest
             args: --out dist
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - name: Build wheels
-        uses: PyO3/maturin-action@v1
+        uses: PyO3/maturin-action@04ac600d27cdf7a9a280dadf7147097c42b757ad # v1
         with:
           command: ${{ matrix.command }}
           target: ${{ matrix.target }}
@@ -98,7 +98,7 @@ jobs:
           sccache: ${{ matrix.command == 'build' && !startsWith(github.ref, 'refs/tags/') }}
           manylinux: auto
       - name: Upload wheels
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
           name: wheels-${{ matrix.command == 'sdist' && 'sdist' || format('{0}-{1}', matrix.os.name, matrix.target) }}
           path: dist
@@ -112,7 +112,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Decide whether the needed jobs succeeded or failed
-        uses: re-actors/alls-green@release/v1
+        uses: re-actors/alls-green@05ac9388f0aebcb5727afa17fcccfecd6f8ec5fe # release/v1
         with:
           jobs: ${{ toJSON(needs) }}
 
@@ -130,13 +130,13 @@ jobs:
       id-token: write
       attestations: write
     steps:
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           path: dist
           merge-multiple: true
       - name: Generate artifact attestation
-        uses: actions/attest-build-provenance@v4
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4
         with:
           subject-path: "dist/*"
       - name: Publish to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
+        uses: pypa/gh-action-pypi-publish@ed0c53931b1dc9bd32cbe73a98c7f6766f8a527e # release/v1
