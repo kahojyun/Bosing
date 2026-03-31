@@ -27,9 +27,12 @@ def get_biquad(
 ) -> np.ndarray:
     z = [-1 / (t * (1 + a)) for (a, t) in zip(amp, tau, strict=True)]
     p = [-1 / t for t in tau]
-    k = np.prod([1 + a for a in amp])
+    k = float(np.prod([1 + a for a in amp]))
     z, p, k = signal.bilinear_zpk(z, p, k, fs)
-    return signal.zpk2sos(p, z, 1 / k)
+    zeros = np.asarray(np.real_if_close(z), dtype=np.float64)
+    poles = np.asarray(np.real_if_close(p), dtype=np.float64)
+    gain = float(np.real_if_close(k))
+    return signal.zpk2sos(poles, zeros, 1 / gain)
 
 
 def gen_n(n: int) -> None:

@@ -21,7 +21,11 @@ Issues = "https://github.com/kahojyun/Bosing/issues"
 Source = "https://github.com/kahojyun/Bosing"
 
 [dependency-groups]
-dev = ["scipy>=1.9.3", "taskipy>=1.13.0"]
+dev = [
+  "scipy>=1.9.3",
+  "scipy-stubs>=1.15.3.0",
+  "taskipy>=1.13.0",
+]
 ci = [
   "basedpyright>=1.22.0",
   "mypy>=1.11.2",
@@ -41,9 +45,12 @@ include = ["python"]
 exclude = ["**/node_modules", "**/__pycache__", "**/docs/_build"]
 
 [[tool.basedpyright.executionEnvironments]]
+root = "python/src"
+pythonVersion = "3.10"
+
+[[tool.basedpyright.executionEnvironments]]
 root = "python/examples"
 reportAny = "none"
-reportMissingTypeStubs = "none"
 reportUnknownArgumentType = "none"
 reportUnknownVariableType = "none"
 reportUnknownMemberType = "none"

@@ -27,5 +27,5 @@ def test_plot() -> None:
     )
 
     fig = Figure()
-    ax = fig.subplots()  # pyright: ignore[reportUnknownMemberType]
+    ax = fig.subplots()
     _ = schedule.plot(ax)

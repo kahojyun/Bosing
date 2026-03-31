@@ -17,8 +17,9 @@ def _waveforms_from_instructions(
         dt = 1.0 / channel.sample_rate
         for inst in instructions[name]:
             env = envelopes[inst.env_id]
-            end = inst.i_start + env.shape[0]
-            indices = np.arange(env.shape[0], dtype=np.float64)
+            env_len = len(env)
+            end = inst.i_start + env_len
+            indices = np.arange(env_len, dtype=np.float64)
             phase = inst.phase + inst.freq * (indices * dt)
             carrier = np.exp(1j * (2 * np.pi * phase))
             samples = inst.amplitude * env * carrier
@@ -43,7 +44,7 @@ def test_basic() -> None:
     wc = np.asarray(w[0] + 1j * w[1], dtype=np.complex128)
     assert wc[0] == 0
     assert wc[-1] == 0
-    assert np.any(wc != 0)  # pyright: ignore[reportAny]
+    assert np.count_nonzero(wc) > 0
 
 
 def test_mixing() -> None:
