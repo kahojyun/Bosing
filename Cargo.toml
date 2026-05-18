@@ -27,7 +27,7 @@ anyhow = "1.0.100"
 bspline = "1.1.0"
 cached = "0.59.0"
 float-cmp = "0.10.0"
-hashbrown = { version = "0.16.1", features = ["rayon"] }
+hashbrown = { version = "0.17.0", features = ["rayon"] }
 itertools = "0.14.0"
 mockall = "0.14.0"
 ndarray = { version = "0.17.1", features = ["rayon"] }
