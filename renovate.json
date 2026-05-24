@@ -1,10 +1,14 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "minimumReleaseAge": "14 days",
   "extends": [
     "config:best-practices",
+    ":semanticCommitTypeAll(chore)",
     ":automergePatch",
     ":automergeStableNonMajor",
     ":approveMajorUpdates",
+    ":enablePreCommit",
+    "helpers:pinGitHubActionDigestsToSemver",
     "customManagers:githubActionsVersions"
   ],
   "packageRules": [
@@ -12,6 +16,11 @@
       "matchPackageNames": ["pyo3", "numpy"],
       "matchCategories": ["rust"],
       "groupName": "PyO3 stack"
+    },
+    {
+      "description": "Require approval for Renovate-detected breaking updates",
+      "matchJsonata": ["isBreaking = true"],
+      "dependencyDashboardApproval": true
     }
   ]
 }
