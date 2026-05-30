@@ -20,7 +20,7 @@ repos:
         exclude: (Cargo|uv)\.lock
         args: ["--offline"]
   - repo: https://github.com/crate-ci/typos
-    rev: 5374cbf686e897b15713110e233094e2874de7ef  # frozen: v1.46.1
+    rev: aca895bf05aec0cb7dffa6f94495e923224d9f17  # frozen: v1.46.2
     hooks:
       - id: typos
   - repo: https://github.com/astral-sh/uv-pre-commit
