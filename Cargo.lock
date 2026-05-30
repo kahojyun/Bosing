@@ -52,7 +52,7 @@ dependencies = [
  "bspline",
  "cached",
  "float-cmp",
- "hashbrown",
+ "hashbrown 0.17.1",
  "itertools",
  "mockall",
  "ndarray",
@@ -70,7 +70,7 @@ version = "2.7.0"
 dependencies = [
  "anyhow",
  "bosing",
- "hashbrown",
+ "hashbrown 0.17.1",
  "itertools",
  "ndarray",
  "numpy",
@@ -109,7 +109,7 @@ dependencies = [
  "ahash",
  "cached_proc_macro",
  "cached_proc_macro_types",
- "hashbrown",
+ "hashbrown 0.16.1",
  "once_cell",
  "parking_lot",
  "thiserror",
@@ -293,6 +293,17 @@ name = "hashbrown"
 version = "0.16.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "841d1cc9bed7f9236f321df977030373f4a4163ae1a7dbfe1a51a2c1a51d9100"
+dependencies = [
+ "allocator-api2",
+ "equivalent",
+ "foldhash",
+]
+
+[[package]]
+name = "hashbrown"
+version = "0.17.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ed5909b6e89a2db4456e54cd5f673791d7eca6732202bbf2a9cc504fe2f9b84a"
 dependencies = [
  "allocator-api2",
  "equivalent",
@@ -626,7 +637,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "91fd8e38a3b50ed1167fb981cd6fd60147e091784c427b8f7183a7ee32c31c12"
 dependencies = [
  "anyhow",
- "hashbrown",
+ "hashbrown 0.16.1",
  "libc",
  "once_cell",
  "portable-atomic",
