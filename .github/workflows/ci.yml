@@ -66,7 +66,7 @@ jobs:
       - name: Stubtest
         run: uv run task stubtest
       - name: Check cargo dependencies
-        uses: EmbarkStudios/cargo-deny-action@a531616d8ce3b9177443e48a1159bc945a099823 # v2.0.19
+        uses: EmbarkStudios/cargo-deny-action@bb137d7af7e4fb67e5f82a49c4fce4fad40782fe # v2.0.20
 
   build:
     runs-on: ${{ matrix.os.runner }}
