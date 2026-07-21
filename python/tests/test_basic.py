@@ -1,3 +1,5 @@
+from typing import cast
+
 import numpy as np
 import numpy.typing as npt
 from rich.pretty import pretty_repr
@@ -41,7 +43,7 @@ def test_basic() -> None:
     assert "xy0" in result
     w = result["xy0"]
     assert w.shape == (2, length)
-    wc = np.asarray(w[0] + 1j * w[1], dtype=np.complex128)
+    wc = np.asarray(cast("npt.ArrayLike", w[0] + 1j * w[1]), dtype=np.complex128)
     assert wc[0] == 0
     assert wc[-1] == 0
     assert np.count_nonzero(wc) > 0
@@ -66,12 +68,12 @@ def test_mixing() -> None:
     channels = {"xy": bosing.Channel(freq, sample_rate, length)}
     result = bosing.generate_waveforms(channels, shapes, schedule)
     w1 = result["xy"]
-    wc1 = np.asarray(w1[0] + 1j * w1[1], dtype=np.complex128)
+    wc1 = np.asarray(cast("npt.ArrayLike", w1[0] + 1j * w1[1]), dtype=np.complex128)
 
     channels = {"xy": bosing.Channel(0, sample_rate, length)}
     result = bosing.generate_waveforms(channels, shapes, schedule)
     w2 = result["xy"]
-    wc2 = np.asarray(w2[0] + 1j * w2[1], dtype=np.complex128)
+    wc2 = np.asarray(cast("npt.ArrayLike", w2[0] + 1j * w2[1]), dtype=np.complex128)
     wc2 = wc2 * np.exp(1j * (2 * np.pi * freq * np.arange(length) / sample_rate))
 
     assert np.allclose(wc1, wc2)
