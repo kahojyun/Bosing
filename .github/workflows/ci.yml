@@ -27,20 +27,25 @@ env:
   KNOPE_VERSION: 0.22.4
 
 jobs:
-  # Should run on every push and PR
-  test:
-    name: Test
+  rust:
+    name: Rust
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: Cargo build
         run: cargo build --workspace --verbose --locked
       - name: Cargo test
-        run: cargo test --workspace --verbose
+        run: cargo test --workspace --verbose --locked
       - name: Cargo fmt
         run: cargo fmt --all --check
       - name: Cargo clippy
-        run: cargo clippy --workspace --all-targets -- -D warnings
+        run: cargo clippy --workspace --all-targets --locked -- -D warnings
+
+  python:
+    name: Python
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: Set up Python
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
@@ -65,12 +70,38 @@ jobs:
         run: uv run basedpyright
       - name: Stubtest
         run: uv run task stubtest
-      - name: Check cargo dependencies
+
+  dependency-policy:
+    name: Dependency policy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Check licenses, bans, and sources
         uses: EmbarkStudios/cargo-deny-action@bb137d7af7e4fb67e5f82a49c4fce4fad40782fe # v2.0.20
+        with:
+          command: check bans licenses sources
+          arguments: --all-features --locked
+
+  dependency-review:
+    name: Dependency review
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Review dependency changes
+        if: github.event_name == 'pull_request'
+        uses: actions/dependency-review-action@2031cfc080254a8a887f58cffee85186f0e49e48 # v4.9.0
+        with:
+          fail-on-severity: high
+          allow-licenses: MIT, Apache-2.0, Unicode-3.0, BSD-2-Clause, Zlib
+      - name: Skip dependency review outside pull requests
+        if: github.event_name != 'pull_request'
+        run: echo "Dependency review only applies to pull requests."
 
   build:
     runs-on: ${{ matrix.os.runner }}
-    needs: test
     strategy:
       matrix:
         os:
@@ -108,7 +139,10 @@ jobs:
   check:
     if: always()
     needs:
-      - test
+      - rust
+      - python
+      - dependency-policy
+      - dependency-review
       - build
     runs-on: ubuntu-latest
     steps:
