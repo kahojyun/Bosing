@@ -487,7 +487,7 @@ impl Play {
         max_duration: Time,
         min_duration: Time,
         label: Option<Label>,
-    ) -> PyResult<(Self, Element)> {
+    ) -> PyResult<PyClassInitializer<Self>> {
         let variant = schedule::Play::new(
             channel_id.into(),
             shape_id.map(Into::into),
@@ -499,19 +499,17 @@ impl Play {
         .with_frequency(frequency.into())?
         .with_phase(phase.into())?
         .with_flexible(flexible);
-        Ok((
-            Self,
-            Self::build_element(
-                variant,
-                margin,
-                alignment,
-                phantom,
-                duration,
-                max_duration,
-                min_duration,
-                label,
-            )?,
-        ))
+        Ok(PyClassInitializer::from(Self::build_element(
+            variant,
+            margin,
+            alignment,
+            phantom,
+            duration,
+            max_duration,
+            min_duration,
+            label,
+        )?)
+        .add_subclass(Self))
     }
 
     #[getter]
@@ -623,21 +621,19 @@ impl ShiftPhase {
         max_duration: Time,
         min_duration: Time,
         label: Option<Label>,
-    ) -> PyResult<(Self, Element)> {
+    ) -> PyResult<PyClassInitializer<Self>> {
         let variant = schedule::ShiftPhase::new(channel_id.into(), phase.into())?;
-        Ok((
-            Self,
-            Self::build_element(
-                variant,
-                margin,
-                alignment,
-                phantom,
-                duration,
-                max_duration,
-                min_duration,
-                label,
-            )?,
-        ))
+        Ok(PyClassInitializer::from(Self::build_element(
+            variant,
+            margin,
+            alignment,
+            phantom,
+            duration,
+            max_duration,
+            min_duration,
+            label,
+        )?)
+        .add_subclass(Self))
     }
 
     #[getter]
@@ -722,21 +718,19 @@ impl SetPhase {
         max_duration: Time,
         min_duration: Time,
         label: Option<Label>,
-    ) -> PyResult<(Self, Element)> {
+    ) -> PyResult<PyClassInitializer<Self>> {
         let variant = schedule::SetPhase::new(channel_id.into(), phase.into())?;
-        Ok((
-            Self,
-            Self::build_element(
-                variant,
-                margin,
-                alignment,
-                phantom,
-                duration,
-                max_duration,
-                min_duration,
-                label,
-            )?,
-        ))
+        Ok(PyClassInitializer::from(Self::build_element(
+            variant,
+            margin,
+            alignment,
+            phantom,
+            duration,
+            max_duration,
+            min_duration,
+            label,
+        )?)
+        .add_subclass(Self))
     }
 
     #[getter]
@@ -809,21 +803,19 @@ impl ShiftFreq {
         max_duration: Time,
         min_duration: Time,
         label: Option<Label>,
-    ) -> PyResult<(Self, Element)> {
+    ) -> PyResult<PyClassInitializer<Self>> {
         let variant = schedule::ShiftFreq::new(channel_id.into(), frequency.into())?;
-        Ok((
-            Self,
-            Self::build_element(
-                variant,
-                margin,
-                alignment,
-                phantom,
-                duration,
-                max_duration,
-                min_duration,
-                label,
-            )?,
-        ))
+        Ok(PyClassInitializer::from(Self::build_element(
+            variant,
+            margin,
+            alignment,
+            phantom,
+            duration,
+            max_duration,
+            min_duration,
+            label,
+        )?)
+        .add_subclass(Self))
     }
 
     #[getter]
@@ -897,21 +889,19 @@ impl SetFreq {
         max_duration: Time,
         min_duration: Time,
         label: Option<Label>,
-    ) -> PyResult<(Self, Element)> {
+    ) -> PyResult<PyClassInitializer<Self>> {
         let variant = schedule::SetFreq::new(channel_id.into(), frequency.into())?;
-        Ok((
-            Self,
-            Self::build_element(
-                variant,
-                margin,
-                alignment,
-                phantom,
-                duration,
-                max_duration,
-                min_duration,
-                label,
-            )?,
-        ))
+        Ok(PyClassInitializer::from(Self::build_element(
+            variant,
+            margin,
+            alignment,
+            phantom,
+            duration,
+            max_duration,
+            min_duration,
+            label,
+        )?)
+        .add_subclass(Self))
     }
 
     #[getter]
@@ -987,21 +977,19 @@ impl SwapPhase {
         max_duration: Time,
         min_duration: Time,
         label: Option<Label>,
-    ) -> PyResult<(Self, Element)> {
+    ) -> PyResult<PyClassInitializer<Self>> {
         let variant = schedule::SwapPhase::new(channel_id1.into(), channel_id2.into());
-        Ok((
-            Self,
-            Self::build_element(
-                variant,
-                margin,
-                alignment,
-                phantom,
-                duration,
-                max_duration,
-                min_duration,
-                label,
-            )?,
-        ))
+        Ok(PyClassInitializer::from(Self::build_element(
+            variant,
+            margin,
+            alignment,
+            phantom,
+            duration,
+            max_duration,
+            min_duration,
+            label,
+        )?)
+        .add_subclass(Self))
     }
 
     #[getter]
@@ -1074,22 +1062,20 @@ impl Barrier {
         max_duration: Time,
         min_duration: Time,
         label: Option<Label>,
-    ) -> PyResult<(Self, Element)> {
+    ) -> PyResult<PyClassInitializer<Self>> {
         let channel_ids: Vec<_> = channel_ids.into_iter().map(Into::into).collect();
         let variant = schedule::Barrier::new(channel_ids);
-        Ok((
-            Self,
-            Self::build_element(
-                variant,
-                margin,
-                alignment,
-                phantom,
-                duration,
-                max_duration,
-                min_duration,
-                label,
-            )?,
-        ))
+        Ok(PyClassInitializer::from(Self::build_element(
+            variant,
+            margin,
+            alignment,
+            phantom,
+            duration,
+            max_duration,
+            min_duration,
+            label,
+        )?)
+        .add_subclass(Self))
     }
 
     #[getter]
@@ -1166,22 +1152,20 @@ impl Repeat {
         max_duration: Time,
         min_duration: Time,
         label: Option<Label>,
-    ) -> PyResult<(Self, Element)> {
+    ) -> PyResult<PyClassInitializer<Self>> {
         let rust_child = child.get().0.clone();
         let variant = schedule::Repeat::new(rust_child, count).with_spacing(spacing.into())?;
-        Ok((
-            Self { child },
-            Self::build_element(
-                variant,
-                margin,
-                alignment,
-                phantom,
-                duration,
-                max_duration,
-                min_duration,
-                label,
-            )?,
-        ))
+        Ok(PyClassInitializer::from(Self::build_element(
+            variant,
+            margin,
+            alignment,
+            phantom,
+            duration,
+            max_duration,
+            min_duration,
+            label,
+        )?)
+        .add_subclass(Self { child }))
     }
 
     #[getter]

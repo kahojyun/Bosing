@@ -71,7 +71,7 @@ impl Stack {
         max_duration: Time,
         min_duration: Time,
         label: Option<Label>,
-    ) -> PyResult<(Self, Element)> {
+    ) -> PyResult<PyClassInitializer<Self>> {
         let rust_children = children.iter().map(|x| x.get().0.clone()).collect();
         let variant = schedule::Stack::new().with_children(rust_children);
         let variant = if let Some(obj) = direction {
@@ -79,19 +79,17 @@ impl Stack {
         } else {
             variant
         };
-        Ok((
-            Self { children },
-            Self::build_element(
-                variant,
-                margin,
-                alignment,
-                phantom,
-                duration,
-                max_duration,
-                min_duration,
-                label,
-            )?,
-        ))
+        Ok(PyClassInitializer::from(Self::build_element(
+            variant,
+            margin,
+            alignment,
+            phantom,
+            duration,
+            max_duration,
+            min_duration,
+            label,
+        )?)
+        .add_subclass(Self { children }))
     }
 
     /// Create a new stack layout with different children.
