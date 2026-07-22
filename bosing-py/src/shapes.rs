@@ -41,8 +41,8 @@ pub struct Hann;
 #[pymethods]
 impl Hann {
     #[new]
-    const fn new() -> (Self, Shape) {
-        (Self, Shape)
+    fn new() -> PyClassInitializer<Self> {
+        PyClassInitializer::from(Shape).add_subclass(Self)
     }
 }
 
@@ -83,14 +83,11 @@ pub struct Interp {
 #[pymethods]
 impl Interp {
     #[new]
-    const fn new(knots: Vec<f64>, controls: Vec<f64>, degree: usize) -> (Self, Shape) {
-        (
-            Self {
-                knots,
-                controls,
-                degree,
-            },
-            Shape,
-        )
+    fn new(knots: Vec<f64>, controls: Vec<f64>, degree: usize) -> PyClassInitializer<Self> {
+        PyClassInitializer::from(Shape).add_subclass(Self {
+            knots,
+            controls,
+            degree,
+        })
     }
 }

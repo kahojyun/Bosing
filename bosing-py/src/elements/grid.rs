@@ -100,7 +100,7 @@ impl Grid {
         max_duration: Time,
         min_duration: Time,
         label: Option<Label>,
-    ) -> PyResult<(Self, Element)> {
+    ) -> PyResult<PyClassInitializer<Self>> {
         let children: Vec<_> = children
             .into_iter()
             .map(|x| extract_grid_entry(&x.into_bound(py)))
@@ -122,19 +122,17 @@ impl Grid {
         let variant = schedule::Grid::new()
             .with_children(rust_children)
             .with_columns(columns);
-        Ok((
-            Self { children },
-            Self::build_element(
-                variant,
-                margin,
-                alignment,
-                phantom,
-                duration,
-                max_duration,
-                min_duration,
-                label,
-            )?,
-        ))
+        Ok(PyClassInitializer::from(Self::build_element(
+            variant,
+            margin,
+            alignment,
+            phantom,
+            duration,
+            max_duration,
+            min_duration,
+            label,
+        )?)
+        .add_subclass(Self { children }))
     }
 
     /// Create a new grid schedule with different children.
@@ -175,12 +173,10 @@ impl Grid {
         let rust_base = &slf.cast::<Element>()?.get().0;
         let common = rust_base.common.clone();
         let variant = Self::variant(slf).clone().with_children(rust_children);
+        let base = Element(Arc::new(schedule::Element::new(common, variant)));
         Py::new(
             py,
-            (
-                Self { children },
-                Element(Arc::new(schedule::Element::new(common, variant))),
-            ),
+            PyClassInitializer::from(base).add_subclass(Self { children }),
         )
     }
 
