@@ -134,12 +134,10 @@ impl Absolute {
         let rust_base = &slf.cast::<Element>()?.get().0;
         let common = rust_base.common.clone();
         let variant = Self::variant(slf).clone().with_children(rust_children);
+        let base = Element(Arc::new(schedule::Element::new(common, variant)));
         Py::new(
             py,
-            (
-                Self { children },
-                Element(Arc::new(schedule::Element::new(common, variant))),
-            ),
+            PyClassInitializer::from(base).add_subclass(Self { children }),
         )
     }
 
