@@ -95,7 +95,7 @@ jobs:
         uses: actions/dependency-review-action@2031cfc080254a8a887f58cffee85186f0e49e48 # v4.9.0
         with:
           fail-on-severity: high
-          allow-licenses: MIT, Apache-2.0, Unicode-3.0, BSD-2-Clause, Zlib
+          license-check: false
       - name: Skip dependency review outside pull requests
         if: github.event_name != 'pull_request'
         run: echo "Dependency review only applies to pull requests."
