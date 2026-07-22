@@ -1,12 +1,14 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "minimumReleaseAge": "14 days",
+  "lockFileMaintenance": {
+    "minimumReleaseAge": null
+  },
   "extends": [
     "config:best-practices",
     ":semanticCommitTypeAll(chore)",
     ":automergePatch",
     ":automergeStableNonMajor",
-    ":approveMajorUpdates",
     ":enablePreCommit",
     "helpers:pinGitHubActionDigestsToSemver",
     "customManagers:githubActionsVersions"
@@ -18,8 +20,10 @@
       "groupName": "PyO3 stack"
     },
     {
-      "description": "Require approval for Renovate-detected breaking updates",
-      "matchJsonata": ["isBreaking = true"],
+      "description": "Require approval for breaking updates except 0.x patch updates",
+      "matchJsonata": [
+        "isBreaking = true and (updateType != 'patch' or major != 0)"
+      ],
       "dependencyDashboardApproval": true
     }
   ]
