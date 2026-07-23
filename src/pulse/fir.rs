@@ -14,7 +14,7 @@ impl WithSimd for ApplyFirInplace<'_, '_> {
     fn with_simd<S: Simd>(mut self, simd: S) -> Self::Output {
         let lanes = std::mem::size_of::<S::f64s>() / std::mem::size_of::<f64>();
         let buffer_len = align_ceil(self.taps.len(), lanes);
-        assert!(buffer_len % lanes == 0);
+        assert_eq!(buffer_len % lanes, 0);
         let taps_buffer = {
             let mut buffer = vec![0.0; buffer_len * 2];
             for (&t, b) in self.taps.iter().zip(buffer[..buffer_len].iter_mut().rev()) {

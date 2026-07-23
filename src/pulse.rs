@@ -585,7 +585,7 @@ pub fn apply_iq_inplace(waveform: &mut ArrayViewMut2<'_, f64>, iq_matrix: ArrayV
 }
 
 pub fn apply_offset_inplace(waveform: &mut ArrayViewMut2<'_, f64>, offset: ArrayView1<'_, f64>) {
-    assert!(waveform.shape()[0] == offset.len());
+    assert_eq!(waveform.shape()[0], offset.len());
     azip!((mut row in waveform.axis_iter_mut(Axis(0)), &offset in &offset) row += offset);
 }
 

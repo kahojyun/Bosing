@@ -40,7 +40,7 @@ impl<'a> Helper<'a> {
     }
 
     pub(super) fn new_with_column_sizes(columns: &'a [Length], column_sizes: Vec<Time>) -> Self {
-        assert!(columns.len() == column_sizes.len());
+        assert_eq!(columns.len(), column_sizes.len());
         Self {
             column_sizes,
             columns,
