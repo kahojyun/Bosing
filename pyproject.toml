@@ -84,6 +84,7 @@ test_py = "pytest"
 test_rs = "cargo test --workspace"
 
 [tool.uv]
+exclude-newer = "14 days"
 cache-keys = [
   { file = "src/**/*.rs" },
   { file = "bosing-py/**/*.rs" },
