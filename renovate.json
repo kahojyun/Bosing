@@ -15,16 +15,14 @@
   ],
   "packageRules": [
     {
-      "matchPackageNames": ["pyo3", "numpy"],
-      "matchCategories": ["rust"],
-      "groupName": "PyO3 stack"
-    },
-    {
-      "description": "Require approval for breaking updates except 0.x patch updates",
-      "matchJsonata": [
-        "isBreaking = true and (updateType != 'patch' or major != 0)"
+      "matchPackageNames": [
+        "pyo3",
+        "numpy"
       ],
-      "dependencyDashboardApproval": true
+      "matchCategories": [
+        "rust"
+      ],
+      "groupName": "PyO3 stack"
     }
   ]
 }
