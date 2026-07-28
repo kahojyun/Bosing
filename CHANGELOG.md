@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 The project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 2.8.0 (2026-07-28)
+
+### Features
+
+- support schedule-based automatic waveform lengths (#367)
+
+#### Support schedule-based automatic waveform lengths
+
+Allow `Channel.length` to default to `None` and derive waveform lengths from the logical schedule
+duration. Sampling bounds errors now report the required sample range and available waveform
+length.
+
 ## 2.7.0 (2026-01-15)
 
 ### Notes

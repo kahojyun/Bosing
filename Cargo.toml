@@ -15,7 +15,7 @@ categories.workspace = true
 members = ["bosing-py"]
 
 [workspace.package]
-version = "2.7.0"
+version = "2.8.0"
 edition = "2024"
 rust-version = "1.85"
 description = "Waveform generator for pulse sequences in quantum computing"
