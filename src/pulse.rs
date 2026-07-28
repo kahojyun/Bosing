@@ -502,6 +502,7 @@ where
     PL: IntoIterator<Item = (ListBin, L)>,
     L: IntoIterator<Item = (Time, PulseAmplitude)>,
 {
+    let waveform_length = waveform.shape()[1];
     for (bin, items) in list {
         let ListBin {
             envelope,
@@ -514,7 +515,7 @@ where
                 .expect("Reasonable align_level should not fail.");
             if i_frac_start.value() < 0.0 {
                 bail!(
-                    "The start time of a pulse is negative, try adjusting channel delay or schedule. start time: {time}",
+                    "Pulse start time {time:.6e} s is before the waveform start (0 s). Adjust channel delay or schedule.",
                     time = t_start.value()
                 );
             }
@@ -528,9 +529,9 @@ where
             let phase0 = global_freq * (i_start as f64 * dt - delay)
                 + local_freq * index_offset.value() * dt;
             let dphase = total_freq * dt;
-            if i_start >= waveform.shape()[1] {
+            if i_start >= waveform_length {
                 bail!(
-                    "The start index of a pulse is out of bounds, try adjusting channel delay, length or schedule. start index: {i_start}, start time: {time}",
+                    "Pulse start index {i_start} is outside waveform length {waveform_length} (start time: {time:.6e} s). Provide a larger explicit channel length or adjust channel delay or schedule.",
                     time = t_start.value()
                 );
             }
@@ -544,11 +545,14 @@ where
                     sample_rate,
                 );
                 let drag = drag * sample_rate.value();
-                if waveform.shape()[1] < envelope.len() {
+                let Some(i_end) = i_start.checked_add(envelope.len()) else {
+                    bail!("Pulse end index exceeds the supported integer range.");
+                };
+                if i_end > waveform_length {
                     #[expect(clippy::cast_precision_loss, reason = "Index is small.")]
                     let end_time = (envelope.len() as f64).mul_add(dt.value(), t_start.value());
                     bail!(
-                        "The pulse end time is out of bounds, try adjusting channel delay, length or schedule. end time: {end_time}"
+                        "Pulse sample range {i_start}..{i_end} exceeds waveform length {waveform_length} (end time: {end_time:.6e} s). Provide a larger explicit channel length or adjust channel delay or schedule."
                     );
                 }
                 mix_add_envelope(waveform, &envelope, amp, drag, phase0, dphase);
@@ -557,9 +561,12 @@ where
                 #[expect(clippy::cast_sign_loss, reason = "Plateau is positive.")]
                 #[expect(clippy::cast_possible_truncation, reason = "Index is small.")]
                 let i_plateau = (plateau.value() * sample_rate.value()).ceil() as usize;
-                if waveform.shape()[1] < i_plateau {
+                let Some(i_end) = i_start.checked_add(i_plateau) else {
+                    bail!("Pulse end index exceeds the supported integer range.");
+                };
+                if i_end > waveform_length {
                     bail!(
-                        "The pulse end time is out of bounds, try adjusting channel delay, length or schedule. end time: {end_time}",
+                        "Pulse sample range {i_start}..{i_end} exceeds waveform length {waveform_length} (end time: {end_time:.6e} s). Provide a larger explicit channel length or adjust channel delay or schedule.",
                         end_time = t_start.value() + plateau.value()
                     );
                 }
