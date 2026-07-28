@@ -95,14 +95,17 @@ uv run task test # run cargo test and pytest
 Releases are managed with knope.
 
 Contributors should add a `.changeset/*.md` file for user-visible changes. Each file starts
-with YAML front matter that declares the default bump level, followed by the release note text:
+with YAML front matter that declares the default bump level. The release note must start with a
+level-one heading containing a short summary; optional details go below the heading:
 
 ```md
 ---
 default: patch
 ---
 
-Brief description of the change.
+# Brief description of the change
+
+Optional details about the change.
 ```
 
 Maintainers do not cut releases manually. A push to `main` with pending `.changeset` entries
