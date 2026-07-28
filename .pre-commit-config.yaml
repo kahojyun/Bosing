@@ -3,8 +3,6 @@
 ci:
   skip:
     - uv-lock
-    - cargo-fmt
-    - cargo-deny
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: 3e8a8703264a2f4a69428a0aa4dcb512790b2c8c # frozen: v6.0.0
@@ -33,17 +31,3 @@ repos:
       - id: ruff
         args: [--fix]
       - id: ruff-format
-  # Copied from maturin repo
-  - repo: local
-    hooks:
-      - id: cargo-fmt # rustup component add rustfmt
-        name: cargo fmt
-        entry: cargo fmt --all --
-        language: system
-        types: [rust]
-        pass_filenames: false
-      - id: cargo-deny # cargo install --locked cargo-deny
-        name: cargo deny
-        entry: cargo deny --all-features check --
-        language: system
-        pass_filenames: false
