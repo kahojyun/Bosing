@@ -5,6 +5,7 @@ use bosing::{
         apply_offset_inplace, get_envelope,
     },
     quant,
+    schedule::Measure,
 };
 use hashbrown::HashMap;
 use ndarray::ArrayViewMut2;
@@ -41,7 +42,10 @@ use crate::{
 /// Args:
 ///     base_freq (float): Base frequency of the channel.
 ///     sample_rate (float): Sample rate of the channel.
-///     length (int): Length of the waveform.
+///     length (int | None): Length of the waveform. If ``None``, the length is
+///         determined from the logical duration of the schedule when generating
+///         waveforms. Channel delay or crosstalk can still move a pulse outside
+///         this time window. Defaults to ``None``.
 ///     delay (float): Delay of the channel. Defaults to ``0.0``.
 ///     align_level (int): Time axis alignment granularity. Defaults to ``-10``.
 ///     iq_matrix (array_like[2, 2] | None): IQ matrix of the channel. Defaults
@@ -61,7 +65,7 @@ use crate::{
 pub struct Channel {
     base_freq: Frequency,
     sample_rate: Frequency,
-    length: usize,
+    length: Option<usize>,
     delay: Time,
     align_level: i32,
     iq_matrix: Option<IqMatrix>,
@@ -78,7 +82,7 @@ impl Channel {
     #[pyo3(signature = (
         base_freq,
         sample_rate,
-        length,
+        length=None,
         *,
         delay=Time::ZERO,
         align_level=-10,
@@ -93,7 +97,7 @@ impl Channel {
     fn new(
         base_freq: Frequency,
         sample_rate: Frequency,
-        length: usize,
+        length: Option<usize>,
         delay: Time,
         align_level: i32,
         iq_matrix: Option<IqMatrix>,
@@ -472,7 +476,7 @@ fn build_envelopes_and_instructions(
                     .ceil_to_usize()
                     .ok_or_else(|| PyValueError::new_err("Invalid start index."))?;
 
-                if i_start >= channel.length {
+                if channel.length.is_some_and(|length| i_start >= length) {
                     return Err(PyValueError::new_err(
                         "The start index of a pulse is out of bounds, try adjusting channel delay, length or schedule.",
                     ));
@@ -599,6 +603,7 @@ pub fn generate_waveforms_with_states(
             ));
         }
     }
+    let schedule_duration = schedule.get().0.measure();
     let (pulse_lists, new_states) = build_pulse_lists(
         schedule,
         &channels,
@@ -608,7 +613,14 @@ pub fn generate_waveforms_with_states(
         allow_oversize,
         states.as_ref(),
     )?;
-    let waveforms = sample_waveform(py, &channels, pulse_lists, crosstalk, time_tolerance)?;
+    let waveforms = sample_waveform(
+        py,
+        &channels,
+        pulse_lists,
+        crosstalk,
+        time_tolerance,
+        schedule_duration,
+    )?;
     Ok((
         py.detach(|| {
             waveforms
@@ -750,17 +762,22 @@ fn sample_waveform(
     pulse_lists: ChannelPulses,
     crosstalk: Option<CrosstalkMatrix<'_>>,
     time_tolerance: Time,
+    schedule_duration: quant::Time,
 ) -> PyResult<ChannelWaveforms> {
     let waveforms: HashMap<_, _> = channels
         .iter()
         .map(|(n, c)| {
             let n_w = if c.is_real { 1 } else { 2 };
-            (
+            let length = match c.length {
+                Some(length) => length,
+                None => sample_count(schedule_duration, c.sample_rate.into())?,
+            };
+            Ok((
                 n.clone(),
-                PyArray2::zeros(py, (n_w, c.length), false).unbind(),
-            )
+                PyArray2::zeros(py, (n_w, length), false).unbind(),
+            ))
         })
-        .collect();
+        .collect::<PyResult<_>>()?;
     let mut sampler = Sampler::new(pulse_lists);
     for (n, c) in channels {
         // SAFETY: These arrays are just created.
@@ -779,6 +796,13 @@ fn sample_waveform(
     }
     py.detach(|| sampler.sample(time_tolerance.into()))?;
     Ok(waveforms)
+}
+
+fn sample_count(time: quant::Time, sample_rate: quant::Frequency) -> PyResult<usize> {
+    quant::AlignedIndex::new(time, sample_rate, 0)
+        .map_err(|e| PyValueError::new_err(format!("Invalid waveform length. Error: {e}")))?
+        .ceil_to_usize()
+        .ok_or_else(|| PyValueError::new_err("Invalid waveform length."))
 }
 
 fn post_process(w: &mut ArrayViewMut2<'_, f64>, c: &Channel) {

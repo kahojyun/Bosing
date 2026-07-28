@@ -2,6 +2,7 @@ from typing import cast
 
 import numpy as np
 import numpy.typing as npt
+import pytest
 from rich.pretty import pretty_repr
 
 import bosing
@@ -15,7 +16,9 @@ def _waveforms_from_instructions(
     result: dict[str, npt.NDArray[np.float64]] = {}
     for name, channel in channels.items():
         n_rows = 1 if channel.is_real else 2
-        waveform = np.zeros((n_rows, channel.length), dtype=np.float64)
+        length = channel.length
+        assert length is not None
+        waveform = np.zeros((n_rows, length), dtype=np.float64)
         dt = 1.0 / channel.sample_rate
         for inst in instructions[name]:
             env = envelopes[inst.env_id]
@@ -47,6 +50,97 @@ def test_basic() -> None:
     assert wc[0] == 0
     assert wc[-1] == 0
     assert np.count_nonzero(wc) > 0
+
+
+def test_auto_length() -> None:
+    sample_rate = 2e9
+    channels = {"xy": bosing.Channel(100e6, sample_rate, None)}
+    shapes = {"hann": bosing.Hann()}
+    schedule = bosing.Stack(duration=500e-9).with_children(
+        bosing.Play("xy", "hann", 0.1, 100e-9),
+    )
+
+    result = bosing.generate_waveforms(channels, shapes, schedule)
+    waveform = np.asarray(result["xy"], dtype=np.float64)
+
+    assert channels["xy"].length is None
+    assert waveform.shape == (2, 1000)
+    assert np.count_nonzero(waveform) > 0
+    assert np.count_nonzero(waveform[:, :800]) == 0
+    assert np.count_nonzero(waveform[:, 800:]) > 0
+
+
+def test_auto_length_uses_each_channel_sample_rate() -> None:
+    schedule = bosing.Barrier(duration=100e-9)
+    channels = {
+        "slow": bosing.Channel(0, 1e9),
+        "fast": bosing.Channel(0, 2e9),
+    }
+
+    result = bosing.generate_waveforms(channels, {}, schedule)
+
+    assert result["slow"].shape == (2, 100)
+    assert result["fast"].shape == (2, 200)
+
+
+def test_auto_length_does_not_expand_for_delay_and_crosstalk() -> None:
+    sample_rate = 1e9
+    channels = {
+        "source": bosing.Channel(0, sample_rate),
+        "target": bosing.Channel(0, sample_rate, delay=10e-9),
+    }
+    shapes = {"hann": bosing.Hann()}
+    schedule = bosing.Stack(
+        bosing.Play("source", "hann", 0.1, 100e-9),
+    )
+    crosstalk = (
+        np.array([[1.0, 0.0], [1.0, 0.0]]),
+        ["source", "target"],
+    )
+
+    with pytest.raises(
+        RuntimeError,
+        match=r"Pulse sample range 10\.\.110 exceeds waveform length 100",
+    ):
+        _ = bosing.generate_waveforms(
+            channels,
+            shapes,
+            schedule,
+            crosstalk=crosstalk,
+        )
+
+
+def test_sampler_bounds_errors_include_required_and_available_lengths() -> None:
+    shapes = {"hann": bosing.Hann()}
+
+    with pytest.raises(
+        RuntimeError,
+        match=r"Pulse sample range 0\.\.100 exceeds waveform length 50",
+    ):
+        _ = bosing.generate_waveforms(
+            {"xy": bosing.Channel(0, 1e9, 50)},
+            shapes,
+            bosing.Play("xy", "hann", 0.1, 100e-9),
+        )
+
+    with pytest.raises(
+        RuntimeError,
+        match=r"Pulse start index 100 is outside waveform length 50",
+    ):
+        _ = bosing.generate_waveforms(
+            {"xy": bosing.Channel(0, 1e9, 50)},
+            shapes,
+            bosing.Absolute().with_children(
+                (100e-9, bosing.Play("xy", "hann", 0.1, 10e-9))
+            ),
+        )
+
+    with pytest.raises(RuntimeError, match="before the waveform start"):
+        _ = bosing.generate_waveforms(
+            {"xy": bosing.Channel(0, 1e9, 100, delay=-10e-9)},
+            shapes,
+            bosing.Play("xy", "hann", 0.1, 100e-9, alignment="start"),
+        )
 
 
 def test_mixing() -> None:
@@ -149,6 +243,7 @@ def test_repr() -> None:
     assert (
         repr(c) == "Channel(2000000000.0, 2000000000.0, 1000, fir=array([1., 2., 3.]))"
     )
+    assert repr(bosing.Channel(2e9, 2e9)) == "Channel(2000000000.0, 2000000000.0, None)"
 
 
 def test_generate_envelopes_and_instructions() -> None:
@@ -209,3 +304,18 @@ def test_generate_envelopes_and_instructions() -> None:
         states=states,
     )
     assert np.allclose(waveforms_from_inst["xy"], waveforms["xy"], atol=1e-12)
+
+
+def test_generate_envelopes_and_instructions_with_auto_length() -> None:
+    channels = {"xy": bosing.Channel(30e6, 2e9)}
+    shapes = {"hann": bosing.Hann()}
+    schedule = bosing.Play("xy", "hann", 0.3, 100e-9)
+
+    envelopes, instructions = bosing.generate_envelopes_and_instructions(
+        channels,
+        shapes,
+        schedule,
+    )
+
+    assert len(envelopes) == 1
+    assert len(instructions["xy"]) == 1

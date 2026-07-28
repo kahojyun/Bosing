@@ -47,7 +47,7 @@ class Channel:
         cls,
         base_freq: float,
         sample_rate: float,
-        length: int,
+        length: int | None = ...,
         *,
         delay: float = ...,
         align_level: int = ...,
@@ -63,7 +63,7 @@ class Channel:
     @property
     def sample_rate(self) -> float: ...
     @property
-    def length(self) -> int: ...
+    def length(self) -> int | None: ...
     @property
     def delay(self) -> float: ...
     @property
