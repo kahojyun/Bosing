@@ -2,7 +2,7 @@ use std::{hash::Hash, sync::Arc};
 
 use anyhow::{Result, bail};
 use bspline::BSpline;
-use cached::proc_macro::cached;
+use cached::macros::cached;
 use ordered_float::NotNan;
 
 /// A shape that can be used to modulate the amplitude of a signal.
@@ -60,7 +60,7 @@ enum ShapeKey {
     Interp(HashableArray, HashableArray, usize),
 }
 
-#[cached(size = 128)]
+#[cached(max_size = 128)]
 fn get_shape_instance(a: ShapeKey) -> Arc<ShapeVariant> {
     let variant = match a {
         ShapeKey::Hann => Hann.into(),

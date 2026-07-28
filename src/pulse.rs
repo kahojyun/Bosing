@@ -7,7 +7,7 @@ use std::{
 };
 
 use anyhow::{Context, Result, bail};
-use cached::proc_macro::cached;
+use cached::macros::cached;
 use float_cmp::approx_eq;
 use hashbrown::HashMap;
 use itertools::{Itertools, izip};
@@ -403,7 +403,7 @@ pub fn get_envelope(
     get_envelope_cached(shape, width, plateau, index_offset, sample_rate)
 }
 
-#[cached(size = 1024)]
+#[cached(max_size = 1024)]
 fn get_envelope_cached(
     shape: Shape,
     width: Time,
