@@ -11,7 +11,9 @@
     ":automergeStableNonMajor",
     ":enablePreCommit",
     "helpers:pinGitHubActionDigestsToSemver",
-    "customManagers:githubActionsVersions"
+    "customManagers:githubActionsVersions",
+    "group:allNonMajor",
+    "schedule:weekly"
   ],
   "packageRules": [
     {
