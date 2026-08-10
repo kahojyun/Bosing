@@ -31,7 +31,7 @@ ci = [
   "mypy>=1.11.2",
   "pytest>=9.0.0",
   "rich>=13.9.2",
-  "ruff>=0.6.7",
+  "ruff>=0.16.0",
 ]
 docs = ["furo>=2024.8.6", "sphinx>=7.4.7"]
 extra = ["ipython>=8.18.1", "pyside6>=6.3"]
@@ -82,6 +82,9 @@ stubtest = "stubtest bosing._bosing --allowlist stubtest-allowlist.txt"
 test = "task test_py && task test_rs"
 test_py = "pytest"
 test_rs = "cargo test --workspace"
+
+[tool.typos.default.extend-words]
+CPY = "CPY"
 
 [tool.uv]
 exclude-newer = "14 days"

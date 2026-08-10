@@ -63,7 +63,7 @@ jobs:
       - name: Pytest
         run: uv run pytest
       - name: Ruff format
-        run: uv run ruff format --check
+        run: uv run ruff format --check --output-format=github
       - name: Ruff lint
         run: uv run ruff check --output-format=github
       - name: Basedpyright
