@@ -3,6 +3,7 @@ select = ["ALL"]
 ignore = [
   # https://docs.astral.sh/ruff/formatter/#conflicting-lint-rules
   "COM812",  # Missing trailing comma
+  "CPY001",  # Missing copyright notice
   "ISC001",  # implicit string concatenation
 ]
 

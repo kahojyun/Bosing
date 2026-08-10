@@ -50,7 +50,14 @@ list of envelopes and compact pulse instructions:
 ```python
 import numpy as np
 
-from bosing import Barrier, Channel, Hann, Play, Stack, generate_envelopes_and_instructions
+from bosing import (
+    Barrier,
+    Channel,
+    Hann,
+    Play,
+    Stack,
+    generate_envelopes_and_instructions,
+)
 
 length = 1000
 channels = {"xy": Channel(30e6, 2e9, length)}
@@ -60,7 +67,9 @@ schedule = Stack(duration=500e-9).with_children(
     Barrier(duration=10e-9),
 )
 
-envelopes, instructions = generate_envelopes_and_instructions(channels, shapes, schedule)
+envelopes, instructions = generate_envelopes_and_instructions(
+    channels, shapes, schedule
+)
 inst0 = instructions["xy"][0]
 env0 = envelopes[inst0.env_id]
 assert env0.dtype == np.float64
