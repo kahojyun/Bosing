@@ -10,6 +10,7 @@
     ":automergePatch",
     ":automergeStableNonMajor",
     ":enablePreCommit",
+    ":prHourlyLimitNone",
     "helpers:pinGitHubActionDigestsToSemver",
     "customManagers:githubActionsVersions",
     "group:allNonMajor",
