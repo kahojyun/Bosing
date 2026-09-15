@@ -27,7 +27,7 @@ categories = ["science"]
 [workspace.dependencies]
 anyhow = "1.0.100"
 bspline = "1.1.0"
-cached = "2.0.0"
+cached = "3.0.0"
 float-cmp = "0.10.0"
 hashbrown = { version = "0.17.0", features = ["rayon"] }
 itertools = "0.15.0"
