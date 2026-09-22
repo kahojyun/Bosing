@@ -90,7 +90,7 @@ struct Hann;
 
 impl ShapeTrait for Hann {
     fn sample(&self, x: f64) -> f64 {
-        0.5 * (1.0 + (2.0 * std::f64::consts::PI * x).cos())
+        f64::midpoint(1.0, (2.0 * std::f64::consts::PI * x).cos())
     }
 }
 
