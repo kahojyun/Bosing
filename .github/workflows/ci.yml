@@ -71,6 +71,20 @@ jobs:
       - name: Stubtest
         run: uv run task stubtest
 
+  python-minimum:
+    name: Minimum Python version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Read minimum Python version
+        id: python
+        run: |
+          version=$(python3 -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["requires-python"].removeprefix(">="))')
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+      - name: Test on minimum Python version
+        run: uv run --locked --python "${{ steps.python.outputs.version }}" --group ci python -m pytest
+
   dependency-policy:
     name: Dependency policy
     runs-on: ubuntu-latest
@@ -141,6 +155,7 @@ jobs:
     needs:
       - rust
       - python
+      - python-minimum
       - dependency-policy
       - dependency-review
       - build
