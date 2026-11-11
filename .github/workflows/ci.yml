@@ -173,7 +173,8 @@ jobs:
         target: [x86_64, aarch64]
         command: [build]
         include:
-          - args: --release --out dist -i 3.11 3.14t
+          # One stable-ABI wheel per platform covers regular CPython 3.11+.
+          - args: --release --locked --out dist -i 3.11
           - command: sdist
             os:
               runner: ubuntu-latest
