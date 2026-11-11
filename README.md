@@ -92,11 +92,11 @@ CPU: AMD Ryzen 5 5600
 ```bash
 git clone https://github.com/kahojyun/Bosing.git
 cd Bosing
-uv sync
-uv run task makedocs # build docs
-uv run task format # format rust and python code
-uv run task lint # lint rust and python code
-uv run task test # run cargo test and pytest
+uv sync --locked --group ci --group docs
+uv run --locked --group ci --group docs task makedocs # build docs
+uv run --locked --group ci --group docs task format # format rust and python code
+uv run --locked --group ci --group docs task lint # lint rust and python code
+uv run --locked --group ci --group docs task test # run cargo test and pytest
 ```
 
 ## Releases
