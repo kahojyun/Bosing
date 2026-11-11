@@ -1,7 +1,7 @@
 [project]
 name = "bosing"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 authors = [{ name = "Jiahao Yuan", email = "kahojyun@icloud.com" }]
 classifiers = [
   "Development Status :: 3 - Alpha",
@@ -46,7 +46,7 @@ exclude = ["**/node_modules", "**/__pycache__", "**/docs/_build"]
 
 [[tool.basedpyright.executionEnvironments]]
 root = "python/src"
-pythonVersion = "3.10"
+pythonVersion = "3.11"
 
 [[tool.basedpyright.executionEnvironments]]
 root = "python/examples"

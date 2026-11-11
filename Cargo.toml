@@ -38,7 +38,7 @@ numpy = "0.30.0"
 ordered-float = "5.1.0"
 pulp = "0.22.2"
 pyo3 = { version = "0.30.0", features = [
-  "abi3-py310",
+  "abi3-py311",
   "anyhow",
   "hashbrown",
 ] }

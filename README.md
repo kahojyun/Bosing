@@ -7,6 +7,8 @@ Waveform generator for superconducting circuits.
 
 ## Installation
 
+Requires Python 3.11 or newer.
+
 ```bash
 pip install bosing
 ```

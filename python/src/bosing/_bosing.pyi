@@ -1,10 +1,10 @@
 from collections.abc import Iterable, Iterator, Mapping, Sequence
-from typing import ClassVar, Literal, TypeAlias, final
+from typing import ClassVar, Literal, Self, TypeAlias, final
 
 import numpy as np
 import numpy.typing as npt
 from matplotlib.axes import Axes
-from typing_extensions import Self, disjoint_base
+from typing_extensions import disjoint_base
 
 __all__ = [
     "Absolute",
