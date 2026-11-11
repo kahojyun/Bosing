@@ -41,6 +41,21 @@ jobs:
       - name: Cargo clippy
         run: cargo clippy --workspace --all-targets --locked -- -D warnings
 
+  msrv:
+    name: Minimum Rust version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Read minimum Rust version
+        id: msrv
+        run: |
+          version=$(python3 -c 'import tomllib; print(tomllib.load(open("Cargo.toml", "rb"))["workspace"]["package"]["rust-version"])')
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+      - name: Install minimum Rust version
+        run: rustup toolchain install "${{ steps.msrv.outputs.version }}" --profile minimal
+      - name: Check workspace on minimum Rust version
+        run: cargo +${{ steps.msrv.outputs.version }} check --workspace --all-targets --locked
+
   python:
     name: Python
     runs-on: ubuntu-latest
@@ -140,6 +155,7 @@ jobs:
     if: always()
     needs:
       - rust
+      - msrv
       - python
       - dependency-policy
       - dependency-review
