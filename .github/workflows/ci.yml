@@ -100,6 +100,36 @@ jobs:
       - name: Test on minimum Python version
         run: uv run --locked --python "${{ steps.python.outputs.version }}" --group ci python -m pytest
 
+  python-dependency-minimum:
+    name: Minimum Python dependencies
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+      - name: Create minimum Python environment
+        run: |
+          version=$(python3 -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["requires-python"].removeprefix(">="))')
+          uv venv --python "$version"
+      - name: Install declared dependency floors
+        run: |
+          .venv/bin/python - <<'PYTHON' > "$RUNNER_TEMP/minimum-requirements.txt"
+          import re
+          import tomllib
+
+          with open("pyproject.toml", "rb") as f:
+              dependencies = tomllib.load(f)["project"]["dependencies"]
+          for requirement in dependencies:
+              match = re.fullmatch(r"([A-Za-z0-9_.-]+)>=(\d+(?:\.\d+)*)", requirement)
+              if match is None:
+                  raise ValueError(f"Unsupported minimum dependency declaration: {requirement}")
+              print(f"{match[1]}=={match[2]}")
+          PYTHON
+          uv pip install . -r "$RUNNER_TEMP/minimum-requirements.txt" pytest rich
+      - name: Test with minimum dependencies
+        run: |
+          .venv/bin/python -c "from typing_extensions import disjoint_base"
+          .venv/bin/python -m pytest
+
   dependency-policy:
     name: Dependency policy
     runs-on: ubuntu-latest
@@ -172,6 +202,7 @@ jobs:
       - msrv
       - python
       - python-minimum
+      - python-dependency-minimum
       - dependency-policy
       - dependency-review
       - build

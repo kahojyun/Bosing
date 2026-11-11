@@ -12,7 +12,11 @@ classifiers = [
   "Programming Language :: Rust",
   "Topic :: Scientific/Engineering",
 ]
-dependencies = ["matplotlib>=3.5.0", "numpy>=1.19.3"]
+dependencies = [
+  "matplotlib>=3.6.0",
+  "numpy>=1.23.5",
+  "typing-extensions>=4.15.0",
+]
 dynamic = ["description", "keywords", "license", "version"]
 
 [project.urls]
