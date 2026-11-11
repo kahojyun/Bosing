@@ -9,6 +9,11 @@ Waveform generator for superconducting circuits.
 
 Requires Python 3.11 or newer.
 
+Prebuilt wheels target regular (GIL-enabled) CPython 3.11 and newer via the stable ABI,
+for Linux, Windows, and macOS on x86_64 and ARM64. Free-threaded Python wheels are
+not published; free-threaded environments require a source build and are not part
+of the tested support matrix.
+
 ```bash
 pip install bosing
 ```
@@ -88,7 +93,7 @@ CPU: AMD Ryzen 5 5600
 ### Prerequisites
 
 - Rustup for rust toolchain management.
-- [maturin](https://github.com/PyO3/maturin) 1.7+.
+- [maturin](https://github.com/PyO3/maturin) 1.8+.
 - [uv](https://github.com/astral-sh/uv) for python project management.
 
 ```bash
